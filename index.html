@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#053437" />
+    <meta name="description" content="Local cashloan tracking for clients, loans, payments, revenue, and outstanding balances." />
+    <title>QuickServe Cashloan Ledger</title>
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="QuickServe" />
+    <link rel="stylesheet" href="./styles.css?v=12" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <img class="brand-logo" src="./brand-logo.svg" alt="QuickServe Cashloan" />
+          <span class="ledger-pill">Ledger</span>
+        </div>
+        <div class="date-pill" id="todayPill">Today</div>
+      </header>
+
+      <main class="main-area">
+        <section class="view active" id="dashboardView" aria-labelledby="dashboardTitle">
+          <div class="view-head">
+            <div>
+              <p class="eyebrow">Overview</p>
+              <h2 id="dashboardTitle">Dashboard</h2>
+            </div>
+            <button class="icon-text-btn primary" id="quickLoanBtn" type="button">
+              <span class="btn-icon" data-icon="plus"></span>
+              <span>Loan</span>
+            </button>
+          </div>
+
+          <div class="metric-grid" id="metricGrid"></div>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Due soon</h3>
+              <button class="icon-btn" id="quickPaymentBtn" type="button" aria-label="Record payment" title="Record payment">
+                <span class="btn-icon" data-icon="receipt"></span>
+              </button>
+            </div>
+            <div class="item-list" id="dueSoonList"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Recent payments</h3>
+            </div>
+            <div class="item-list" id="recentPaymentsList"></div>
+          </section>
+        </section>
+
+        <section class="view" id="clientsView" aria-labelledby="clientsTitle">
+          <div class="view-head">
+            <div>
+              <p class="eyebrow">People</p>
+              <h2 id="clientsTitle">Clients</h2>
+            </div>
+            <button class="icon-text-btn primary" id="addClientBtn" type="button">
+              <span class="btn-icon" data-icon="user-plus"></span>
+              <span>Client</span>
+            </button>
+          </div>
+          <label class="search-box">
+            <span class="btn-icon" data-icon="search"></span>
+            <input id="clientSearch" type="search" placeholder="Search clients" autocomplete="off" />
+          </label>
+          <div class="item-list" id="clientList"></div>
+        </section>
+
+        <section class="view" id="loansView" aria-labelledby="loansTitle">
+          <div class="view-head">
+            <div>
+              <p class="eyebrow">Loan book</p>
+              <h2 id="loansTitle">Loans</h2>
+            </div>
+            <button class="icon-text-btn primary" id="addLoanBtn" type="button">
+              <span class="btn-icon" data-icon="plus"></span>
+              <span>Loan</span>
+            </button>
+          </div>
+          <div class="segmented" role="tablist" aria-label="Loan filter">
+            <button class="active" type="button" data-loan-filter="all">All</button>
+            <button type="button" data-loan-filter="open">Open</button>
+            <button type="button" data-loan-filter="active">Active</button>
+            <button type="button" data-loan-filter="overdue">Overdue</button>
+            <button type="button" data-loan-filter="paid">Paid</button>
+          </div>
+          <div class="month-strip" id="loanMonthStrip" aria-label="Loan months"></div>
+          <div class="item-list" id="loanList"></div>
+        </section>
+
+        <section class="view" id="paymentsView" aria-labelledby="paymentsTitle">
+          <div class="view-head">
+            <div>
+              <p class="eyebrow">Collections</p>
+              <h2 id="paymentsTitle">Payments</h2>
+            </div>
+            <button class="icon-text-btn primary" id="addPaymentBtn" type="button">
+              <span class="btn-icon" data-icon="receipt"></span>
+              <span>Payment</span>
+            </button>
+          </div>
+          <div class="month-strip" id="paymentMonthStrip" aria-label="Payment months"></div>
+          <div class="item-list" id="paymentList"></div>
+        </section>
+
+        <section class="view" id="reportsView" aria-labelledby="reportsTitle">
+          <div class="view-head">
+            <div>
+              <p class="eyebrow">Figures</p>
+              <h2 id="reportsTitle">Reports</h2>
+            </div>
+          </div>
+
+          <section class="surface">
+            <div class="report-controls">
+              <label>
+                <span>Month</span>
+                <select id="reportMonth"></select>
+              </label>
+              <label>
+                <span>Year</span>
+                <select id="reportYear"></select>
+              </label>
+            </div>
+            <div class="report-grid" id="reportGrid"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Revenue trend</h3>
+            </div>
+            <div class="bar-chart" id="revenueChart"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Monthly breakdown</h3>
+            </div>
+            <div class="monthly-breakdown" id="monthlyBreakdown"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Expenses</h3>
+              <button class="icon-btn" id="addExpenseBtn" type="button" aria-label="Add expense" title="Add expense">
+                <span class="btn-icon" data-icon="plus"></span>
+              </button>
+            </div>
+            <div class="report-grid" id="expenseSummaryGrid"></div>
+            <div class="item-list" id="expenseList"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Overdue loans</h3>
+            </div>
+            <div class="item-list" id="overdueReportList"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Data</h3>
+            </div>
+            <div class="report-grid data-status" id="dataStatusGrid"></div>
+            <div class="action-row">
+              <button class="icon-text-btn" id="exportLoanbookBtn" type="button">
+                <span class="btn-icon" data-icon="download"></span>
+                <span>Loan CSV</span>
+              </button>
+              <button class="icon-text-btn" id="exportPaymentsBtn" type="button">
+                <span class="btn-icon" data-icon="download"></span>
+                <span>Payment CSV</span>
+              </button>
+              <button class="icon-text-btn" id="exportExpensesBtn" type="button">
+                <span class="btn-icon" data-icon="download"></span>
+                <span>Expense CSV</span>
+              </button>
+              <button class="icon-text-btn" id="backupBtn" type="button">
+                <span class="btn-icon" data-icon="archive"></span>
+                <span>Backup</span>
+              </button>
+              <button class="icon-text-btn" id="restoreBtn" type="button">
+                <span class="btn-icon" data-icon="upload"></span>
+                <span>Restore</span>
+              </button>
+              <button class="icon-text-btn" id="refreshImportBtn" type="button">
+                <span class="btn-icon" data-icon="refresh"></span>
+                <span>Refresh import</span>
+              </button>
+            </div>
+            <input id="restoreFile" type="file" accept="application/json,.json" hidden />
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Security</h3>
+            </div>
+            <p class="item-meta" id="pinStatusText">PIN lock is off.</p>
+            <div class="action-row">
+              <button class="icon-text-btn" id="setPinBtn" type="button">
+                <span class="btn-icon" data-icon="lock"></span>
+                <span>Set PIN</span>
+              </button>
+              <button class="icon-text-btn danger" id="removePinBtn" type="button" hidden>
+                <span class="btn-icon" data-icon="unlock"></span>
+                <span>Remove PIN</span>
+              </button>
+            </div>
+          </section>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="Main navigation">
+        <a class="active" href="#dashboard" data-view="dashboardView">
+          <span class="btn-icon" data-icon="dashboard"></span>
+          <span>Dashboard</span>
+        </a>
+        <a href="#clients" data-view="clientsView">
+          <span class="btn-icon" data-icon="users"></span>
+          <span>Clients</span>
+        </a>
+        <a href="#loans" data-view="loansView">
+          <span class="btn-icon" data-icon="wallet"></span>
+          <span>Loans</span>
+        </a>
+        <a href="#payments" data-view="paymentsView">
+          <span class="btn-icon" data-icon="receipt"></span>
+          <span>Payments</span>
+        </a>
+        <a href="#reports" data-view="reportsView">
+          <span class="btn-icon" data-icon="chart"></span>
+          <span>Reports</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="sheet" id="sheet" hidden>
+      <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+        <div class="sheet-head">
+          <h2 id="sheetTitle"></h2>
+          <button class="icon-btn" id="closeSheetBtn" type="button" aria-label="Close" title="Close">
+            <span class="btn-icon" data-icon="x"></span>
+          </button>
+        </div>
+        <div id="sheetBody"></div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <div class="lock-screen" id="lockScreen" hidden>
+      <div class="lock-card">
+        <img class="lock-logo" src="./icon.svg" alt="QuickServe" width="72" height="72" />
+        <h1 id="lockTitle">Enter PIN</h1>
+        <p class="lock-hint" id="lockHint">Unlock your loan book</p>
+        <div class="pin-dots" id="pinDots" aria-hidden="true"></div>
+        <p class="lock-error" id="lockError" role="alert"></p>
+        <div class="pin-pad" id="pinPad"></div>
+        <button class="lock-cancel" id="lockCancelBtn" type="button" hidden>Cancel</button>
+      </div>
+    </div>
+
+    <script src="./import-data.js?v=12"></script>
+    <script src="./app.js?v=12"></script>
+  </body>
+</html>
