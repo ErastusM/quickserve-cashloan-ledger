@@ -14,7 +14,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="QuickServe" />
-    <link rel="stylesheet" href="./styles.css?v=12" />
+    <link rel="stylesheet" href="./styles.css?v=13" />
   </head>
   <body>
     <div class="app-shell">
@@ -123,29 +123,38 @@
           </div>
 
           <section class="surface">
-            <div class="report-controls">
-              <label>
-                <span>Month</span>
-                <select id="reportMonth"></select>
-              </label>
-              <label>
-                <span>Year</span>
-                <select id="reportYear"></select>
-              </label>
+            <div class="period-bar">
+              <div class="segmented period-scope" role="tablist" aria-label="Report period">
+                <button class="active" type="button" data-report-scope="month">Month</button>
+                <button type="button" data-report-scope="year">Year</button>
+                <button type="button" data-report-scope="all">All time</button>
+              </div>
+              <div class="period-stepper" id="periodStepper">
+                <button class="icon-btn" type="button" id="periodPrev" aria-label="Previous period">‹</button>
+                <strong id="periodLabel">—</strong>
+                <button class="icon-btn" type="button" id="periodNext" aria-label="Next period">›</button>
+              </div>
             </div>
             <div class="report-grid" id="reportGrid"></div>
           </section>
 
           <section class="surface">
             <div class="section-head">
-              <h3>Revenue trend</h3>
+              <h3>Right now</h3>
+            </div>
+            <div class="report-grid" id="positionGrid"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Collections &amp; revenue</h3>
             </div>
             <div class="bar-chart" id="revenueChart"></div>
           </section>
 
           <section class="surface">
             <div class="section-head">
-              <h3>Monthly breakdown</h3>
+              <h3>Breakdown</h3>
             </div>
             <div class="monthly-breakdown" id="monthlyBreakdown"></div>
           </section>
@@ -271,7 +280,7 @@
       </div>
     </div>
 
-    <script src="./import-data.js?v=12"></script>
-    <script src="./app.js?v=12"></script>
+    <script src="./import-data.js?v=13"></script>
+    <script src="./app.js?v=13"></script>
   </body>
 </html>

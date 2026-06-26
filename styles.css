@@ -1034,3 +1034,101 @@ body.locked {
 #sheetBody > .sheet-actions {
   padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
 }
+
+/* Report period switcher */
+.period-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.period-scope {
+  flex: 1 1 220px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+.period-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.period-stepper[hidden] {
+  display: none;
+}
+
+.period-stepper strong {
+  min-width: 120px;
+  text-align: center;
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.period-stepper .icon-btn {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+/* Year/all-time breakdown table */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.ledger-table th,
+.ledger-table td {
+  padding: 9px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+
+.ledger-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ledger-table th[scope="row"] {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  background: var(--surface);
+}
+
+.ledger-table thead th:first-child {
+  left: 0;
+  z-index: 2;
+  background: var(--surface-soft);
+}
+
+.ledger-table tbody tr:nth-child(even) td,
+.ledger-table tbody tr:nth-child(even) th[scope="row"] {
+  background: #eef6f1;
+}
+
+.ledger-table tfoot th,
+.ledger-table tfoot td {
+  background: var(--surface-soft);
+  border-top: 2px solid var(--line);
+  border-bottom: 0;
+  font-weight: 900;
+}

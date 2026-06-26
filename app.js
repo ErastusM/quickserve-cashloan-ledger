@@ -14,6 +14,9 @@ const monthFormat = new Intl.DateTimeFormat("en-NA", {
   month: "long",
   year: "numeric"
 });
+const monthShortFormat = new Intl.DateTimeFormat("en-NA", {
+  month: "short"
+});
 const percentFormat = new Intl.NumberFormat("en-NA", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2
@@ -70,7 +73,8 @@ const ui = {
   loanMonth: savedUi.loanMonth || "all",
   paymentMonth: savedUi.paymentMonth || "all",
   reportMonth: savedUi.reportMonth || monthKey(new Date()),
-  reportYear: savedUi.reportYear || String(new Date().getFullYear())
+  reportYear: savedUi.reportYear || String(new Date().getFullYear()),
+  reportScope: ["month", "year", "all"].includes(savedUi.reportScope) ? savedUi.reportScope : "month"
 };
 
 const qs = (selector, root = document) => root.querySelector(selector);
@@ -133,7 +137,8 @@ function saveUiState() {
     loanMonth: ui.loanMonth,
     paymentMonth: ui.paymentMonth,
     reportMonth: ui.reportMonth,
-    reportYear: ui.reportYear
+    reportYear: ui.reportYear,
+    reportScope: ui.reportScope
   }));
 }
 
@@ -289,6 +294,10 @@ function monthKey(value) {
 
 function monthLabel(value) {
   return monthFormat.format(dateFromISO(`${value}-01`));
+}
+
+function monthShort(value) {
+  return monthShortFormat.format(dateFromISO(`${value}-01`));
 }
 
 function addMonths(month, offset) {
@@ -545,9 +554,7 @@ function totalsFor(month = ui.reportMonth, year = ui.reportYear) {
 
 function render() {
   qs("#todayPill").textContent = formatDate(todayISO());
-  renderReportControls();
-  qs("#reportMonth").value = ui.reportMonth;
-  qs("#reportYear").value = ui.reportYear;
+  renderPeriodControl();
   renderDashboard();
   renderClients();
   renderLoans();
@@ -556,25 +563,79 @@ function render() {
   hydrateIcons();
 }
 
-function renderReportControls() {
-  const years = reportYears();
-  if (!years.includes(ui.reportYear)) years.push(ui.reportYear);
-  years.sort();
+function renderPeriodControl() {
+  qsa("[data-report-scope]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.reportScope === ui.reportScope);
+  });
+  qs("#periodStepper").hidden = ui.reportScope === "all";
+  qs("#periodLabel").textContent = currentPeriodLabel();
+}
 
-  qs("#reportYear").innerHTML = years
-    .map((year) => `<option value="${year}">${year}</option>`)
-    .join("");
+function currentPeriodLabel() {
+  if (ui.reportScope === "all") return "All time";
+  if (ui.reportScope === "year") return String(ui.reportYear);
+  return monthLabel(ui.reportMonth);
+}
 
-  const year = ui.reportYear || String(new Date().getFullYear());
-  qs("#reportMonth").innerHTML = Array.from({ length: 12 }, (_, index) => {
-    const value = `${year}-${String(index + 1).padStart(2, "0")}`;
-    return `<option value="${value}">${monthLabel(value)}</option>`;
-  }).join("");
-
-  if (!ui.reportMonth.startsWith(`${year}-`)) {
-    const monthNumber = ui.reportMonth.split("-")[1] || String(new Date().getMonth() + 1).padStart(2, "0");
-    ui.reportMonth = `${year}-${monthNumber}`;
+function stepPeriod(delta) {
+  if (ui.reportScope === "all") return;
+  if (ui.reportScope === "year") {
+    ui.reportYear = String(Number(ui.reportYear) + delta);
+  } else {
+    ui.reportMonth = addMonths(ui.reportMonth, delta);
+    ui.reportYear = ui.reportMonth.slice(0, 4);
   }
+  saveUiState();
+  renderPeriodControl();
+  renderReports();
+}
+
+// Period-aware figures. Flows (collections, revenue, cash out, expenses) are
+// summed over the chosen period; matches by payment/issue/expense date.
+function figuresFor(scope, month, year) {
+  const match = (dateValue) => {
+    if (scope === "all") return true;
+    if (scope === "year") return String(dateFromISO(dateValue).getFullYear()) === String(year);
+    return monthKey(dateValue) === month;
+  };
+  const payRows = allPaymentAllocations().filter((row) => match(row.payment.date));
+  const issued = state.loans.filter((loan) => match(loan.issueDate));
+  const issuedAnalyses = issued.map(analyzeLoan);
+  const expenseRows = state.expenses.filter((expense) => match(expense.date));
+
+  const collections = roundMoney(payRows.reduce((sum, row) => sum + Number(row.payment.amount || 0), 0));
+  const revenue = roundMoney(payRows.reduce((sum, row) => sum + row.revenue, 0));
+  const principalRecovered = roundMoney(payRows.reduce((sum, row) => sum + row.principal, 0));
+  const cashOut = roundMoney(issued.reduce((sum, loan) => sum + Number(loan.principal || 0), 0));
+  const expectedRevenue = roundMoney(issuedAnalyses.reduce((sum, row) => sum + row.terms.revenueDue, 0));
+  const expectedTotal = roundMoney(issuedAnalyses.reduce((sum, row) => sum + row.terms.totalDue, 0));
+  const issuedPaid = roundMoney(issuedAnalyses.reduce((sum, row) => sum + row.paid, 0));
+  const expenses = roundMoney(expenseRows.reduce((sum, expense) => sum + Number(expense.amount || 0), 0));
+
+  return {
+    collections,
+    revenue,
+    principalRecovered,
+    cashOut,
+    expectedRevenue,
+    expenses,
+    profit: roundMoney(revenue - expenses),
+    netCash: roundMoney(collections - cashOut),
+    interestRate: cashOut ? roundMoney((expectedRevenue / cashOut) * 100) : 0,
+    profitReturn: cashOut ? roundMoney((revenue / cashOut) * 100) : 0,
+    collectionRate: expectedTotal ? roundMoney((issuedPaid / expectedTotal) * 100) : 0,
+    loansIssued: issued.length
+  };
+}
+
+function reportCardHtml([label, value, note]) {
+  return `
+    <article class="report-card">
+      <span class="mini-label">${escapeHtml(label)}</span>
+      <strong>${value}</strong>
+      <p class="item-meta">${escapeHtml(note)}</p>
+    </article>
+  `;
 }
 
 function reportYears() {
@@ -605,10 +666,10 @@ function renderDashboard() {
     ["capital-out", "Capital out", money(totals.capitalOut), `${totals.activeLoans + totals.overdueLoans} open loans`, ""],
     ["outstanding", "Outstanding", money(totals.totalOutstanding), "Collectable balance", ""],
     ["overdue", "Overdue", money(totals.overdueOutstanding), `${totals.overdueLoans} loans`, totals.overdueLoans ? "danger" : "success"],
-    ["profit-month", "Profit month", money(totals.monthProfitCollected), "Interest and fees", "success"],
-    ["revenue-month", "Revenue month", money(totals.monthRevenueCollected), "Total cash collected", ""],
+    ["profit-month", "Revenue (mo)", money(totals.monthProfitCollected), "Interest + fees", "success"],
+    ["revenue-month", "Collected (mo)", money(totals.monthRevenueCollected), "Money in", ""],
     ["due-month", "Due this month", money(totals.expectedThisMonth), "Expected collections", totals.expectedThisMonth ? "warning" : ""],
-    ["profit-year", "Profit year", money(totals.yearProfitCollected), "Interest and fees", "success"],
+    ["profit-year", "Revenue (yr)", money(totals.yearProfitCollected), "Interest + fees", "success"],
     ["active-clients", "Active clients", String(totals.activeClients), `${state.clients.length} total clients`, ""]
   ];
 
@@ -719,43 +780,32 @@ function availablePaymentMonths() {
 }
 
 function renderReports() {
-  const totals = totalsFor(ui.reportMonth, ui.reportYear);
-  const reportCards = [
-    ["Month revenue", money(totals.monthRevenueCollected), "All repayments collected"],
-    ["Month profit", money(totals.monthProfitCollected), "Interest and fees collected"],
-    ["Expected profit", money(totals.monthExpectedProfit), "From loans issued"],
-    ["Principal recovered", money(totals.monthPrincipalRecovered), "Capital returned"],
-    ["Month cash spent", money(totals.monthAdvanced), "Money given out as loans"],
-    ["Net cash movement", money(totals.monthNetCash), "Revenue minus cash spent"],
-    ["Interest rate", percent(totals.monthInterestRate), "Expected profit / cash spent"],
-    ["Profit return", percent(totals.monthProfitReturn), "Profit collected / cash spent"],
-    ["Month expenses", money(totals.monthExpenses), "Business costs this month"],
-    ["Net profit", money(totals.monthNetProfit), "Profit collected minus expenses"],
-    ["Year revenue", money(totals.yearRevenueCollected), "All repayments collected"],
-    ["Year profit", money(totals.yearProfitCollected), "Interest and fees collected"],
-    ["Year expected profit", money(totals.yearExpectedProfit), "From loans issued"],
-    ["Year cash spent", money(totals.yearAdvanced), "Money given out as loans"],
-    ["Year interest rate", percent(totals.yearInterestRate), "Expected yearly profit / cash spent"],
-    ["Year profit return", percent(totals.yearProfitReturn), "Profit collected / cash spent"],
-    ["Year expenses", money(totals.yearExpenses), "Business costs this year"],
-    ["Year net profit", money(totals.yearNetProfit), "Profit collected minus expenses"],
-    ["Written off", money(totals.writtenOffOutstanding), "Tracked separately"]
-  ];
+  const f = figuresFor(ui.reportScope, ui.reportMonth, ui.reportYear);
+  const position = totalsFor();
 
-  qs("#reportGrid").innerHTML = reportCards
-    .map(([label, value, note]) => `
-      <article class="report-card">
-        <span class="mini-label">${label}</span>
-        <strong>${value}</strong>
-        <p class="item-meta">${note}</p>
-      </article>
-    `)
-    .join("");
+  qs("#reportGrid").innerHTML = [
+    ["Collections", money(f.collections), "Money in (incl. capital)"],
+    ["Revenue", money(f.revenue), "Interest + fees earned"],
+    ["Expenses", money(f.expenses), "Business costs"],
+    ["Profit", money(f.profit), "Revenue minus expenses"],
+    ["Cash out", money(f.cashOut), "Loans issued"],
+    ["Principal recovered", money(f.principalRecovered), "Capital returned"],
+    ["Net cash", money(f.netCash), "Collections minus cash out"],
+    ["Collection rate", percent(f.collectionRate), "Paid / total due on loans issued"]
+  ].map(reportCardHtml).join("");
 
-  renderRevenueChart();
-  renderMonthlyBreakdown();
+  qs("#positionGrid").innerHTML = [
+    ["Outstanding now", money(position.totalOutstanding), "Still collectable"],
+    ["Capital out", money(position.capitalOut), "Principal still lent out"],
+    ["Overdue", money(position.overdueOutstanding), `${position.overdueLoans} loan${position.overdueLoans === 1 ? "" : "s"}`],
+    ["Written off", money(position.writtenOffOutstanding), "Tracked separately"]
+  ].map(reportCardHtml).join("");
+
+  renderTrendChart();
+  renderBreakdownTable();
   renderExpenses();
   renderDataStatus();
+
   const overdue = allAnalyses()
     .filter((row) => row.status === "overdue")
     .sort((a, b) => dateFromISO(a.loan.dueDate) - dateFromISO(b.loan.dueDate));
@@ -765,57 +815,121 @@ function renderReports() {
     : emptyHtml("No overdue loans.");
 }
 
-function renderRevenueChart() {
-  const months = reportMonthsForYear(ui.reportYear);
-  const rows = months.map((month) => ({
-    month,
-    revenue: totalsFor(month, ui.reportYear).monthRevenueCollected,
-    profit: totalsFor(month, ui.reportYear).monthProfitCollected
-  }));
-  const max = Math.max(1, ...rows.map((row) => row.revenue));
+function renderTrendChart() {
+  let rows;
+  if (ui.reportScope === "all") {
+    rows = reportYears().sort().map((year) => {
+      const f = figuresFor("year", null, year);
+      return { label: year, collections: f.collections, revenue: f.revenue };
+    });
+  } else {
+    rows = reportMonthsForYear(ui.reportYear).map((month) => {
+      const f = figuresFor("month", month, ui.reportYear);
+      return { label: monthShort(month), collections: f.collections, revenue: f.revenue };
+    });
+  }
+  const max = Math.max(1, ...rows.map((row) => row.collections));
 
-  qs("#revenueChart").innerHTML = rows
-    .map((row) => {
-      const revenueWidth = Math.max(3, Math.round((row.revenue / max) * 100));
-      const profitWidth = Math.max(3, Math.round((row.profit / max) * 100));
-      return `
+  qs("#revenueChart").innerHTML = rows.length
+    ? rows
+        .map((row) => {
+          const collectionsWidth = Math.max(3, Math.round((row.collections / max) * 100));
+          const revenueWidth = Math.max(3, Math.round((row.revenue / max) * 100));
+          return `
         <div class="bar-row">
-          <span class="mini-label">${row.month.slice(5)}</span>
+          <span class="mini-label">${escapeHtml(row.label)}</span>
           <div class="bar-stack">
-            <div class="bar-track"><div class="bar-fill revenue" style="width:${revenueWidth}%"></div></div>
-            <div class="bar-track slim"><div class="bar-fill profit" style="width:${profitWidth}%"></div></div>
+            <div class="bar-track"><div class="bar-fill revenue" style="width:${collectionsWidth}%"></div></div>
+            <div class="bar-track slim"><div class="bar-fill profit" style="width:${revenueWidth}%"></div></div>
           </div>
-          <span class="bar-value">Rev ${money(row.revenue)} - Profit ${money(row.profit)}</span>
+          <span class="bar-value">In ${money(row.collections)} · Rev ${money(row.revenue)}</span>
         </div>
       `;
-    })
+        })
+        .join("")
+    : emptyHtml("No activity to chart yet.");
+}
+
+function renderBreakdownTable() {
+  let rows;
+  let totalLabel;
+  if (ui.reportScope === "all") {
+    rows = reportYears().sort().map((year) => ({
+      label: year,
+      f: figuresFor("year", null, year),
+      outstanding: yearOutstanding(year)
+    }));
+    totalLabel = "All time";
+  } else {
+    rows = Array.from({ length: 12 }, (_, index) => {
+      const month = `${ui.reportYear}-${String(index + 1).padStart(2, "0")}`;
+      return {
+        label: monthShort(month),
+        f: figuresFor("month", month, ui.reportYear),
+        outstanding: monthOutstanding(month)
+      };
+    });
+    totalLabel = String(ui.reportYear);
+  }
+
+  const totals = rows.reduce(
+    (acc, row) => ({
+      collections: acc.collections + row.f.collections,
+      cashOut: acc.cashOut + row.f.cashOut,
+      revenue: acc.revenue + row.f.revenue,
+      profit: acc.profit + row.f.profit
+    }),
+    { collections: 0, cashOut: 0, revenue: 0, profit: 0 }
+  );
+
+  const body = rows
+    .map((row) => `
+      <tr>
+        <th scope="row">${escapeHtml(row.label)}</th>
+        <td>${money(row.f.collections)}</td>
+        <td>${money(row.f.cashOut)}</td>
+        <td>${money(row.f.revenue)}</td>
+        <td>${money(row.f.profit)}</td>
+        <td>${money(row.outstanding)}</td>
+      </tr>
+    `)
     .join("");
-}
 
-function renderMonthlyBreakdown() {
-  const months = reportMonthsForYear(ui.reportYear);
-  qs("#monthlyBreakdown").innerHTML = months.length
-    ? months.map((month) => monthlyBreakdownRow(month, totalsFor(month, ui.reportYear))).join("")
-    : emptyHtml("No monthly data for this year.");
-}
-
-function monthlyBreakdownRow(month, totals) {
-  return `
-    <article class="breakdown-row">
-      <div class="item-title">
-        <strong>${monthLabel(month)}</strong>
-        <p class="item-meta">Interest ${percent(totals.monthInterestRate)} - Profit return ${percent(totals.monthProfitReturn)} - Net cash ${money(totals.monthNetCash)}</p>
-      </div>
-      <div class="breakdown-values">
-        <span><b>Revenue</b>${money(totals.monthRevenueCollected)}</span>
-        <span><b>Profit</b>${money(totals.monthProfitCollected)}</span>
-        <span><b>Expenses</b>${money(totals.monthExpenses)}</span>
-        <span><b>Net profit</b>${money(totals.monthNetProfit)}</span>
-        <span><b>Profit target</b>${money(totals.monthExpectedProfit)}</span>
-        <span><b>Outstanding</b>${money(monthOutstanding(month))}</span>
-      </div>
-    </article>
+  qs("#monthlyBreakdown").innerHTML = `
+    <div class="table-scroll">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th scope="col">${ui.reportScope === "all" ? "Year" : "Month"}</th>
+            <th scope="col">Collected</th>
+            <th scope="col">Cash out</th>
+            <th scope="col">Revenue</th>
+            <th scope="col">Profit</th>
+            <th scope="col">Outstanding</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">Total ${escapeHtml(totalLabel)}</th>
+            <td>${money(totals.collections)}</td>
+            <td>${money(totals.cashOut)}</td>
+            <td>${money(totals.revenue)}</td>
+            <td>${money(totals.profit)}</td>
+            <td>—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
   `;
+}
+
+function yearOutstanding(year) {
+  return roundMoney(
+    allAnalyses()
+      .filter((row) => String(dateFromISO(row.loan.issueDate).getFullYear()) === String(year))
+      .reduce((sum, row) => sum + row.outstanding, 0)
+  );
 }
 
 function renderDataStatus() {
@@ -863,7 +977,7 @@ function renderExpenses() {
   const summary = [
     ["This month", money(totals.monthExpenses), monthLabel(ui.reportMonth)],
     ["This year", money(totals.yearExpenses), String(ui.reportYear)],
-    ["Net profit (year)", money(totals.yearNetProfit), "Profit after expenses"],
+    ["Profit (year)", money(totals.yearNetProfit), "Revenue minus expenses"],
     ["All time", money(allExpenses), `${state.expenses.length} ${state.expenses.length === 1 ? "record" : "records"}`]
   ];
 
@@ -1714,6 +1828,7 @@ function handleDashboardAction(action) {
     return;
   }
   if (action === "profit-month") {
+    ui.reportScope = "month";
     ui.reportMonth = currentMonth;
     ui.reportYear = currentYear;
     saveUiState();
@@ -1722,6 +1837,7 @@ function handleDashboardAction(action) {
     return;
   }
   if (action === "profit-year") {
+    ui.reportScope = "year";
     ui.reportMonth = currentMonth;
     ui.reportYear = currentYear;
     saveUiState();
@@ -2009,16 +2125,17 @@ function bindEvents() {
     });
   });
 
-  qs("#reportMonth").addEventListener("change", (event) => {
-    ui.reportMonth = event.target.value || monthKey(new Date());
-    saveUiState();
-    renderReports();
+  qsa("[data-report-scope]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ui.reportScope = button.dataset.reportScope;
+      saveUiState();
+      renderPeriodControl();
+      renderReports();
+    });
   });
 
-  qs("#reportYear").addEventListener("change", (event) => {
-    ui.reportYear = event.target.value || String(new Date().getFullYear());
-    render();
-  });
+  qs("#periodPrev").addEventListener("click", () => stepPeriod(-1));
+  qs("#periodNext").addEventListener("click", () => stepPeriod(1));
 
   window.addEventListener("hashchange", () => {
     const nextView = initialView(loadUiState());
