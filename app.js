@@ -45,7 +45,14 @@ const icons = {
   tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12 12 3h7v7l-9 9z"/><circle cx="15.5" cy="8.5" r="1.4"/></svg>',
   backspace: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H8L2 12Z"/><path d="m11 9 6 6"/><path d="m17 9-6 6"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7"/></svg>',
-  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>'
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3 19 19M19 5l-1.7 1.7M6.7 17.3 5 19"/></svg>',
+  coins: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="9" cy="6.5" rx="6" ry="3"/><path d="M3 6.5v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/><path d="M9 14.5v3c0 1.7 2.7 3 6 3s6-1.3 6-3v-5c0-1.7-2.7-3-6-3"/></svg>',
+  arrowIn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 7 8 16"/><path d="M16 16H8V8"/></svg>',
+  arrowOut: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 17 9-9"/><path d="M8 8h8v8"/></svg>',
+  minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>',
+  chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>'
 };
 
 const aliasIcons = {
@@ -74,7 +81,8 @@ const ui = {
   paymentMonth: savedUi.paymentMonth || "all",
   reportMonth: savedUi.reportMonth || monthKey(new Date()),
   reportYear: savedUi.reportYear || String(new Date().getFullYear()),
-  reportScope: ["month", "year", "all"].includes(savedUi.reportScope) ? savedUi.reportScope : "month"
+  reportScope: ["month", "year", "all"].includes(savedUi.reportScope) ? savedUi.reportScope : "month",
+  theme: ["light", "dark", "auto"].includes(savedUi.theme) ? savedUi.theme : "auto"
 };
 
 const qs = (selector, root = document) => root.querySelector(selector);
@@ -93,11 +101,12 @@ function loadState() {
 function emptyState() {
   return {
     version: 1,
-    settings: { companyName: "Quickserve", currency },
+    settings: { companyName: "Quickserve", currency, startingCapital: 0, startingCapitalDate: "" },
     clients: [],
     loans: [],
     payments: [],
     expenses: [],
+    capital: [],
     imports: []
   };
 }
@@ -112,6 +121,7 @@ function normalizeState(value) {
     loans: Array.isArray(value.loans) ? value.loans : [],
     payments: Array.isArray(value.payments) ? value.payments : [],
     expenses: Array.isArray(value.expenses) ? value.expenses : [],
+    capital: Array.isArray(value.capital) ? value.capital : [],
     imports: Array.isArray(value.imports) ? value.imports : []
   };
 }
@@ -138,7 +148,8 @@ function saveUiState() {
     paymentMonth: ui.paymentMonth,
     reportMonth: ui.reportMonth,
     reportYear: ui.reportYear,
-    reportScope: ui.reportScope
+    reportScope: ui.reportScope,
+    theme: ui.theme
   }));
 }
 
@@ -628,6 +639,163 @@ function figuresFor(scope, month, year) {
   };
 }
 
+// ---- Cash / float engine ----
+// Cash on hand is a real running bank-style balance. Profit stays separate.
+// Cash on hand = starting capital + capital in - capital out + repayments
+//                - loans paid out - expenses
+// Out on loan  = principal still in clients' hands (written-off principal is a
+//                realised loss, so it leaves the float and is excluded here)
+// Total funds  = cash on hand + out on loan (working capital)
+
+function startingCapital() {
+  return roundMoney(state.settings.startingCapital || 0);
+}
+
+function cashIconFor(kind) {
+  return {
+    "loan-out": "arrowOut",
+    repayment: "arrowIn",
+    expense: "tag",
+    "capital-in": "coins",
+    "capital-out": "arrowOut"
+  }[kind] || "wallet";
+}
+
+// Every movement of actual cash, before sorting. amount is signed (+ in / - out).
+function cashMovements() {
+  const rows = [];
+
+  state.loans.forEach((loan) => {
+    rows.push({
+      date: loan.issueDate,
+      kind: "loan-out",
+      label: getClientName(loan.clientId),
+      sub: loan.purpose ? loan.purpose : "Loan paid out",
+      amount: -roundMoney(loan.principal),
+      createdAt: loan.createdAt || ""
+    });
+  });
+
+  state.payments.forEach((payment) => {
+    const loan = getLoan(payment.loanId);
+    rows.push({
+      date: payment.date,
+      kind: "repayment",
+      label: loan ? getClientName(loan.clientId) : "Repayment",
+      sub: `Repayment · ${payment.method || "Cash"}`,
+      amount: roundMoney(payment.amount),
+      createdAt: payment.createdAt || ""
+    });
+  });
+
+  state.expenses.forEach((expense) => {
+    rows.push({
+      date: expense.date,
+      kind: "expense",
+      label: expense.category || "Expense",
+      sub: expense.note ? expense.note : "Business expense",
+      amount: -roundMoney(expense.amount),
+      createdAt: expense.createdAt || ""
+    });
+  });
+
+  state.capital.forEach((entry) => {
+    const out = entry.direction === "out";
+    rows.push({
+      date: entry.date,
+      kind: out ? "capital-out" : "capital-in",
+      label: out ? "Capital withdrawn" : "Capital added",
+      sub: entry.note ? entry.note : (out ? "Money taken out of the float" : "Money put into the float"),
+      amount: (out ? -1 : 1) * roundMoney(entry.amount),
+      createdAt: entry.createdAt || ""
+    });
+  });
+
+  return rows;
+}
+
+// Chronological ledger with a running balance starting from starting capital.
+function sortedLedger() {
+  const rows = cashMovements().sort((a, b) => {
+    const byDate = String(a.date).localeCompare(String(b.date));
+    if (byDate !== 0) return byDate;
+    return String(a.createdAt).localeCompare(String(b.createdAt));
+  });
+  let balance = startingCapital();
+  return rows.map((row) => {
+    balance = roundMoney(balance + row.amount);
+    return { ...row, balance };
+  });
+}
+
+function cashOnHand() {
+  const ledger = sortedLedger();
+  return ledger.length ? ledger[ledger.length - 1].balance : startingCapital();
+}
+
+function outOnLoan() {
+  return roundMoney(
+    allAnalyses().reduce((sum, row) => sum + (row.status === "written-off" ? 0 : row.principalOutstanding), 0)
+  );
+}
+
+function totalFunds() {
+  return roundMoney(cashOnHand() + outOnLoan());
+}
+
+function capitalInjected() {
+  return roundMoney(
+    state.capital.filter((c) => c.direction !== "out").reduce((sum, c) => sum + Number(c.amount || 0), 0)
+  );
+}
+
+function capitalWithdrawn() {
+  return roundMoney(
+    state.capital.filter((c) => c.direction === "out").reduce((sum, c) => sum + Number(c.amount || 0), 0)
+  );
+}
+
+// Opening/closing balances and money in/out for the selected report period.
+function cashFlowFor(scope, month, year) {
+  const periodOf = (dateValue) => {
+    if (scope === "all") return "in";
+    if (scope === "year") {
+      const y = Number(dateFromISO(dateValue).getFullYear());
+      const target = Number(year);
+      if (y < target) return "before";
+      return y > target ? "after" : "in";
+    }
+    const key = monthKey(dateValue);
+    if (key < month) return "before";
+    return key > month ? "after" : "in";
+  };
+
+  let before = 0;
+  let moneyIn = 0;
+  let moneyOut = 0;
+  cashMovements().forEach((row) => {
+    const place = periodOf(row.date);
+    if (place === "before") {
+      before += row.amount;
+    } else if (place === "in") {
+      if (row.amount >= 0) moneyIn += row.amount;
+      else moneyOut += row.amount;
+    }
+  });
+
+  const opening = roundMoney(startingCapital() + before);
+  const inflow = roundMoney(moneyIn);
+  const outflow = roundMoney(Math.abs(moneyOut));
+  const net = roundMoney(inflow - outflow);
+  return {
+    opening,
+    moneyIn: inflow,
+    moneyOut: outflow,
+    net,
+    closing: roundMoney(opening + net)
+  };
+}
+
 function reportCardHtml([label, value, note]) {
   return `
     <article class="report-card">
@@ -658,19 +826,43 @@ function dashboardActionText(action) {
   }[action] || "Open";
 }
 
+function renderFloat() {
+  const grid = qs("#floatGrid");
+  if (!grid) return;
+  const cash = cashOnHand();
+  const cards = [
+    ["Cash on hand", money(cash), "Available now", cash < 0 ? "negative" : "cash"],
+    ["Out on loan", money(outOnLoan()), "In clients' hands", "out"],
+    ["Total funds", money(totalFunds()), "Working capital", "total"]
+  ];
+  grid.innerHTML = cards
+    .map(([label, value, note, tone]) => `
+      <button class="float-card ${tone}" type="button" data-cash-action="statement">
+        <span class="float-label">${label}</span>
+        <strong class="float-value">${value}</strong>
+        <span class="float-note">${note}</span>
+        <span class="float-go" aria-hidden="true">${iconSvg("chevronRight")}</span>
+      </button>
+    `)
+    .join("");
+}
+
 function renderDashboard() {
   const dashboardMonth = monthKey(new Date());
   const dashboardYear = String(new Date().getFullYear());
   const totals = totalsFor(dashboardMonth, dashboardYear);
+
+  renderFloat();
+
   const metrics = [
-    ["capital-out", "Capital out", money(totals.capitalOut), `${totals.activeLoans + totals.overdueLoans} open loans`, ""],
     ["outstanding", "Outstanding", money(totals.totalOutstanding), "Collectable balance", ""],
-    ["overdue", "Overdue", money(totals.overdueOutstanding), `${totals.overdueLoans} loans`, totals.overdueLoans ? "danger" : "success"],
-    ["profit-month", "Revenue (mo)", money(totals.monthProfitCollected), "Interest + fees", "success"],
+    ["overdue", "Overdue", money(totals.overdueOutstanding), `${totals.overdueLoans} loan${totals.overdueLoans === 1 ? "" : "s"}`, totals.overdueLoans ? "danger" : "success"],
+    ["due-month", "Due this month", money(totals.expectedThisMonth), "Expected in", totals.expectedThisMonth ? "warning" : ""],
     ["revenue-month", "Collected (mo)", money(totals.monthRevenueCollected), "Money in", ""],
-    ["due-month", "Due this month", money(totals.expectedThisMonth), "Expected collections", totals.expectedThisMonth ? "warning" : ""],
+    ["profit-month", "Revenue (mo)", money(totals.monthProfitCollected), "Interest + fees", "success"],
+    ["profit-month", "Net profit (mo)", money(totals.monthNetProfit), "After expenses", totals.monthNetProfit >= 0 ? "success" : "danger"],
     ["profit-year", "Revenue (yr)", money(totals.yearProfitCollected), "Interest + fees", "success"],
-    ["active-clients", "Active clients", String(totals.activeClients), `${state.clients.length} total clients`, ""]
+    ["active-clients", "Active clients", String(totals.activeClients), `${state.clients.length} total`, ""]
   ];
 
   qs("#metricGrid").innerHTML = metrics
@@ -801,6 +993,8 @@ function renderReports() {
     ["Written off", money(position.writtenOffOutstanding), "Tracked separately"]
   ].map(reportCardHtml).join("");
 
+  renderCashReport();
+  renderCapital();
   renderTrendChart();
   renderBreakdownTable();
   renderExpenses();
@@ -813,6 +1007,167 @@ function renderReports() {
   qs("#overdueReportList").innerHTML = overdue.length
     ? overdue.map((row) => loanMiniCard(row)).join("")
     : emptyHtml("No overdue loans.");
+}
+
+function renderCashReport() {
+  const grid = qs("#cashFlowGrid");
+  if (!grid) return;
+  const cf = cashFlowFor(ui.reportScope, ui.reportMonth, ui.reportYear);
+  grid.innerHTML = [
+    ["Opening balance", money(cf.opening), "Cash at period start"],
+    ["Money in", money(cf.moneyIn), "Repayments + capital in"],
+    ["Money out", money(cf.moneyOut), "Loans + expenses + withdrawals"],
+    ["Net movement", money(cf.net), "Money in minus money out"],
+    ["Closing balance", money(cf.closing), "Cash at period end"],
+    ["Out on loan now", money(outOnLoan()), "Principal with clients"]
+  ].map(reportCardHtml).join("");
+}
+
+function renderCapital() {
+  const grid = qs("#capitalGrid");
+  if (!grid) return;
+  grid.innerHTML = [
+    ["Starting capital", money(startingCapital()), startingCapital() ? "Your opening float" : "Tap Set to enter"],
+    ["Capital added", money(capitalInjected()), "Money you put in"],
+    ["Capital withdrawn", money(capitalWithdrawn()), "Money you took out"],
+    ["Cash on hand", money(cashOnHand()), "Live balance"]
+  ].map(reportCardHtml).join("");
+
+  const rows = state.capital.slice().sort((a, b) => {
+    const byDate = String(b.date).localeCompare(String(a.date));
+    if (byDate !== 0) return byDate;
+    return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+  });
+  qs("#capitalList").innerHTML = rows.length
+    ? rows.map(capitalCard).join("")
+    : emptyHtml("No capital injections or withdrawals yet.");
+}
+
+function capitalCard(entry) {
+  const out = entry.direction === "out";
+  return `
+    <article class="list-card compact">
+      <div class="item-top">
+        <div class="item-title">
+          <strong>${out ? "Capital withdrawn" : "Capital added"}</strong>
+          <p class="item-meta">${formatDate(entry.date)}${entry.note ? ` · ${escapeHtml(entry.note)}` : ""}</p>
+        </div>
+        <div class="item-amount">
+          <strong class="${out ? "neg" : "pos"}">${out ? "−" : "+"}${money(entry.amount)}</strong>
+          <p class="item-meta">${out ? "Out of float" : "Into float"}</p>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="icon-btn danger" type="button" data-action="delete-capital" data-id="${entry.id}" aria-label="Delete entry" title="Delete entry">
+          <span class="btn-icon">${iconSvg("trash")}</span>
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function openCashStatement() {
+  const ledger = sortedLedger();
+  const cash = cashOnHand();
+  const byMonth = new Map();
+  ledger.forEach((row) => {
+    const key = monthKey(row.date);
+    if (!byMonth.has(key)) byMonth.set(key, []);
+    byMonth.get(key).push(row);
+  });
+  const months = Array.from(byMonth.keys()).sort((a, b) => b.localeCompare(a));
+  const sections = months
+    .map((m) => {
+      const rows = byMonth.get(m).slice().reverse(); // newest first within month
+      return `
+        <div class="ledger-group">
+          <div class="ledger-group-head">${monthLabel(m)}</div>
+          <div class="ledger-rows">${rows.map(cashRowHtml).join("")}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  openPanel("Statement", `
+    <div class="statement ledger-view">
+      <div class="ledger-hero">
+        <span class="ledger-hero-label">Cash on hand</span>
+        <strong class="ledger-hero-value">${money(cash)}</strong>
+        <span class="ledger-hero-note">Opened with ${money(startingCapital())} · ${ledger.length} movement${ledger.length === 1 ? "" : "s"}</span>
+      </div>
+      ${ledger.length ? sections : emptyHtml("No money has moved yet. Set your starting capital, then record loans, payments, expenses, or capital changes.")}
+    </div>
+  `);
+}
+
+function cashRowHtml(row) {
+  const positive = row.amount >= 0;
+  return `
+    <div class="ledger-row">
+      <span class="ledger-row-icon ${row.kind}">${iconSvg(cashIconFor(row.kind))}</span>
+      <div class="ledger-row-main">
+        <strong>${escapeHtml(row.label)}</strong>
+        <p class="item-meta">${formatDate(row.date)} · ${escapeHtml(row.sub)}</p>
+      </div>
+      <div class="ledger-row-amount">
+        <strong class="${positive ? "pos" : "neg"}">${positive ? "+" : "−"}${money(Math.abs(row.amount))}</strong>
+        <p class="item-meta">Bal ${money(row.balance)}</p>
+      </div>
+    </div>
+  `;
+}
+
+function openStartingCapitalForm() {
+  openSheet("Starting capital", `
+    <p class="form-hint">The money you began the business with — your opening float. Cash on hand builds from this figure. You can change it anytime.</p>
+    <div class="form-grid">
+      <label><span>Starting capital</span><input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" value="${escapeHtml(state.settings.startingCapital || "")}" /></label>
+      <label><span>As of date</span><input name="date" type="date" value="${escapeHtml(state.settings.startingCapitalDate || todayISO())}" /></label>
+    </div>
+  `, "Save capital", (form) => {
+    state.settings.startingCapital = roundMoney(form.get("amount"));
+    state.settings.startingCapitalDate = form.get("date") || "";
+    saveState();
+    toast("Starting capital saved.");
+    render();
+  });
+}
+
+function openCapitalForm(direction = "in") {
+  const out = direction === "out";
+  openSheet(out ? "Withdraw capital" : "Add capital", `
+    <p class="form-hint">${out ? "Money you take out of the business float (for example, paying yourself)." : "Extra money you put into the business float."}</p>
+    <div class="form-grid">
+      <label><span>Amount</span><input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" /></label>
+      <label><span>Date</span><input name="date" type="date" required value="${todayISO()}" /></label>
+      <label class="wide"><span>Note</span><input name="note" placeholder="${out ? "What is this for?" : "Where is this from?"}" /></label>
+    </div>
+  `, out ? "Save withdrawal" : "Save deposit", (form) => {
+    const amount = roundMoney(form.get("amount"));
+    if (amount <= 0) {
+      toast("Enter an amount.");
+      return false;
+    }
+    state.capital.push({
+      id: uid("capital"),
+      direction: out ? "out" : "in",
+      amount,
+      date: form.get("date"),
+      note: cleanText(form.get("note")),
+      createdAt: new Date().toISOString()
+    });
+    saveState();
+    toast(out ? "Withdrawal saved." : "Capital added.");
+    render();
+  });
+}
+
+function deleteCapital(id) {
+  if (!confirm("Delete this capital entry?")) return;
+  state.capital = state.capital.filter((entry) => entry.id !== id);
+  saveState();
+  render();
+  toast("Entry deleted.");
 }
 
 function renderTrendChart() {
@@ -1795,6 +2150,7 @@ function handleAction(action, id) {
   if (action === "delete-loan") deleteLoan(id);
   if (action === "delete-payment") deletePayment(id);
   if (action === "delete-expense") deleteExpense(id);
+  if (action === "delete-capital") deleteCapital(id);
 }
 
 function handleDashboardAction(action) {
@@ -1850,6 +2206,45 @@ function handleDashboardAction(action) {
     qs("#clientSearch").value = "";
     switchView("clientsView");
     renderClients();
+  }
+}
+
+// ---- Theme (light / dark / system) ----
+function systemPrefersDark() {
+  return Boolean(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+
+function effectiveDark(theme = ui.theme) {
+  return theme === "dark" || (theme === "auto" && systemPrefersDark());
+}
+
+function applyTheme(theme, persist = true) {
+  ui.theme = ["light", "dark", "auto"].includes(theme) ? theme : "auto";
+  document.documentElement.setAttribute("data-theme", ui.theme);
+  const dark = effectiveDark(ui.theme);
+  const meta = qs('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", dark ? "#000000" : "#f2f2f7");
+  qsa("[data-theme-option]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.themeOption === ui.theme);
+  });
+  const toggleIcon = qs("#themeToggleBtn .btn-icon");
+  if (toggleIcon) toggleIcon.innerHTML = iconSvg(dark ? "sun" : "moon");
+  if (persist) saveUiState();
+}
+
+function toggleTheme() {
+  applyTheme(effectiveDark() ? "light" : "dark");
+}
+
+function initTheme() {
+  applyTheme(ui.theme, false);
+  if (window.matchMedia) {
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => {
+      if (ui.theme === "auto") applyTheme("auto", false);
+    };
+    if (query.addEventListener) query.addEventListener("change", onChange);
+    else if (query.addListener) query.addListener(onChange);
   }
 }
 
@@ -2149,6 +2544,12 @@ function bindEvents() {
       return;
     }
 
+    const cashButton = event.target.closest("[data-cash-action]");
+    if (cashButton) {
+      if (cashButton.dataset.cashAction === "statement") openCashStatement();
+      return;
+    }
+
     const loanMonthButton = event.target.closest("[data-loan-month]");
     if (loanMonthButton) {
       ui.loanMonth = loanMonthButton.dataset.loanMonth;
@@ -2187,6 +2588,16 @@ function bindEvents() {
   qs("#addExpenseBtn").addEventListener("click", openExpenseForm);
   qs("#exportExpensesBtn").addEventListener("click", exportExpenses);
 
+  qs("#setCapitalBtn")?.addEventListener("click", openStartingCapitalForm);
+  qs("#addCapitalInBtn")?.addEventListener("click", () => openCapitalForm("in"));
+  qs("#addCapitalOutBtn")?.addEventListener("click", () => openCapitalForm("out"));
+  qs("#viewStatementBtn")?.addEventListener("click", openCashStatement);
+
+  qs("#themeToggleBtn")?.addEventListener("click", toggleTheme);
+  qsa("[data-theme-option]").forEach((button) => {
+    button.addEventListener("click", () => applyTheme(button.dataset.themeOption));
+  });
+
   qs("#setPinBtn").addEventListener("click", startSetPin);
   qs("#removePinBtn").addEventListener("click", removePin);
   qs("#pinPad").addEventListener("click", (event) => {
@@ -2208,6 +2619,7 @@ function registerServiceWorker() {
   }
 }
 
+initTheme();
 bindEvents();
 render();
 switchView(ui.activeView);

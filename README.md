@@ -8,8 +8,12 @@ The app runs entirely in a phone browser and stores all data **on that device on
 
 ## Key Features
 
-- Dashboard: capital out, outstanding balance, overdue balance, monthly revenue, monthly profit, due-this-month collections, yearly profit, and active clients at a glance.
+- Dashboard: a live **Cash on hand / Out on loan / Total funds** float panel, plus outstanding balance, overdue balance, monthly revenue, monthly net profit, due-this-month collections, yearly revenue, and active clients at a glance.
 - Clickable dashboard figures: each figure opens the matching filtered view (open loans, overdue loans, current-month payments, reports, or clients).
+- **Cash float tracking (banking view): a real running cash balance, separate from profit. Set your starting capital, record capital you put in or take out, and every loan paid out, repayment, and expense moves the balance.**
+- **Statement / ledger: tap any float figure to see every cash movement grouped by month with a running balance — like a bank statement.**
+- **Cash flow report: opening balance, money in, money out, net movement, and closing balance for the chosen month, year, or all time.**
+- **Dark mode: System, Light, or Dark appearance, with an iOS-style interface.**
 - Client management: names, phone numbers, ID numbers, employer, address, next of kin, and notes.
 - Loan tracking: amount, interest rate, fees, issue date, due date, payment status, and write-off status.
 - Monthly loan view: the Loans section is grouped by month.
@@ -25,6 +29,11 @@ The app runs entirely in a phone browser and stores all data **on that device on
 
 ## Figure Definitions
 
+- Starting capital: the money you began the business with — your opening float. Cash on hand is built from this figure. Editable anytime.
+- Cash on hand: your live cash balance. Starting capital, plus capital you add and repayments collected, minus loans paid out, expenses, and capital you withdraw.
+- Out on loan: principal currently in clients' hands (written-off principal is treated as a loss and excluded).
+- Total funds: cash on hand plus out on loan — your working capital. If it grows, the business is growing.
+- Net movement: money in minus money out for the period (the change in cash on hand).
 - Revenue: all repayments collected from clients. Total money that came in.
 - Profit: the interest and fees portion of repayments collected.
 - Expenses: business costs you record (transport, bank charges, rent, etc.).

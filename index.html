@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#053437" />
-    <meta name="description" content="Local cashloan tracking for clients, loans, payments, revenue, and outstanding balances." />
+    <meta name="theme-color" content="#f2f2f7" />
+    <meta name="description" content="Local cashloan tracking for clients, loans, payments, cash float, revenue, and outstanding balances." />
     <title>QuickServe Cashloan Ledger</title>
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
@@ -14,23 +14,38 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="QuickServe" />
-    <link rel="stylesheet" href="./styles.css?v=13" />
+    <script>
+      // Apply the saved theme before paint to avoid a flash of the wrong mode.
+      (function () {
+        try {
+          var saved = JSON.parse(localStorage.getItem("quickserve_cashloan_ui_v1")) || {};
+          var theme = ["light", "dark", "auto"].indexOf(saved.theme) >= 0 ? saved.theme : "auto";
+          document.documentElement.setAttribute("data-theme", theme);
+          var dark = theme === "dark" || (theme === "auto" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", dark ? "#000000" : "#f2f2f7");
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="./styles.css?v=14" />
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
         <div class="brand-block">
-          <img class="brand-logo" src="./brand-logo.svg" alt="QuickServe Cashloan" />
-          <span class="ledger-pill">Ledger</span>
+          <img class="brand-badge" src="./icon.svg" alt="" width="30" height="30" />
+          <span class="brand-name">QuickServe<span class="brand-sub">Ledger</span></span>
         </div>
-        <div class="date-pill" id="todayPill">Today</div>
+        <button class="icon-btn ghost" id="themeToggleBtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <span class="btn-icon" data-icon="moon"></span>
+        </button>
       </header>
 
       <main class="main-area">
         <section class="view active" id="dashboardView" aria-labelledby="dashboardTitle">
           <div class="view-head">
             <div>
-              <p class="eyebrow">Overview</p>
+              <p class="eyebrow" id="todayPill">Today</p>
               <h2 id="dashboardTitle">Dashboard</h2>
             </div>
             <button class="icon-text-btn primary" id="quickLoanBtn" type="button">
@@ -38,6 +53,8 @@
               <span>Loan</span>
             </button>
           </div>
+
+          <div class="float-grid" id="floatGrid"></div>
 
           <div class="metric-grid" id="metricGrid"></div>
 
@@ -140,9 +157,40 @@
 
           <section class="surface">
             <div class="section-head">
+              <h3>Cash flow</h3>
+              <button class="icon-btn" id="viewStatementBtn" type="button" aria-label="View full statement" title="View full statement">
+                <span class="btn-icon" data-icon="file-text"></span>
+              </button>
+            </div>
+            <div class="report-grid" id="cashFlowGrid"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
               <h3>Right now</h3>
             </div>
             <div class="report-grid" id="positionGrid"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Capital &amp; float</h3>
+              <button class="icon-btn" id="setCapitalBtn" type="button" aria-label="Set starting capital" title="Set starting capital">
+                <span class="btn-icon" data-icon="edit"></span>
+              </button>
+            </div>
+            <div class="report-grid" id="capitalGrid"></div>
+            <div class="action-row">
+              <button class="icon-text-btn" id="addCapitalInBtn" type="button">
+                <span class="btn-icon" data-icon="coins"></span>
+                <span>Add capital</span>
+              </button>
+              <button class="icon-text-btn" id="addCapitalOutBtn" type="button">
+                <span class="btn-icon" data-icon="arrowOut"></span>
+                <span>Withdraw</span>
+              </button>
+            </div>
+            <div class="item-list" id="capitalList"></div>
           </section>
 
           <section class="surface">
@@ -175,6 +223,18 @@
               <h3>Overdue loans</h3>
             </div>
             <div class="item-list" id="overdueReportList"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Appearance</h3>
+            </div>
+            <p class="item-meta">Choose how the app looks. System follows your phone's light or dark setting.</p>
+            <div class="segmented theme-switch" role="tablist" aria-label="Theme">
+              <button type="button" data-theme-option="auto">System</button>
+              <button type="button" data-theme-option="light">Light</button>
+              <button type="button" data-theme-option="dark">Dark</button>
+            </div>
           </section>
 
           <section class="surface">
@@ -256,6 +316,7 @@
 
     <div class="sheet" id="sheet" hidden>
       <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+        <div class="sheet-grabber" aria-hidden="true"></div>
         <div class="sheet-head">
           <h2 id="sheetTitle"></h2>
           <button class="icon-btn" id="closeSheetBtn" type="button" aria-label="Close" title="Close">
@@ -280,7 +341,7 @@
       </div>
     </div>
 
-    <script src="./import-data.js?v=13"></script>
-    <script src="./app.js?v=13"></script>
+    <script src="./import-data.js?v=14"></script>
+    <script src="./app.js?v=14"></script>
   </body>
 </html>
