@@ -976,13 +976,12 @@ function renderReports() {
   const position = totalsFor();
 
   qs("#reportGrid").innerHTML = [
-    ["Collections", money(f.collections), "Money in (incl. capital)"],
+    ["Cash out", money(f.cashOut), "Loans issued"],
+    ["Collections", money(f.collections), "Money repaid by clients"],
+    ["Profit", money(f.profit), "Revenue minus expenses"],
+    ["Principal recovered", money(f.principalRecovered), "Capital returned"],
     ["Revenue", money(f.revenue), "Interest + fees earned"],
     ["Expenses", money(f.expenses), "Business costs"],
-    ["Profit", money(f.profit), "Revenue minus expenses"],
-    ["Cash out", money(f.cashOut), "Loans issued"],
-    ["Principal recovered", money(f.principalRecovered), "Capital returned"],
-    ["Net cash", money(f.netCash), "Collections minus cash out"],
     ["Collection rate", percent(f.collectionRate), "Paid / total due on loans issued"]
   ].map(reportCardHtml).join("");
 
@@ -1030,7 +1029,9 @@ function renderCapital() {
     ["Starting capital", money(startingCapital()), startingCapital() ? "Your opening float" : "Tap Set to enter"],
     ["Capital added", money(capitalInjected()), "Money you put in"],
     ["Capital withdrawn", money(capitalWithdrawn()), "Money you took out"],
-    ["Cash on hand", money(cashOnHand()), "Live balance"]
+    ["Cash on hand", money(cashOnHand()), "Live balance"],
+    ["Out on loan", money(outOnLoan()), "Principal with clients"],
+    ["Total funds", money(totalFunds()), "Cash on hand + out on loan"]
   ].map(reportCardHtml).join("");
 
   const rows = state.capital.slice().sort((a, b) => {
