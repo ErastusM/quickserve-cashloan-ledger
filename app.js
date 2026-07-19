@@ -1122,7 +1122,7 @@ function openStartingCapitalForm() {
   openSheet("Starting capital", `
     <p class="form-hint">The money you began the business with — your opening float. Cash on hand builds from this figure. You can change it anytime.</p>
     <div class="form-grid">
-      <label><span>Starting capital</span><input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" value="${escapeHtml(state.settings.startingCapital || "")}" /></label>
+      <label data-prefix="${currency}"><span>Starting capital</span><input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" value="${escapeHtml(state.settings.startingCapital || "")}" placeholder="0.00" /></label>
       <label><span>As of date</span><input name="date" type="date" value="${escapeHtml(state.settings.startingCapitalDate || todayISO())}" /></label>
     </div>
   `, "Save capital", (form) => {
@@ -1139,7 +1139,7 @@ function openCapitalForm(direction = "in") {
   openSheet(out ? "Withdraw capital" : "Add capital", `
     <p class="form-hint">${out ? "Money you take out of the business float (for example, paying yourself)." : "Extra money you put into the business float."}</p>
     <div class="form-grid">
-      <label><span>Amount</span><input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" /></label>
+      <label data-prefix="${currency}"><span>Amount</span><input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" placeholder="0.00" /></label>
       <label><span>Date</span><input name="date" type="date" required value="${todayISO()}" /></label>
       <label class="wide"><span>Note</span><input name="note" placeholder="${out ? "What is this for?" : "Where is this from?"}" /></label>
     </div>
@@ -1385,7 +1385,7 @@ function openExpenseForm() {
 
   openSheet("Add expense", `
     <div class="form-grid">
-      <label><span>Amount</span><input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" /></label>
+      <label data-prefix="${currency}"><span>Amount</span><input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" placeholder="0.00" /></label>
       <label><span>Date</span><input name="date" type="date" required value="${todayISO()}" /></label>
       <label class="wide"><span>Category</span><select name="category">${categoryOptions}</select></label>
       <label class="wide"><span>Note</span><input name="note" placeholder="What was this for?" /></label>
@@ -1616,13 +1616,16 @@ function openClientForm(client = null) {
   const isEdit = Boolean(client);
   openSheet(isEdit ? "Edit client" : "New client", `
     <div class="form-grid">
-      <label><span>Name</span><input name="name" required value="${escapeHtml(client?.name || "")}" autocomplete="name" /></label>
-      <label><span>Phone</span><input name="phone" value="${escapeHtml(client?.phone || "")}" inputmode="tel" autocomplete="tel" /></label>
-      <label><span>ID or passport</span><input name="nationalId" value="${escapeHtml(client?.nationalId || "")}" /></label>
-      <label><span>Employer</span><input name="employer" value="${escapeHtml(client?.employer || "")}" /></label>
-      <label class="wide"><span>Address</span><input name="address" value="${escapeHtml(client?.address || "")}" /></label>
-      <label><span>Next of kin</span><input name="nextOfKin" value="${escapeHtml(client?.nextOfKin || "")}" /></label>
-      <label><span>Notes</span><textarea name="notes">${escapeHtml(client?.notes || "")}</textarea></label>
+      <label class="wide"><span>Name</span><input name="name" required value="${escapeHtml(client?.name || "")}" autocomplete="name" placeholder="Full name" /></label>
+      <label><span>Phone</span><input name="phone" value="${escapeHtml(client?.phone || "")}" inputmode="tel" autocomplete="tel" placeholder="Optional" /></label>
+      <label><span>ID or passport</span><input name="nationalId" value="${escapeHtml(client?.nationalId || "")}" placeholder="Optional" /></label>
+    </div>
+    <p class="form-section-label">Details</p>
+    <div class="form-grid">
+      <label><span>Employer</span><input name="employer" value="${escapeHtml(client?.employer || "")}" placeholder="Optional" /></label>
+      <label><span>Next of kin</span><input name="nextOfKin" value="${escapeHtml(client?.nextOfKin || "")}" placeholder="Optional" /></label>
+      <label class="wide"><span>Address</span><input name="address" value="${escapeHtml(client?.address || "")}" placeholder="Optional" /></label>
+      <label class="wide"><span>Notes</span><textarea name="notes" placeholder="Anything worth remembering">${escapeHtml(client?.notes || "")}</textarea></label>
     </div>
   `, isEdit ? "Save client" : "Add client", (form) => {
     const record = {
@@ -1671,12 +1674,15 @@ function openLoanForm(loan = null, forcedClientId = "") {
   openSheet(isEdit ? "Edit loan" : "New loan", `
     <div class="form-grid">
       <label class="wide"><span>Client</span><select name="clientId" required>${clientOptions(selectedClient)}</select></label>
-      <label><span>Amount given</span><input name="principal" type="number" min="0" step="0.01" required value="${escapeHtml(loan?.principal || "")}" inputmode="decimal" /></label>
-      <label><span>Interest rate %</span><input name="interestRate" type="number" min="0" step="0.01" value="${escapeHtml(loan?.interestRate ?? 30)}" inputmode="decimal" /></label>
-      <label><span>Service fee</span><input name="serviceFee" type="number" min="0" step="0.01" value="${escapeHtml(loan?.serviceFee || 0)}" inputmode="decimal" /></label>
+      <label data-prefix="${currency}"><span>Amount given</span><input name="principal" type="number" min="0" step="0.01" required value="${escapeHtml(loan?.principal || "")}" inputmode="decimal" placeholder="0.00" /></label>
+      <label data-suffix="%"><span>Interest rate</span><input name="interestRate" type="number" min="0" step="0.01" value="${escapeHtml(loan?.interestRate ?? 30)}" inputmode="decimal" /></label>
+      <label data-prefix="${currency}"><span>Service fee</span><input name="serviceFee" type="number" min="0" step="0.01" value="${escapeHtml(loan?.serviceFee || 0)}" inputmode="decimal" placeholder="0.00" /></label>
+    </div>
+    <p class="form-section-label">Schedule</p>
+    <div class="form-grid">
       <label><span>Issue date</span><input name="issueDate" type="date" required value="${escapeHtml(issueDate)}" /></label>
       <label><span>Due date</span><input name="dueDate" type="date" required value="${escapeHtml(dueDate)}" /></label>
-      <label class="wide"><span>Purpose</span><input name="purpose" value="${escapeHtml(loan?.purpose || "")}" /></label>
+      <label class="wide"><span>Purpose</span><input name="purpose" value="${escapeHtml(loan?.purpose || "")}" placeholder="Optional" /></label>
     </div>
   `, isEdit ? "Save loan" : "Create loan", (form) => {
     const principal = roundMoney(form.get("principal"));
@@ -1732,7 +1738,7 @@ function openPaymentForm(forcedLoanId = "") {
   openSheet("Record payment", `
     <div class="form-grid">
       <label class="wide"><span>Loan</span><select name="loanId" required>${options}</select></label>
-      <label><span>Amount paid</span><input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" /></label>
+      <label data-prefix="${currency}"><span>Amount paid</span><input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" placeholder="0.00" /></label>
       <label><span>Payment date</span><input name="date" type="date" required value="${todayISO()}" /></label>
       <label><span>Method</span><select name="method">
         <option>Cash</option>

@@ -1077,13 +1077,29 @@ textarea:focus-visible,
   padding: 4px 16px 16px;
 }
 
+/* Forms render as iOS inset-grouped cards: the 1px grid gap lets the
+   container colour show through as hairline dividers, so the card works
+   at any column count without nth-child maths. */
 .form-grid {
   display: grid;
-  gap: 12px;
+  gap: 1px;
+  border-radius: var(--radius-md);
+  background: var(--line);
+  overflow: hidden;
 }
 
 .form-grid.compact {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-section-label {
+  margin: 6px 0 -8px;
+  padding-inline: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: var(--w-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .form-hint {
@@ -1103,6 +1119,121 @@ label span {
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: var(--w-medium);
+}
+
+/* Each field becomes a row inside the card. */
+.form-grid > label {
+  display: grid;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 14px 11px;
+  background: var(--field-bg);
+  transition: background 0.15s ease;
+}
+
+/* Tint is translucent, so layer it over the field colour rather than
+   letting it composite against the card's hairline background. */
+.form-grid > label:focus-within {
+  background-color: var(--field-bg);
+  background-image: linear-gradient(var(--accent-tint), var(--accent-tint));
+}
+
+.form-grid > label > span {
+  margin-bottom: 0;
+  font-size: 0.75rem;
+}
+
+/* Controls are borderless inside the group — the card supplies the edges. */
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 1.0625rem; /* 17px: iOS body, and stops focus zoom on iPhone */
+  line-height: 1.3;
+}
+
+.form-grid input:focus,
+.form-grid select:focus,
+.form-grid textarea:focus {
+  outline: 0;
+  box-shadow: none;
+}
+
+.form-grid textarea {
+  min-height: 62px;
+  padding-top: 2px;
+}
+
+/* Currency prefix / unit suffix, driven by data attributes on the label. */
+.form-grid > label[data-prefix] {
+  grid-template-columns: auto 1fr;
+  column-gap: 5px;
+}
+
+.form-grid > label[data-suffix] {
+  grid-template-columns: 1fr auto;
+  column-gap: 5px;
+}
+
+.form-grid > label[data-prefix] > span,
+.form-grid > label[data-suffix] > span {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+.form-grid > label[data-prefix]::before {
+  content: attr(data-prefix);
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.form-grid > label[data-prefix] > input {
+  grid-column: 2;
+  grid-row: 2;
+  font-weight: var(--w-semibold);
+}
+
+.form-grid > label[data-suffix] > input {
+  grid-column: 1;
+  grid-row: 2;
+  font-weight: var(--w-semibold);
+}
+
+.form-grid > label[data-suffix]::after {
+  content: attr(data-suffix);
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.form-grid > label[data-prefix]::before,
+.form-grid > label[data-suffix]::after {
+  color: var(--muted);
+  font-size: 1.0625rem;
+  font-weight: var(--w-medium);
+}
+
+/* iOS gives date inputs an intrinsic width and centres the value, which
+   pushed them past the other fields. Normalise them. */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  margin: 0;
+  opacity: 0.45;
 }
 
 input,
@@ -1135,12 +1266,17 @@ textarea {
   position: sticky;
   bottom: 0;
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
   padding: 12px 0 calc(4px + env(safe-area-inset-bottom));
   margin-top: 2px;
   border-top: 1px solid var(--line);
   background: var(--surface);
+}
+
+.sheet-actions > .icon-text-btn {
+  flex: 1;
+  min-height: 48px;
+  font-size: 1rem;
 }
 
 #sheetBody > .sheet-actions {
@@ -1537,6 +1673,15 @@ body.locked {
 
   .sheet-panel {
     border-radius: 22px;
+  }
+
+  .sheet-actions {
+    justify-content: flex-end;
+  }
+
+  .sheet-actions > .icon-text-btn {
+    flex: 0 1 auto;
+    min-width: 150px;
   }
 
   .sheet-grabber {
