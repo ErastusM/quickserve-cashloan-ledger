@@ -87,6 +87,9 @@ const ui = {
   theme: ["light", "dark", "auto"].includes(savedUi.theme) ? savedUi.theme : "auto"
 };
 
+// null = unknown / not asked yet, true = browser promised to keep it.
+let storagePersisted = null;
+
 const qs = (selector, root = document) => root.querySelector(selector);
 const qsa = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
@@ -144,7 +147,7 @@ function loadUiState() {
 }
 
 function initialView(saved = {}) {
-  const route = location.hash.replace("#", "").trim();
+  const route = typeof location === "undefined" ? "" : location.hash.replace("#", "").trim();
   if (routeViews[route]) return routeViews[route];
   if (viewRoutes[saved.activeView]) return saved.activeView;
   return "dashboardView";
@@ -163,7 +166,7 @@ function saveUiState() {
 }
 
 function applySpreadsheetImport() {
-  const rows = Array.isArray(window.quickserveHistoricalRows) ? window.quickserveHistoricalRows : [];
+  const rows = Array.isArray(globalThis.quickserveHistoricalRows) ? globalThis.quickserveHistoricalRows : [];
   if (!rows.length) return false;
 
   const now = new Date().toISOString();
@@ -1332,13 +1335,21 @@ function yearOutstanding(year) {
 }
 
 function renderDataStatus() {
-  const rows = Array.isArray(window.quickserveHistoricalRows) ? window.quickserveHistoricalRows : [];
+  if (!qs("#dataStatusGrid")) return;
+  const rows = Array.isArray(globalThis.quickserveHistoricalRows) ? globalThis.quickserveHistoricalRows : [];
   const importedIds = new Set(rows.map((row) => `loan_${slug(row.loanId)}`));
   const importedLoans = state.loans.filter((loan) => importedIds.has(loan.id));
   const importedPayments = state.payments.filter((payment) => importedIds.has(payment.loanId));
   const missingLoans = rows.length - importedLoans.length;
   const importedOutstanding = roundMoney(importedLoans.map(analyzeLoan).reduce((sum, row) => sum + row.outstanding, 0));
   const cards = [
+    [
+      "Storage",
+      storagePersisted === true ? "Persistent" : storagePersisted === false ? "Best effort" : "Unknown",
+      storagePersisted === true
+        ? "Browser agreed to keep this data"
+        : "Browser may evict this — keep backups"
+    ],
     ["Import rows", String(rows.length), missingLoans ? `${missingLoans} missing` : "All loaded"],
     ["Clients", String(state.clients.length), "Saved records"],
     ["Loans", String(state.loans.length), `${importedLoans.length} imported`],
@@ -3015,9 +3026,30 @@ function registerServiceWorker() {
   }
 }
 
-initTheme();
-bindEvents();
-render();
-switchView(ui.activeView);
-initSecurity();
-registerServiceWorker();
+// Ask the browser to keep this origin's storage. Without it a browser under
+// space pressure — or Safari's inactivity policy — can evict the entire loan
+// book. Best effort: some browsers grant silently, some refuse, some ignore it.
+async function requestPersistentStorage() {
+  try {
+    if (!navigator.storage?.persist) return;
+    storagePersisted = await navigator.storage.persisted();
+    if (!storagePersisted) {
+      storagePersisted = await navigator.storage.persist();
+    }
+  } catch {
+    storagePersisted = null;
+  }
+  renderDataStatus();
+}
+
+// Boot only in a browser, so the money functions can be loaded and tested
+// under Node without a DOM. See tests/money.test.js.
+if (typeof document !== "undefined") {
+  initTheme();
+  bindEvents();
+  render();
+  switchView(ui.activeView);
+  initSecurity();
+  registerServiceWorker();
+  requestPersistentStorage();
+}

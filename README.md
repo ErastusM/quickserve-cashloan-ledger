@@ -1,6 +1,6 @@
 # QuickServe Cashloan Ledger
 
-A local-first mobile web app for QuickServe Cashloan. It tracks clients, loans, repayments, outstanding balances, overdue accounts, expenses, and monthly/yearly business figures.
+A local-first mobile web app for QuickServe Cashloan. It tracks clients, loans, repayments, rollovers, outstanding balances, overdue accounts, expenses, cash float, and monthly/yearly business figures.
 
 The app runs entirely in a phone browser and stores all data **on that device only** (browser local storage). Nothing is sent to a server — there is no backend.
 
@@ -8,45 +8,54 @@ The app runs entirely in a phone browser and stores all data **on that device on
 
 ## Key Features
 
-- Dashboard: a live **Cash on hand / Out on loan / Total funds** float panel, plus outstanding balance, overdue balance, monthly revenue, monthly net profit, due-this-month collections, yearly revenue, and active clients at a glance.
-- Clickable dashboard figures: each figure opens the matching filtered view (open loans, overdue loans, current-month payments, reports, or clients).
-- **Cash float tracking (banking view): a real running cash balance, separate from profit. Set your starting capital, record capital you put in or take out, and every loan paid out, repayment, and expense moves the balance.**
-- **Statement / ledger: tap any float figure to see every cash movement grouped by month with a running balance — like a bank statement.**
-- **Cash flow report: opening balance, money in, money out, net movement, and closing balance for the chosen month, year, or all time.**
-- **Dark mode: System, Light, or Dark appearance, with an iOS-style interface.**
+- Dashboard: outstanding, overdue, due this month, money collected, revenue, net profit, and active clients at a glance. Every figure is tappable and opens the matching filtered view.
+- Cash float: cash on hand, out on loan, and total funds, backed by a running bank-style ledger of every movement.
 - Client management: names, phone numbers, ID numbers, employer, address, next of kin, and notes.
-- Loan tracking: amount, interest rate, fees, issue date, due date, payment status, and write-off status.
-- Monthly loan view: the Loans section is grouped by month.
-- Payment tracking: repayments are linked to loans so collected money, profit, principal recovery, and outstanding amounts are calculated automatically.
-- **Expense tracking: record business costs so reports show true net profit (profit collected minus expenses).**
-- **Per-client statement: open a client to see every loan and payment with a running balance, then copy, share, or export it.**
-- **PIN lock: protect the loan book on a phone with a passcode asked each time the app opens.**
-- Reports: monthly and yearly revenue, profit, expected profit, principal recovered, cash spent, expenses, net profit, net cash movement, interest rate, and profit return.
-- Monthly breakdown and a revenue trend chart.
+- Loan tracking: amount, interest rate, service fee, issue date, due date, payment status, and write-off status.
+- **Rollover:** extend an unpaid loan — push the due date out and charge another interest cycle — without creating a second loan or faking a cash movement.
+- **Reminders:** one tap on an open loan builds a message with the balance and due date, ready to send over WhatsApp or SMS, or to copy.
+- **Search:** find loans by client, purpose, status or amount; find payments by client, method, reference, note or amount.
+- Payment tracking: repayments are linked to loans, so collected money, revenue, principal recovery, and outstanding amounts are calculated automatically.
+- Expense tracking: record business costs so reports show true profit.
+- Per-client statement: open a client to see every loan and payment with a running balance, then copy, share, or export it.
+- PIN lock: protect the loan book on a phone with a passcode asked each time the app opens.
+- Reports: monthly, yearly and all-time figures, a monthly breakdown table, and a collections trend chart.
 - CSV export for the loan book, payments, and expenses.
-- Backup and restore: save and restore the full local loan book as a JSON file.
+- **Backup, with warnings:** save and restore the full loan book as a JSON file, optionally encrypted. The dashboard warns when the last backup is getting old.
 - Offline / installable: a service worker and web app manifest let the app be installed to a phone home screen and used offline.
 
 ## Figure Definitions
 
-- Starting capital: the money you began the business with — your opening float. Cash on hand is built from this figure. Editable anytime.
-- Cash on hand: your live cash balance. Starting capital, plus capital you add and repayments collected, minus loans paid out, expenses, and capital you withdraw.
-- Out on loan: principal currently in clients' hands (written-off principal is treated as a loss and excluded).
-- Total funds: cash on hand plus out on loan — your working capital. If it grows, the business is growing.
-- Net movement: money in minus money out for the period (the change in cash on hand).
-- Revenue: all repayments collected from clients. Total money that came in.
-- Profit: the interest and fees portion of repayments collected.
-- Expenses: business costs you record (transport, bank charges, rent, etc.).
-- Net profit: profit collected minus expenses for the period.
-- Expected profit: the interest and fees expected from loans issued.
-- Principal recovered: the original loan money that has been paid back.
-- Cash spent: money given out to clients as loans.
-- Capital out: original loan money still not recovered.
-- Outstanding: total amount still collectable (principal plus unpaid interest and fees).
-- Overdue: unpaid collectable balance where the due date has passed.
-- Net cash movement: revenue minus cash spent for the selected period.
-- Interest rate: expected profit divided by cash spent.
-- Profit return: profit collected divided by cash spent.
+These match the labels shown in the app.
+
+**Period figures** (Reports, for the selected month / year / all-time)
+
+- **Cash out** — money handed to clients as new loans.
+- **Collections** (shown as *Collected* on the dashboard) — all repayment money received from clients.
+- **Revenue** — the interest and service-fee portion of what was collected.
+- **Expenses** — business costs you record.
+- **Profit** (shown as *Net profit* on the dashboard) — revenue minus expenses.
+- **Principal recovered** — the original loan money that has been paid back.
+- **Collection rate** — amount paid divided by total due, on loans issued in that period.
+
+**Position figures** (where the book stands right now)
+
+- **Outstanding** — total still collectable: principal plus unpaid interest and fees.
+- **Capital out** — original loan money still not recovered.
+- **Overdue** — unpaid collectable balance where the due date has passed.
+- **Written off** — balances marked unrecoverable; excluded from outstanding and from the float.
+
+**Cash float**
+
+- **Cash on hand** — live cash balance: starting capital + capital in − capital out + repayments − loans paid out − expenses.
+- **Out on loan** — principal still in clients' hands.
+- **Total funds** — cash on hand + out on loan, i.e. working capital.
+
+If cash on hand looks lower than the capital you put in, the difference is usually **out on loan** — the money is with clients, not missing. Total funds is the figure that reconciles.
+
+## How Repayments Are Applied
+
+A repayment clears **interest and fees first**, then principal. Profit is therefore recognised early in a loan's life, and principal recovery comes later. A rollover adds another interest charge to the same loan; it moves no cash, so it never shows up as a new disbursement or collection.
 
 ## Install on a Phone
 
@@ -65,7 +74,11 @@ To load your real loan book onto a device:
 
 Your data stays in that phone's browser only. It is never uploaded anywhere.
 
-**Backup habit:** use **Reports > Backup** regularly and keep the file somewhere safe (Google Drive, iCloud, OneDrive, WhatsApp to yourself). If the phone is lost or its browser data is cleared, the backup file is what restores the loan book.
+**Backup habit:** use **Reports > Backup** regularly and keep the file somewhere safe (Google Drive, iCloud, OneDrive, WhatsApp to yourself). If the phone is lost or its browser data is cleared, the backup file is what restores the loan book. The dashboard shows a warning when the last backup is getting stale.
+
+**Encrypted backup:** **Reports > Encrypted backup** asks for a passphrase and writes an AES-GCM encrypted file, with the key derived via PBKDF2-SHA256. Restore detects the format and asks for the passphrase. Use this if the backup will sit in cloud storage or a chat thread, since a plain backup contains names and ID numbers in readable text. **A forgotten passphrase cannot be recovered** — which is exactly why the plain backup stays available too.
+
+**Storage durability:** on load the app asks the browser to keep its storage (`navigator.storage.persist()`), which reduces the chance of the loan book being evicted when a device is low on space or the app goes unused. **Reports > Data status** shows whether the browser agreed. This is best effort, not a guarantee, and it is not a substitute for backups.
 
 **About the PIN:** the PIN lock keeps the book from being opened casually on a lost or borrowed phone. It is a client-side lock stored hashed in the browser; it is not full device encryption, so for highly sensitive use also rely on the phone's own lock screen.
 
@@ -79,8 +92,20 @@ python -m http.server 8080
 
 Then open `http://localhost:8080`, or from a phone on the same Wi-Fi use the computer's local IP, for example `http://192.168.8.121:8080`.
 
+## Tests
+
+The money maths — payment allocation, rollovers, write-offs, period figures and the cash float — are covered by regression tests that load the real `app.js` and exercise its actual functions rather than a copy of the logic:
+
+```powershell
+node tests/money.test.js
+```
+
+No dependencies and no framework; it needs only Node. These tests also run in CI and **must pass before the site deploys**, because a wrong balance is worse than a late release.
+
 ## Hosting (GitHub Pages)
 
-The site is plain static files (HTML, CSS, JS) with no build step. On every push to `main`, the workflow in `.github/workflows/pages.yml` publishes the repository root to GitHub Pages.
+The site is plain static files (HTML, CSS, JS) with no build step. On every push to `main`, the workflow in `.github/workflows/pages.yml` runs the tests and then publishes the repository root to GitHub Pages.
+
+When releasing, bump the cache version in **both** `sw.js` (`CACHE_NAME`) and the `?v=` query strings in `sw.js` and `index.html`, so installed phones pick up the update instead of serving the cached copy.
 
 To re-render the PNG app icons from the SVG source, use any SVG-to-PNG tool to produce `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, and `favicon-32.png`.
