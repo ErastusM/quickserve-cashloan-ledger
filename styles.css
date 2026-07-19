@@ -1283,6 +1283,83 @@ textarea {
   padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
 }
 
+.reminder-preview {
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--field-bg);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---- Backup banner ---- */
+.backup-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+}
+
+.backup-banner.warn {
+  border-color: var(--orange);
+  background: var(--orange-tint);
+}
+
+.backup-banner.danger {
+  border-color: var(--red);
+  background: var(--red-tint);
+}
+
+.backup-banner-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+}
+
+.backup-banner.warn .backup-banner-icon {
+  color: var(--orange);
+}
+
+.backup-banner.danger .backup-banner-icon {
+  color: var(--red);
+}
+
+.backup-banner-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.backup-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.backup-banner-text strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: var(--w-semibold);
+}
+
+.backup-banner-text p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.backup-banner .icon-text-btn {
+  flex: 0 0 auto;
+}
+
 /* ---- Toast ---- */
 .toast {
   position: fixed;

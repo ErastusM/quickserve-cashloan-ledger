@@ -1,10 +1,10 @@
-const CACHE_NAME = "quickserve-cashloan-v16";
+const CACHE_NAME = "quickserve-cashloan-v17";
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=16",
-  "./import-data.js?v=16",
-  "./app.js?v=16",
+  "./styles.css?v=17",
+  "./import-data.js?v=17",
+  "./app.js?v=17",
   "./manifest.json",
   "./icon.svg",
   "./icon-192.png",

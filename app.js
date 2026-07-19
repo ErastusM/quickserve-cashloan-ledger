@@ -76,6 +76,8 @@ const savedUi = loadUiState();
 const ui = {
   activeView: initialView(savedUi),
   clientSearch: "",
+  loanSearch: "",
+  paymentSearch: "",
   loanFilter: "all",
   loanMonth: savedUi.loanMonth || "all",
   paymentMonth: savedUi.paymentMonth || "all",
@@ -101,7 +103,14 @@ function loadState() {
 function emptyState() {
   return {
     version: 1,
-    settings: { companyName: "Quickserve", currency, startingCapital: 0, startingCapitalDate: "" },
+    settings: {
+      companyName: "Quickserve",
+      currency,
+      startingCapital: 0,
+      startingCapitalDate: "",
+      lastBackupAt: "",
+      lastBackupCount: 0
+    },
     clients: [],
     loans: [],
     payments: [],
@@ -386,15 +395,25 @@ function paymentsForLoan(loanId) {
     });
 }
 
+function loanExtensions(loan) {
+  return Array.isArray(loan.extensions) ? loan.extensions : [];
+}
+
 function loanTerms(loan) {
   const principal = roundMoney(loan.principal);
   const interest = roundMoney((principal * Number(loan.interestRate || 0)) / 100);
   const fees = roundMoney(loan.serviceFee);
-  const revenueDue = roundMoney(interest + fees);
+  // Each rollover charges another interest cycle on the same loan, so it adds
+  // to revenue due without moving cash or creating a second loan record.
+  const extensionInterest = roundMoney(
+    loanExtensions(loan).reduce((sum, entry) => sum + Number(entry.addedInterest || 0), 0)
+  );
+  const revenueDue = roundMoney(interest + fees + extensionInterest);
   return {
     principal,
     interest,
     fees,
+    extensionInterest,
     revenueDue,
     totalDue: roundMoney(principal + revenueDue)
   };
@@ -566,6 +585,7 @@ function totalsFor(month = ui.reportMonth, year = ui.reportYear) {
 function render() {
   qs("#todayPill").textContent = formatDate(todayISO());
   renderPeriodControl();
+  renderBackupBanner();
   renderDashboard();
   renderClients();
   renderLoans();
@@ -905,12 +925,25 @@ function renderClients() {
     : emptyHtml(state.clients.length ? "No clients match that search." : "No clients added yet.");
 }
 
+function matchesSearch(term, parts) {
+  const needle = String(term || "").trim().toLowerCase();
+  if (!needle) return true;
+  return parts.filter(Boolean).join(" ").toLowerCase().includes(needle);
+}
+
 function renderLoans() {
   const analyses = allAnalyses()
     .filter((row) => {
       const statusMatch = ui.loanFilter === "all" || row.status === ui.loanFilter || (ui.loanFilter === "open" && (row.status === "active" || row.status === "overdue"));
       const monthMatch = ui.loanMonth === "all" || monthKey(row.loan.issueDate) === ui.loanMonth;
-      return statusMatch && monthMatch;
+      const searchMatch = matchesSearch(ui.loanSearch, [
+        getClientName(row.loan.clientId),
+        row.loan.purpose,
+        statusLabel(row.status),
+        row.loan.principal,
+        row.outstanding
+      ]);
+      return statusMatch && monthMatch && searchMatch;
     })
     .sort((a, b) => dateFromISO(a.loan.dueDate) - dateFromISO(b.loan.dueDate));
 
@@ -926,7 +959,17 @@ function renderLoans() {
 
 function renderPayments() {
   const rows = allPaymentAllocations()
-    .filter((row) => ui.paymentMonth === "all" || monthKey(row.payment.date) === ui.paymentMonth);
+    .filter((row) => {
+      const monthMatch = ui.paymentMonth === "all" || monthKey(row.payment.date) === ui.paymentMonth;
+      const searchMatch = matchesSearch(ui.paymentSearch, [
+        row.client?.name,
+        row.payment.method,
+        row.payment.reference,
+        row.payment.notes,
+        row.payment.amount
+      ]);
+      return monthMatch && searchMatch;
+    });
   renderPaymentMonthStrip();
   qs("#paymentList").innerHTML = rows.length
     ? rows.map(paymentCard).join("")
@@ -1552,12 +1595,16 @@ function loanCard(row) {
     ? `<button class="icon-text-btn" type="button" data-action="reactivate-loan" data-id="${loan.id}"><span class="btn-icon">${iconSvg("edit")}</span><span>Reopen</span></button>`
     : `<button class="icon-text-btn" type="button" data-action="write-off-loan" data-id="${loan.id}"><span class="btn-icon">${iconSvg("archive")}</span><span>Write off</span></button>`;
 
+  const open = row.status !== "paid";
+  const rolls = loanExtensions(loan).length;
+  const rollMeta = rolls ? ` · Rolled over ${rolls}×` : "";
+
   return `
     <article class="list-card">
       <div class="item-top">
         <div class="item-title">
           <strong>${escapeHtml(getClientName(loan.clientId))}</strong>
-          <p class="item-meta">${escapeHtml(loan.purpose || "Cashloan")} · Issued ${formatDate(loan.issueDate)}</p>
+          <p class="item-meta">${escapeHtml(loan.purpose || "Cashloan")} · Issued ${formatDate(loan.issueDate)}${rollMeta}</p>
         </div>
         <span class="status ${row.status}">${escapeHtml(statusLabel(row.status))}</span>
       </div>
@@ -1573,6 +1620,12 @@ function loanCard(row) {
         <button class="icon-text-btn primary" type="button" data-action="payment-for-loan" data-id="${loan.id}">
           <span class="btn-icon">${iconSvg("receipt")}</span><span>Payment</span>
         </button>
+        ${open ? `<button class="icon-text-btn" type="button" data-action="rollover-loan" data-id="${loan.id}">
+          <span class="btn-icon">${iconSvg("refresh")}</span><span>Roll over</span>
+        </button>` : ""}
+        ${open ? `<button class="icon-text-btn" type="button" data-action="remind-loan" data-id="${loan.id}">
+          <span class="btn-icon">${iconSvg("share")}</span><span>Remind</span>
+        </button>` : ""}
         <button class="icon-text-btn" type="button" data-action="edit-loan" data-id="${loan.id}">
           <span class="btn-icon">${iconSvg("edit")}</span><span>Edit</span>
         </button>
@@ -1647,6 +1700,136 @@ function openClientForm(client = null) {
     }
     saveState();
     render();
+  });
+}
+
+// Roll a loan forward: push the due date out and charge another interest
+// cycle. Modelled as an extension on the same loan rather than a new loan, so
+// no phantom cash-out or collection enters the float engine.
+function openRolloverForm(loanId) {
+  const loan = getLoan(loanId);
+  if (!loan) return;
+
+  const analysis = analyzeLoan(loan);
+  if (analysis.outstanding <= 0) {
+    toast("This loan is already settled.");
+    return;
+  }
+
+  const suggested = roundMoney(
+    (analysis.principalOutstanding * Number(loan.interestRate || 0)) / 100
+  );
+  // Roll from today when the loan is already late, so the suggested date is
+  // never in the past.
+  const rollFrom = loan.dueDate > todayISO() ? loan.dueDate : todayISO();
+  const nextDue = addDays(rollFrom, 30);
+  const rounds = loanExtensions(loan).length;
+
+  openSheet("Roll over loan", `
+    <p class="form-hint">
+      ${escapeHtml(getClientName(loan.clientId))} still owes ${money(analysis.outstanding)}
+      (${money(analysis.principalOutstanding)} principal). Rolling over moves the due date
+      and charges another interest cycle. No cash changes hands.
+      ${rounds ? `Already rolled over ${rounds} time${rounds === 1 ? "" : "s"}.` : ""}
+    </p>
+    <div class="form-grid">
+      <label data-prefix="${currency}"><span>Interest to add</span><input name="addedInterest" type="number" min="0" step="0.01" required inputmode="decimal" value="${escapeHtml(suggested)}" placeholder="0.00" /></label>
+      <label><span>New due date</span><input name="newDueDate" type="date" required value="${escapeHtml(nextDue)}" /></label>
+      <label class="wide"><span>Note</span><input name="note" placeholder="Optional" /></label>
+    </div>
+  `, "Roll over", (form) => {
+    const addedInterest = roundMoney(form.get("addedInterest"));
+    const newDueDate = form.get("newDueDate");
+    if (addedInterest < 0) {
+      toast("Interest cannot be negative.");
+      return false;
+    }
+    if (!newDueDate || newDueDate <= loan.dueDate) {
+      toast("Pick a due date after the current one.");
+      return false;
+    }
+
+    if (!Array.isArray(loan.extensions)) loan.extensions = [];
+    loan.extensions.push({
+      id: uid("ext"),
+      date: todayISO(),
+      addedInterest,
+      previousDueDate: loan.dueDate,
+      newDueDate,
+      note: cleanText(form.get("note")),
+      createdAt: new Date().toISOString()
+    });
+    loan.dueDate = newDueDate;
+    if (loan.status === "written-off") loan.status = "active";
+
+    saveState();
+    render();
+    toast("Loan rolled over.");
+  });
+}
+
+// ---- Overdue reminders ----
+// Numbers are usually stored locally (081...), but WhatsApp needs
+// international format. Trust an explicit +, otherwise assume Namibia (264).
+function normalisePhone(raw) {
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) return "";
+  const hadPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "");
+  if (!digits) return "";
+  if (hadPlus) return digits;
+  if (digits.startsWith("00")) return digits.slice(2);
+  if (digits.startsWith("264")) return digits;
+  if (digits.startsWith("0")) return `264${digits.slice(1)}`;
+  return `264${digits}`;
+}
+
+function reminderMessage(row) {
+  const full = getClientName(row.loan.clientId);
+  const first = full.split(" ")[0] || full;
+  const late = row.daysUntilDue < 0;
+  return [
+    `Hi ${first},`,
+    "",
+    late
+      ? `Your loan was due on ${formatDate(row.loan.dueDate)} and ${money(row.outstanding)} is still outstanding.`
+      : `A reminder that ${money(row.outstanding)} is due on ${formatDate(row.loan.dueDate)}.`,
+    "",
+    "Please let me know when you can settle it. Thank you.",
+    "QuickServe Cashloan"
+  ].join("\n");
+}
+
+function openReminder(loanId) {
+  const loan = getLoan(loanId);
+  if (!loan) return;
+  const row = analyzeLoan(loan);
+  const phone = normalisePhone(getClient(loan.clientId)?.phone);
+  const message = reminderMessage(row);
+  const encoded = encodeURIComponent(message);
+
+  openPanel("Send reminder", `
+    <div class="statement">
+      <p class="form-hint">${phone
+        ? `Sending to +${escapeHtml(phone)}`
+        : "No phone number saved for this client. Add one on their profile, or copy the message below."}</p>
+      <pre class="reminder-preview">${escapeHtml(message)}</pre>
+    </div>
+    <div class="sheet-actions">
+      <button class="icon-text-btn" type="button" id="reminderCopyBtn">
+        <span class="btn-icon">${iconSvg("copy")}</span><span>Copy</span>
+      </button>
+      ${phone ? `<a class="icon-text-btn" href="sms:+${escapeHtml(phone)}?body=${encoded}">
+        <span class="btn-icon">${iconSvg("receipt")}</span><span>SMS</span>
+      </a>` : ""}
+      ${phone ? `<a class="icon-text-btn primary" href="https://wa.me/${escapeHtml(phone)}?text=${encoded}" target="_blank" rel="noopener">
+        <span class="btn-icon">${iconSvg("share")}</span><span>WhatsApp</span>
+      </a>` : ""}
+    </div>
+  `);
+
+  qs("#reminderCopyBtn")?.addEventListener("click", async () => {
+    toast((await copyText(message)) ? "Message copied." : "Could not copy.");
   });
 }
 
@@ -2038,21 +2221,213 @@ function exportPayments() {
 }
 
 function backupData() {
+  // Stamp before serialising so the file records when it was made.
+  state.settings.lastBackupAt = new Date().toISOString();
+  state.settings.lastBackupCount = recordCount();
+  saveState();
+
   const payload = {
     exportedAt: new Date().toISOString(),
     app: "Quickserve Cashloan Ledger",
     data: state
   };
   downloadFile(`quickserve-backup-${todayISO()}.json`, JSON.stringify(payload, null, 2), "application/json");
+  renderBackupBanner();
+}
+
+// ---- Encrypted backup ----
+// A plain backup is readable by anyone who opens the file, and it carries
+// names and ID numbers. Encryption is opt-in: AES-GCM with a key derived from
+// a passphrase via PBKDF2. A lost passphrase means a lost backup, so the plain
+// export stays available alongside it.
+const BACKUP_KDF_ITERATIONS = 250000;
+
+function bytesToBase64(buffer) {
+  let binary = "";
+  new Uint8Array(buffer).forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function base64ToBytes(value) {
+  const binary = atob(String(value || ""));
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
+async function backupKeyFrom(passphrase, salt, iterations, hash, usages) {
+  const material = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(passphrase),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations, hash },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    usages
+  );
+}
+
+async function backupDataEncrypted() {
+  if (!window.crypto?.subtle) {
+    toast("Encryption is not available in this browser.");
+    return;
+  }
+  const passphrase = prompt("Choose a passphrase for this backup.\n\nWrite it down. Without it the file CANNOT be recovered.");
+  if (!passphrase) return;
+  if (prompt("Re-enter the passphrase to confirm.") !== passphrase) {
+    toast("Passphrases did not match.");
+    return;
+  }
+
+  try {
+    state.settings.lastBackupAt = new Date().toISOString();
+    state.settings.lastBackupCount = recordCount();
+    saveState();
+
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await backupKeyFrom(passphrase, salt, BACKUP_KDF_ITERATIONS, "SHA-256", ["encrypt"]);
+    const plaintext = new TextEncoder().encode(JSON.stringify({
+      exportedAt: new Date().toISOString(),
+      app: "Quickserve Cashloan Ledger",
+      data: state
+    }));
+    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
+
+    const envelope = {
+      app: "Quickserve Cashloan Ledger",
+      encrypted: true,
+      version: 1,
+      kdf: {
+        name: "PBKDF2",
+        hash: "SHA-256",
+        iterations: BACKUP_KDF_ITERATIONS,
+        salt: bytesToBase64(salt)
+      },
+      iv: bytesToBase64(iv),
+      ciphertext: bytesToBase64(ciphertext)
+    };
+
+    downloadFile(
+      `quickserve-backup-${todayISO()}.enc.json`,
+      JSON.stringify(envelope, null, 2),
+      "application/json"
+    );
+    renderBackupBanner();
+  } catch {
+    toast("Could not create the encrypted backup.");
+  }
+}
+
+async function decryptBackup(envelope) {
+  if (!window.crypto?.subtle) {
+    toast("Encryption is not available in this browser.");
+    return null;
+  }
+  const passphrase = prompt("This backup is encrypted. Enter its passphrase.");
+  if (!passphrase) return null;
+  try {
+    const key = await backupKeyFrom(
+      passphrase,
+      base64ToBytes(envelope.kdf?.salt),
+      Number(envelope.kdf?.iterations) || BACKUP_KDF_ITERATIONS,
+      envelope.kdf?.hash || "SHA-256",
+      ["decrypt"]
+    );
+    const plain = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: base64ToBytes(envelope.iv) },
+      key,
+      base64ToBytes(envelope.ciphertext)
+    );
+    return JSON.parse(new TextDecoder().decode(plain));
+  } catch {
+    toast("Wrong passphrase, or the file is damaged.");
+    return null;
+  }
+}
+
+// ---- Backup safety ----
+// Everything lives in this one browser's storage, so a stale backup is the
+// single biggest risk to the loan book. Nag proportionally to what's at stake.
+
+function recordCount() {
+  return state.clients.length + state.loans.length + state.payments.length +
+    state.expenses.length + state.capital.length;
+}
+
+function daysSinceBackup() {
+  const at = state.settings.lastBackupAt;
+  if (!at) return null;
+  const then = new Date(at);
+  if (Number.isNaN(then.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - then.getTime()) / 86400000));
+}
+
+function backupStatus() {
+  const total = recordCount();
+  if (!total) return null; // nothing to lose yet
+
+  const days = daysSinceBackup();
+  const since = Math.max(0, total - Number(state.settings.lastBackupCount || 0));
+
+  if (days === null) {
+    return {
+      level: "danger",
+      title: "Not backed up yet",
+      note: `${total} record${total === 1 ? "" : "s"} exist only on this phone. Clearing the browser or losing the phone loses them.`
+    };
+  }
+  if (days >= 14 || since >= 20) {
+    return { level: "danger", title: "Backup is out of date", note: backupNote(days, since) };
+  }
+  if (days >= 7 || since >= 8) {
+    return { level: "warn", title: "Time to back up", note: backupNote(days, since) };
+  }
+  return null;
+}
+
+function backupNote(days, since) {
+  const when = days === 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+  const added = since ? ` · ${since} new record${since === 1 ? "" : "s"} since` : "";
+  return `Last backup ${when}${added}.`;
+}
+
+function renderBackupBanner() {
+  const host = qs("#backupBanner");
+  if (!host) return;
+  const status = backupStatus();
+  if (!status) {
+    host.innerHTML = "";
+    return;
+  }
+  host.innerHTML = `
+    <div class="backup-banner ${status.level}">
+      <span class="backup-banner-icon">${iconSvg("archive")}</span>
+      <div class="backup-banner-text">
+        <strong>${escapeHtml(status.title)}</strong>
+        <p>${escapeHtml(status.note)}</p>
+      </div>
+      <button class="icon-text-btn primary" type="button" data-action="backup-now">Back up</button>
+    </div>
+  `;
 }
 
 function restoreData(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
       const parsed = JSON.parse(reader.result);
-      const next = normalizeState(parsed.data || parsed);
+      const payload = parsed?.encrypted ? await decryptBackup(parsed) : parsed;
+      if (!payload) return; // cancelled or wrong passphrase — already reported
+      const next = normalizeState(payload.data || payload);
       if (!Array.isArray(next.clients) || !Array.isArray(next.loans) || !Array.isArray(next.payments)) {
         throw new Error("Invalid backup");
       }
@@ -2158,6 +2533,9 @@ function handleAction(action, id) {
   if (action === "delete-payment") deletePayment(id);
   if (action === "delete-expense") deleteExpense(id);
   if (action === "delete-capital") deleteCapital(id);
+  if (action === "backup-now") backupData();
+  if (action === "rollover-loan") openRolloverForm(id);
+  if (action === "remind-loan") openReminder(id);
 }
 
 function handleDashboardAction(action) {
@@ -2519,6 +2897,16 @@ function bindEvents() {
     renderClients();
   });
 
+  qs("#loanSearch").addEventListener("input", (event) => {
+    ui.loanSearch = event.target.value;
+    renderLoans();
+  });
+
+  qs("#paymentSearch").addEventListener("input", (event) => {
+    ui.paymentSearch = event.target.value;
+    renderPayments();
+  });
+
   qsa("[data-loan-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       ui.loanFilter = button.dataset.loanFilter;
@@ -2582,6 +2970,7 @@ function bindEvents() {
     if (event.target.id === "sheet") closeSheet();
   });
 
+  qs("#backupEncryptedBtn").addEventListener("click", backupDataEncrypted);
   qs("#exportLoanbookBtn").addEventListener("click", exportLoanbook);
   qs("#exportPaymentsBtn").addEventListener("click", exportPayments);
   qs("#backupBtn").addEventListener("click", backupData);

@@ -27,7 +27,7 @@
         } catch (e) {}
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=16" />
+    <link rel="stylesheet" href="./styles.css?v=17" />
   </head>
   <body>
     <div class="app-shell">
@@ -53,6 +53,8 @@
               <span>Loan</span>
             </button>
           </div>
+
+          <div id="backupBanner"></div>
 
           <div class="float-grid" id="floatGrid"></div>
 
@@ -112,6 +114,10 @@
             <button type="button" data-loan-filter="overdue">Overdue</button>
             <button type="button" data-loan-filter="paid">Paid</button>
           </div>
+          <label class="search-box">
+            <span class="btn-icon" data-icon="search"></span>
+            <input id="loanSearch" type="search" placeholder="Search name, amount, purpose" autocomplete="off" />
+          </label>
           <div class="month-strip" id="loanMonthStrip" aria-label="Loan months"></div>
           <div class="item-list" id="loanList"></div>
         </section>
@@ -127,6 +133,10 @@
               <span>Payment</span>
             </button>
           </div>
+          <label class="search-box">
+            <span class="btn-icon" data-icon="search"></span>
+            <input id="paymentSearch" type="search" placeholder="Search name, amount, reference" autocomplete="off" />
+          </label>
           <div class="month-strip" id="paymentMonthStrip" aria-label="Payment months"></div>
           <div class="item-list" id="paymentList"></div>
         </section>
@@ -259,6 +269,10 @@
                 <span class="btn-icon" data-icon="archive"></span>
                 <span>Backup</span>
               </button>
+              <button class="icon-text-btn" id="backupEncryptedBtn" type="button">
+                <span class="btn-icon" data-icon="lock"></span>
+                <span>Encrypted backup</span>
+              </button>
               <button class="icon-text-btn" id="restoreBtn" type="button">
                 <span class="btn-icon" data-icon="upload"></span>
                 <span>Restore</span>
@@ -341,7 +355,7 @@
       </div>
     </div>
 
-    <script src="./import-data.js?v=16"></script>
-    <script src="./app.js?v=16"></script>
+    <script src="./import-data.js?v=17"></script>
+    <script src="./app.js?v=17"></script>
   </body>
 </html>
