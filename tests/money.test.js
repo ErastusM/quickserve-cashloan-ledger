@@ -253,6 +253,32 @@ test("backup staleness escalates with age", () => {
   assert.strictEqual(app.run(`backupStatus()`), null, "no records means nothing to warn about");
 });
 
+test("cash trail: clean history never dips below zero", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    capital: [{ id: "k1", direction: "in", amount: 15000, date: "2026-01-05", note: "", createdAt: "" }],
+    loans: [loan({ principal: 1000, issueDate: "2026-03-01" })]
+  }));
+  const trail = JSON.parse(app.run(`JSON.stringify(cashTrail())`));
+  assert.strictEqual(trail.dips.length, 0, "no negative dips");
+  assert.strictEqual(trail.lowest.balance, 14000, "lowest is after the loan goes out");
+  assert.strictEqual(trail.closing, 14000);
+});
+
+test("cash trail: lending before the money arrives is caught", () => {
+  const app = loadApp();
+  // A 5,000 loan on 1 Mar, but capital only recorded on 1 Jun — impossible.
+  app.setState(baseState({
+    capital: [{ id: "k1", direction: "in", amount: 15000, date: "2026-06-01", note: "", createdAt: "" }],
+    loans: [loan({ principal: 5000, issueDate: "2026-03-01" })]
+  }));
+  const trail = JSON.parse(app.run(`JSON.stringify(cashTrail())`));
+  assert.strictEqual(trail.dips.length, 1, "one movement leaves the float negative");
+  assert.strictEqual(trail.firstDip.balance, -5000, "shortfall equals the unfunded loan");
+  assert.strictEqual(trail.firstDip.date, "2026-03-01", "flags the date money must have gone in by");
+  assert.strictEqual(trail.closing, 10000, "closing still reconciles despite the dip");
+});
+
 // Money comparisons: guard against float dust.
 function roundish(value) {
   return Math.round(value * 100) / 100;

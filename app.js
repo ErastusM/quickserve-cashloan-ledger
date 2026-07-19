@@ -279,7 +279,9 @@ function roundMoney(value) {
 }
 
 function money(value) {
-  return `${currency} ${moneyFormat.format(roundMoney(value))}`;
+  // \u00A0 is a non-breaking space: the symbol and the amount are one unit,
+  // otherwise a narrow card wraps "N$" onto its own line above the number.
+  return `${currency}\u00A0${moneyFormat.format(roundMoney(value))}`;
 }
 
 function percent(value) {
@@ -756,6 +758,30 @@ function cashOnHand() {
   return ledger.length ? ledger[ledger.length - 1].balance : startingCapital();
 }
 
+// Replay the float in date order. You cannot lend money you do not have, so a
+// running balance that ever goes negative is proof that cash went in around
+// then which was never recorded — and if the closing balance still matches
+// reality, proof that an equal amount left unrecorded too.
+function cashTrail() {
+  const ledger = sortedLedger();
+  if (!ledger.length) return null;
+
+  let lowest = ledger[0];
+  ledger.forEach((row) => {
+    if (row.balance < lowest.balance) lowest = row;
+  });
+  const dips = ledger.filter((row) => row.balance < 0);
+
+  return {
+    movements: ledger.length,
+    closing: ledger[ledger.length - 1].balance,
+    lowest,
+    dips,
+    firstDip: dips[0] || null,
+    worstDip: dips.reduce((worst, row) => (!worst || row.balance < worst.balance ? row : worst), null)
+  };
+}
+
 function outOnLoan() {
   return roundMoney(
     allAnalyses().reduce((sum, row) => sum + (row.status === "written-off" ? 0 : row.principalOutstanding), 0)
@@ -1066,6 +1092,33 @@ function renderCashReport() {
     ["Closing balance", money(cf.closing), "Cash at period end"],
     ["Out on loan now", money(outOnLoan()), "Principal with clients"]
   ].map(reportCardHtml).join("");
+
+  renderCashTrail();
+}
+
+function renderCashTrail() {
+  const host = qs("#cashTrail");
+  if (!host) return;
+  const trail = cashTrail();
+  if (!trail) {
+    host.innerHTML = "";
+    return;
+  }
+
+  const sound = !trail.dips.length;
+  const body = sound
+    ? `The lowest your float ever fell was ${money(trail.lowest.balance)} on ${formatDate(trail.lowest.date)}. It never dropped below zero, so the cash you have recorded covers every loan you made.`
+    : `On ${formatDate(trail.firstDip.date)} the float would have fallen to ${money(trail.firstDip.balance)}. You cannot lend money you do not have, so cash went in around then that is not recorded. Worst point ${money(trail.worstDip.balance)} on ${formatDate(trail.worstDip.date)}, across ${trail.dips.length} movement${trail.dips.length === 1 ? "" : "s"}.`;
+
+  host.innerHTML = `
+    <div class="cash-trail ${sound ? "ok" : "alert"}">
+      <div class="cash-trail-head">
+        <span class="cash-trail-icon">${iconSvg(sound ? "check" : "arrowIn")}</span>
+        <strong>${sound ? "Cash trail is sound" : "Cash trail goes negative"}</strong>
+      </div>
+      <p>${body}</p>
+    </div>
+  `;
 }
 
 function renderCapital() {
