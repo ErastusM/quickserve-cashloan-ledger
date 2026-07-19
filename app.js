@@ -133,7 +133,7 @@ function emptyState() {
 
 function normalizeState(value) {
   const base = emptyState();
-  return {
+  return migrateStartingCapital({
     ...base,
     ...value,
     settings: { ...base.settings, ...(value.settings || {}) },
@@ -143,7 +143,43 @@ function normalizeState(value) {
     expenses: Array.isArray(value.expenses) ? value.expenses : [],
     capital: Array.isArray(value.capital) ? value.capital : [],
     imports: Array.isArray(value.imports) ? value.imports : []
-  };
+  });
+}
+
+// "Starting capital" used to be a setting separate from the capital ledger,
+// which meant two ways to say "money I put in" — and an empty Starting capital
+// card sitting next to the injection that actually held the opening float.
+// Fold it in as the first injection so there is one concept. Cash on hand is
+// unchanged: sortedLedger() used to seed from the setting, now it is a
+// movement like any other. Runs on load and on restore, and is idempotent.
+function migrateStartingCapital(next) {
+  const opening = roundMoney(next.settings.startingCapital || 0);
+  if (opening <= 0) return next;
+  if (next.capital.some((entry) => entry.origin === "starting-capital")) return next;
+
+  next.capital = next.capital.concat({
+    id: `capital_opening_${Date.now().toString(36)}`,
+    direction: "in",
+    amount: opening,
+    date: next.settings.startingCapitalDate || dayBeforeFirstMovement(next),
+    note: "Opening float",
+    origin: "starting-capital",
+    createdAt: "" // empty sorts first, so it leads its date in the ledger
+  });
+  next.settings.startingCapital = 0;
+  next.settings.startingCapitalDate = "";
+  return next;
+}
+
+function dayBeforeFirstMovement(next) {
+  const dates = [
+    ...next.loans.map((loan) => loan.issueDate),
+    ...next.payments.map((payment) => payment.date),
+    ...next.expenses.map((expense) => expense.date),
+    ...next.capital.map((entry) => entry.date)
+  ].filter(Boolean).sort();
+  // The opening float existed before trading started.
+  return dates.length ? addDays(dates[0], -1) : todayISO();
 }
 
 function loadUiState() {
@@ -812,6 +848,11 @@ function capitalWithdrawn() {
   );
 }
 
+// How much of the owner's own money is still in the business.
+function netCapital() {
+  return roundMoney(capitalInjected() - capitalWithdrawn());
+}
+
 // Opening/closing balances and money in/out for the selected report period.
 function cashFlowFor(scope, month, year) {
   const periodOf = (dateValue) => {
@@ -1129,13 +1170,20 @@ function renderCashTrail() {
   `;
 }
 
+function countNote(count, noun) {
+  if (!count) return `No ${noun}s yet`;
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
 function renderCapital() {
   const grid = qs("#capitalGrid");
   if (!grid) return;
+  const injections = state.capital.filter((entry) => entry.direction !== "out").length;
+  const withdrawals = state.capital.filter((entry) => entry.direction === "out").length;
   grid.innerHTML = [
-    ["Starting capital", money(startingCapital()), startingCapital() ? "Your opening float" : "Tap Set to enter"],
-    ["Capital added", money(capitalInjected()), "Money you put in"],
-    ["Capital withdrawn", money(capitalWithdrawn()), "Money you took out"],
+    ["Capital added", money(capitalInjected()), countNote(injections, "injection")],
+    ["Capital withdrawn", money(capitalWithdrawn()), countNote(withdrawals, "withdrawal")],
+    ["Net capital", money(netCapital()), "Your money still in"],
     ["Cash on hand", money(cashOnHand()), "Live balance"],
     ["Out on loan", money(outOnLoan()), "Principal with clients"],
     ["Total funds", money(totalFunds()), "Cash on hand + out on loan"]
@@ -1199,7 +1247,7 @@ function openCashStatement() {
       <div class="ledger-hero">
         <span class="ledger-hero-label">Cash on hand</span>
         <strong class="ledger-hero-value">${money(cash)}</strong>
-        <span class="ledger-hero-note">Opened with ${money(startingCapital())} · ${ledger.length} movement${ledger.length === 1 ? "" : "s"}</span>
+        <span class="ledger-hero-note">${ledger.length} movement${ledger.length === 1 ? "" : "s"}</span>
       </div>
       ${ledger.length ? sections : emptyHtml("No money has moved yet. Set your starting capital, then record loans, payments, expenses, or capital changes.")}
     </div>
@@ -1221,22 +1269,6 @@ function cashRowHtml(row) {
       </div>
     </div>
   `;
-}
-
-function openStartingCapitalForm() {
-  openSheet("Starting capital", `
-    <p class="form-hint">The money you began the business with — your opening float. Cash on hand builds from this figure. You can change it anytime.</p>
-    <div class="form-grid">
-      <label data-prefix="${currency}"><span>Starting capital</span><input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" value="${escapeHtml(state.settings.startingCapital || "")}" placeholder="0.00" /></label>
-      <label><span>As of date</span><input name="date" type="date" value="${escapeHtml(state.settings.startingCapitalDate || todayISO())}" /></label>
-    </div>
-  `, "Save capital", (form) => {
-    state.settings.startingCapital = roundMoney(form.get("amount"));
-    state.settings.startingCapitalDate = form.get("date") || "";
-    saveState();
-    toast("Starting capital saved.");
-    render();
-  });
 }
 
 function openCapitalForm(direction = "in") {
@@ -1395,12 +1427,6 @@ function yearOutstanding(year) {
 
 function renderDataStatus() {
   if (!qs("#dataStatusGrid")) return;
-  const rows = Array.isArray(globalThis.quickserveHistoricalRows) ? globalThis.quickserveHistoricalRows : [];
-  const importedIds = new Set(rows.map((row) => `loan_${slug(row.loanId)}`));
-  const importedLoans = state.loans.filter((loan) => importedIds.has(loan.id));
-  const importedPayments = state.payments.filter((payment) => importedIds.has(payment.loanId));
-  const missingLoans = rows.length - importedLoans.length;
-  const importedOutstanding = roundMoney(importedLoans.map(analyzeLoan).reduce((sum, row) => sum + row.outstanding, 0));
   const cards = [
     ["App version", `v${APP_VERSION}`, "Build running on this phone"],
     [
@@ -1410,12 +1436,10 @@ function renderDataStatus() {
         ? "Browser agreed to keep this data"
         : "Browser may evict this — keep backups"
     ],
-    ["Import rows", String(rows.length), missingLoans ? `${missingLoans} missing` : "All loaded"],
     ["Clients", String(state.clients.length), "Saved records"],
-    ["Loans", String(state.loans.length), `${importedLoans.length} imported`],
-    ["Payments", String(state.payments.length), `${importedPayments.length} imported`],
-    ["Outstanding", money(importedOutstanding), "Imported loan balance"],
-    ["Data version", state.imports.includes(SPREADSHEET_IMPORT_ID) ? "Current" : "Needs refresh", "Spreadsheet import"]
+    ["Loans", String(state.loans.length), "Saved records"],
+    ["Payments", String(state.payments.length), "Saved records"],
+    ["Expenses", String(state.expenses.length), "Saved records"]
   ];
 
   qs("#dataStatusGrid").innerHTML = cards
@@ -2516,12 +2540,6 @@ function restoreData(file) {
   reader.readAsText(file);
 }
 
-function refreshSpreadsheetImport() {
-  const changed = applySpreadsheetImport();
-  render();
-  toast(changed ? "Import refreshed." : "Import already complete.");
-}
-
 function csvFromRows(rows) {
   if (!rows.length) return "";
   const headers = Object.keys(rows[0]);
@@ -3049,13 +3067,11 @@ function bindEvents() {
     toast("Choose a backup file to restore.");
     qs("#restoreFile").click();
   });
-  qs("#refreshImportBtn").addEventListener("click", refreshSpreadsheetImport);
   qs("#restoreFile").addEventListener("change", (event) => restoreData(event.target.files[0]));
 
   qs("#addExpenseBtn").addEventListener("click", openExpenseForm);
   qs("#exportExpensesBtn").addEventListener("click", exportExpenses);
 
-  qs("#setCapitalBtn")?.addEventListener("click", openStartingCapitalForm);
   qs("#addCapitalInBtn")?.addEventListener("click", () => openCapitalForm("in"));
   qs("#addCapitalOutBtn")?.addEventListener("click", () => openCapitalForm("out"));
   qs("#viewStatementBtn")?.addEventListener("click", openCashStatement);

@@ -47,7 +47,9 @@ These match the labels shown in the app.
 
 **Cash float**
 
-- **Cash on hand** — live cash balance: starting capital + capital in − capital out + repayments − loans paid out − expenses.
+- **Capital added / withdrawn** — money you put into, or took out of, the business float. Your opening float is simply the first injection; there is no separate "starting capital" setting.
+- **Net capital** — capital added minus capital withdrawn: how much of your own money is still in the business.
+- **Cash on hand** — live cash balance: capital in − capital out + repayments − loans paid out − expenses.
 - **Out on loan** — principal still in clients' hands.
 - **Total funds** — cash on hand + out on loan, i.e. working capital.
 

@@ -279,6 +279,66 @@ test("cash trail: lending before the money arrives is caught", () => {
   assert.strictEqual(trail.closing, 10000, "closing still reconciles despite the dip");
 });
 
+test("starting capital folds into the ledger without moving any balance", () => {
+  const app = loadApp();
+  const legacy = baseState({
+    settings: { ...baseState().settings, startingCapital: 5000, startingCapitalDate: "2026-01-01" },
+    loans: [loan({ principal: 1000, issueDate: "2026-03-01" })]
+  });
+  app.run(`state = normalizeState(${JSON.stringify(legacy)})`);
+  const after = JSON.parse(app.run(`JSON.stringify({
+    setting: state.settings.startingCapital,
+    capital: state.capital,
+    cash: cashOnHand(),
+    injected: capitalInjected(),
+    net: netCapital()
+  })`));
+
+  assert.strictEqual(after.setting, 0, "legacy setting cleared");
+  assert.strictEqual(after.capital.length, 1, "one opening entry created");
+  assert.strictEqual(after.capital[0].amount, 5000);
+  assert.strictEqual(after.capital[0].date, "2026-01-01", "keeps the recorded as-of date");
+  assert.strictEqual(after.capital[0].origin, "starting-capital");
+  // The whole point: representation changed, money did not.
+  assert.strictEqual(after.cash, 4000, "5000 opening less 1000 lent — same as before the move");
+  assert.strictEqual(after.injected, 5000, "opening float now counts as capital added");
+  assert.strictEqual(after.net, 5000);
+});
+
+test("starting capital migration is idempotent", () => {
+  const app = loadApp();
+  const legacy = baseState({
+    settings: { ...baseState().settings, startingCapital: 5000, startingCapitalDate: "2026-01-01" }
+  });
+  app.run(`state = normalizeState(normalizeState(${JSON.stringify(legacy)}))`);
+  assert.strictEqual(app.run(`state.capital.length`), 1, "a second pass must not add a duplicate");
+  assert.strictEqual(app.run(`cashOnHand()`), 5000);
+});
+
+test("no legacy starting capital leaves existing entries untouched", () => {
+  const app = loadApp();
+  const current = baseState({
+    capital: [{ id: "k1", direction: "in", amount: 15000, date: "2026-06-26", note: "Business", createdAt: "" }]
+  });
+  app.run(`state = normalizeState(${JSON.stringify(current)})`);
+  assert.strictEqual(app.run(`state.capital.length`), 1, "nothing invented");
+  assert.strictEqual(app.run(`capitalInjected()`), 15000);
+  assert.strictEqual(app.run(`cashOnHand()`), 15000);
+});
+
+test("opening float with no as-of date lands before the first movement", () => {
+  const app = loadApp();
+  const legacy = baseState({
+    settings: { ...baseState().settings, startingCapital: 2000, startingCapitalDate: "" },
+    loans: [loan({ principal: 500, issueDate: "2026-03-10" })]
+  });
+  app.run(`state = normalizeState(${JSON.stringify(legacy)})`);
+  const date = app.run(`state.capital[0].date`);
+  assert.strictEqual(date, "2026-03-09", "dated a day before the first loan, so the ledger never dips");
+  const trail = JSON.parse(app.run(`JSON.stringify(cashTrail())`));
+  assert.strictEqual(trail.dips.length, 0, "migrated opening float must not create a phantom negative dip");
+});
+
 // Money comparisons: guard against float dust.
 function roundish(value) {
   return Math.round(value * 100) / 100;
