@@ -1,10 +1,13 @@
-const CACHE_NAME = "quickserve-cashloan-v19";
+const CACHE_NAME = "quickserve-cashloan-v20";
+// Build number, derived so it cannot drift from CACHE_NAME. The page asks for
+// this to tell "genuinely stale" from "already running the new build".
+const BUILD = CACHE_NAME.replace(/\D+/g, "");
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=19",
-  "./import-data.js?v=19",
-  "./app.js?v=19",
+  "./styles.css?v=20",
+  "./import-data.js?v=20",
+  "./app.js?v=20",
   "./manifest.json",
   "./icon.svg",
   "./icon-192.png",
@@ -31,17 +34,32 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "version" && event.ports[0]) {
+    event.ports[0].postMessage({ version: BUILD });
+  }
+});
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   event.respondWith(
     fetch(event.request).then((response) => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+      // Only cache real successes. fetch() resolves for 404s and 5xx too, and
+      // caching one would overwrite a good asset with an error page and serve
+      // it offline from then on.
+      if (response.ok && response.type === "basic") {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+      }
       return response;
     }).catch(() =>
-      caches.match(event.request).then((cached) =>
-        cached || caches.match("./index.html")
-      )
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        // Only fall back to the shell for page loads. Returning HTML for a
+        // missing image or script just produces a confusing parse error.
+        if (event.request.mode === "navigate") return caches.match("./index.html");
+        return Response.error();
+      })
     )
   );
 });

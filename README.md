@@ -53,6 +53,20 @@ These match the labels shown in the app.
 
 If cash on hand looks lower than the capital you put in, the difference is usually **out on loan** — the money is with clients, not missing. Total funds is the figure that reconciles.
 
+## Cash Trail Check
+
+Reports replays every cash movement in date order and reports the lowest point your float ever reached.
+
+You cannot lend money you do not have, so if the running balance ever goes **negative**, cash went into the business around that date which was never recorded. The check names the date and the shortfall. If the closing balance still matches the cash you actually hold, then an equal amount also left unrecorded — typically owner withdrawals. Totals can look right while the history is wrong, and this is what surfaces that.
+
+## Staying Up To Date
+
+The app shows its build number in **Reports > Data status** (`App version`), read from the `?v=` query on its own script tag so it cannot drift from what was deployed.
+
+When a new build is published, the app detects it and shows a **"New version ready"** bar with Reload and dismiss buttons. It never reloads on its own — that would risk discarding a half-filled form. The bar only appears when the running page is genuinely older than the installed worker, so a normal launch after a release does not nag you about a version you already have.
+
+Note that GitHub Pages serves assets with `Cache-Control: max-age=600`, so a new release can take up to ten minutes to reach a device. If the figures look wrong right after a deploy, check `App version` before assuming a bug.
+
 ## How Repayments Are Applied
 
 A repayment clears **interest and fees first**, then principal. Profit is therefore recognised early in a loan's life, and principal recovery comes later. A rollover adds another interest charge to the same loan; it moves no cash, so it never shows up as a new disbursement or collection.

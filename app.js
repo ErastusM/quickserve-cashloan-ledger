@@ -90,6 +90,14 @@ const ui = {
 // null = unknown / not asked yet, true = browser promised to keep it.
 let storagePersisted = null;
 
+// Read the build number off this script's own ?v= query so it can never drift
+// from the cache version in sw.js / index.html. "dev" when loaded without one.
+const APP_VERSION = (typeof document !== "undefined" && document.currentScript
+  ? (document.currentScript.src.match(/[?&]v=(\d+)/) || [])[1]
+  : null) || "dev";
+
+let updatePromptShown = false;
+
 const qs = (selector, root = document) => root.querySelector(selector);
 const qsa = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
@@ -1146,7 +1154,7 @@ function renderCapital() {
 function capitalCard(entry) {
   const out = entry.direction === "out";
   return `
-    <article class="list-card compact">
+    <article class="list-card compact capital-entry">
       <div class="item-top">
         <div class="item-title">
           <strong>${out ? "Capital withdrawn" : "Capital added"}</strong>
@@ -1156,9 +1164,7 @@ function capitalCard(entry) {
           <strong class="${out ? "neg" : "pos"}">${out ? "−" : "+"}${money(entry.amount)}</strong>
           <p class="item-meta">${out ? "Out of float" : "Into float"}</p>
         </div>
-      </div>
-      <div class="card-actions">
-        <button class="icon-btn danger" type="button" data-action="delete-capital" data-id="${entry.id}" aria-label="Delete entry" title="Delete entry">
+        <button class="icon-btn quiet capital-delete" type="button" data-action="delete-capital" data-id="${entry.id}" aria-label="Delete entry" title="Delete entry">
           <span class="btn-icon">${iconSvg("trash")}</span>
         </button>
       </div>
@@ -1396,6 +1402,7 @@ function renderDataStatus() {
   const missingLoans = rows.length - importedLoans.length;
   const importedOutstanding = roundMoney(importedLoans.map(analyzeLoan).reduce((sum, row) => sum + row.outstanding, 0));
   const cards = [
+    ["App version", `v${APP_VERSION}`, "Build running on this phone"],
     [
       "Storage",
       storagePersisted === true ? "Persistent" : storagePersisted === false ? "Best effort" : "Unknown",
@@ -3074,9 +3081,103 @@ function bindEvents() {
 }
 
 function registerServiceWorker() {
-  if ("serviceWorker" in navigator && location.protocol !== "file:") {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
-  }
+  if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
+
+  // On a first-ever install there is no controller yet, and clients.claim()
+  // fires controllerchange as it takes over. That is not an update, so
+  // remember the state at load time and only prompt if we were already
+  // controlled — otherwise every new user gets a bogus "New version" bar.
+  const wasControlled = !!navigator.serviceWorker.controller;
+
+  navigator.serviceWorker.register("./sw.js").then((registration) => {
+    // sw.js calls skipWaiting(), so a new build activates and claims this page
+    // straight away — but the JS and CSS already in memory stay stale until a
+    // reload. Both signals below mean "fresh assets are one reload away".
+    registration.addEventListener("updatefound", () => {
+      const incoming = registration.installing;
+      if (!incoming) return;
+      incoming.addEventListener("statechange", () => {
+        // An existing controller means this is an update, not a first install.
+        if (incoming.state === "installed" && navigator.serviceWorker.controller) {
+          maybePromptUpdate();
+        }
+      });
+    });
+
+    // Look for a new build when the app comes back to the foreground, so a
+    // phone left open for days still notices.
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) registration.update().catch(() => {});
+    });
+  }).catch(() => {});
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    // Deliberately not auto-reloading: that races with whatever the user is
+    // typing, and can loop. Offer the reload instead.
+    if (wasControlled) maybePromptUpdate();
+  });
+}
+
+// Ask the controlling worker which build it is.
+function activeBuildVersion() {
+  const worker = navigator.serviceWorker.controller;
+  if (!worker) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const done = setTimeout(() => resolve(null), 1500);
+    channel.port1.onmessage = (event) => {
+      clearTimeout(done);
+      resolve(event.data && event.data.version ? String(event.data.version) : null);
+    };
+    try {
+      worker.postMessage({ type: "version" }, [channel.port2]);
+    } catch {
+      clearTimeout(done);
+      resolve(null);
+    }
+  });
+}
+
+// A new worker activating does NOT mean this page is stale. Because the fetch
+// handler is network-first, a cold start after a deploy already served the new
+// assets — the page is the new build before the worker even installs. Only
+// prompt when the worker's build actually differs from what we loaded,
+// otherwise every user gets a bogus prompt on first launch after each release.
+async function maybePromptUpdate() {
+  if (updatePromptShown) return;
+  const active = await activeBuildVersion();
+  if (active && APP_VERSION !== "dev" && active === APP_VERSION) return;
+  showUpdatePrompt();
+}
+
+function showUpdatePrompt() {
+  if (updatePromptShown) return;
+  updatePromptShown = true;
+
+  const bar = document.createElement("div");
+  bar.className = "update-bar";
+  bar.innerHTML = `
+    <div class="update-bar-text">
+      <strong>New version ready</strong>
+      <p>Reload to get the latest fixes.</p>
+    </div>
+    <button class="icon-text-btn primary" type="button" data-update-reload>Reload</button>
+    <button class="icon-btn quiet" type="button" data-update-dismiss aria-label="Dismiss" title="Dismiss">
+      <span class="btn-icon">${iconSvg("x")}</span>
+    </button>
+  `;
+  bar.querySelector("[data-update-reload]").addEventListener("click", () => location.reload());
+  bar.querySelector("[data-update-dismiss]").addEventListener("click", dismissUpdatePrompt);
+  document.body.appendChild(bar);
+  // Lets the toast lift clear of the bar and reserves scroll room, so nothing
+  // is silently hidden underneath it.
+  document.body.classList.add("has-update-bar");
+}
+
+function dismissUpdatePrompt() {
+  qs(".update-bar")?.remove();
+  document.body.classList.remove("has-update-bar");
+  updatePromptShown = false;
 }
 
 // Ask the browser to keep this origin's storage. Without it a browser under
