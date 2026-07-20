@@ -1379,8 +1379,8 @@ function renderBreakdownTable() {
     .map((row) => `
       <tr>
         <th scope="row">${escapeHtml(row.label)}</th>
-        <td>${money(row.f.collections)}</td>
         <td>${money(row.f.cashOut)}</td>
+        <td>${money(row.f.collections)}</td>
         <td>${money(row.f.revenue)}</td>
         <td>${money(row.f.profit)}</td>
         <td>${money(row.outstanding)}</td>
@@ -1394,8 +1394,8 @@ function renderBreakdownTable() {
         <thead>
           <tr>
             <th scope="col">${ui.reportScope === "all" ? "Year" : "Month"}</th>
-            <th scope="col">Collected</th>
             <th scope="col">Cash out</th>
+            <th scope="col">Collected</th>
             <th scope="col">Revenue</th>
             <th scope="col">Profit</th>
             <th scope="col">Outstanding</th>
@@ -1405,8 +1405,8 @@ function renderBreakdownTable() {
         <tfoot>
           <tr>
             <th scope="row">Total ${escapeHtml(totalLabel)}</th>
-            <td>${money(totals.collections)}</td>
             <td>${money(totals.cashOut)}</td>
+            <td>${money(totals.collections)}</td>
             <td>${money(totals.revenue)}</td>
             <td>${money(totals.profit)}</td>
             <td>—</td>
