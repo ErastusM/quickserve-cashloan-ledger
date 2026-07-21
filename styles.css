@@ -327,15 +327,18 @@ p {
 }
 
 .float-value {
-  font-size: 1.4rem;
+  /* Never break inside an amount — "N$ 32,600.0" over "0" reads as a
+     different number. Scale the type to fit instead of wrapping it. */
+  font-size: clamp(0.95rem, 4.4vw, 1.35rem);
   font-weight: var(--w-semibold);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .float-card:first-child .float-value {
-  font-size: 2.125rem;
+  font-size: clamp(1.7rem, 8.5vw, 2.125rem);
   letter-spacing: -0.03em;
 }
 
@@ -406,8 +409,9 @@ p {
 .report-card strong {
   display: block;
   margin-top: 7px;
-  overflow-wrap: anywhere;
-  font-size: 1.25rem;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  font-size: clamp(0.95rem, 4.2vw, 1.25rem);
   font-weight: var(--w-semibold);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
