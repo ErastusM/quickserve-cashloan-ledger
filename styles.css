@@ -817,13 +817,8 @@ body.has-update-bar .app-shell {
   margin-bottom: 14px;
 }
 
-/* Six columns will not fit a phone. Due and Lend are secondary — the story is
-   what comes in, what is left, and what you are worth. */
-@media (max-width: 560px) {
-  .projection-table .col-extra {
-    display: none;
-  }
-}
+/* All six columns stay on every screen and the table scrolls sideways instead,
+   with the month column pinned so a row stays identifiable while scrolling. */
 
 .projection-table .ledger-table th,
 .projection-table .ledger-table td {
@@ -1173,7 +1168,10 @@ textarea:focus-visible,
 }
 
 .ledger-table {
-  width: 100%;
+  /* Fill the width when there is room, otherwise size to the content and let
+     the wrapper scroll — never squeeze a column until it is unreadable. */
+  min-width: 100%;
+  width: max-content;
   border-collapse: collapse;
   font-size: 0.82rem;
   white-space: nowrap;

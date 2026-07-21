@@ -1367,7 +1367,7 @@ function renderProjection() {
 
   const realMonths = rows.filter((row) => row.scheduled).length;
   const presetNote = preset === "custom" ? "Your own settings" : PROJECTION_PRESETS[preset].label;
-  note.textContent = `${presetNote}: ${cfg.recoveryRate}% of what is owed actually arrives, ${cfg.redeployRate}% of spare cash goes back out, money recycles at ${ratePercent}% a month, costs ${money(cfg.monthlyCosts)} a month. Only the first ${realMonths} month${realMonths === 1 ? "" : "s"} rest on loans already on your books — the rest is modelled. Treat the collected figure as what you never recover, not what is merely late.`;
+  note.textContent = `Swipe the table sideways for Due and Lend; the month stays pinned. ${presetNote}: ${cfg.recoveryRate}% of what is owed actually arrives, ${cfg.redeployRate}% of spare cash goes back out, money recycles at ${ratePercent}% a month, costs ${money(cfg.monthlyCosts)} a month. Only the first ${realMonths} month${realMonths === 1 ? "" : "s"} rest on loans already on your books — the rest is modelled. Treat the collected figure as what you never recover, not what is merely late.`;
 }
 
 function openProjectionForm() {
