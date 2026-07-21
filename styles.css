@@ -654,12 +654,19 @@ p {
   margin-top: 12px;
 }
 
-/* Share the row evenly and give a proper thumb-sized target. */
+/* Default: keep the natural width and wrap onto more lines. A row of six was
+   otherwise crushed onto one line, clipping and overlapping every label. */
 .action-row > .icon-text-btn {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 0 0 auto;
   min-height: 46px;
   font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+/* Opt-in, for short rows only: split the width evenly between the buttons. */
+.action-row.split > .icon-text-btn {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* Breathing room so the list below never crowds the buttons. */
