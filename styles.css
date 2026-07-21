@@ -780,6 +780,42 @@ body.has-update-bar .app-shell {
   padding-bottom: calc(150px + env(safe-area-inset-bottom));
 }
 
+/* ---- Projection ---- */
+/* Modelled months are visually demoted so they are never mistaken for the
+   months backed by real due dates. */
+.ledger-table tr.is-modelled th,
+.ledger-table tr.is-modelled td {
+  color: var(--muted);
+}
+
+.tag-est {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: var(--radius-pill);
+  background: var(--fill);
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: var(--w-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+#projectionSummary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.projection-note {
+  margin: 12px 2px 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
 /* ---- Cash trail check ---- */
 .cash-trail {
   margin-top: 12px;

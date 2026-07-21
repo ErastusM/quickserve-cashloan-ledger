@@ -1,13 +1,13 @@
-const CACHE_NAME = "quickserve-cashloan-v24";
+const CACHE_NAME = "quickserve-cashloan-v25";
 // Build number, derived so it cannot drift from CACHE_NAME. The page asks for
 // this to tell "genuinely stale" from "already running the new build".
 const BUILD = CACHE_NAME.replace(/\D+/g, "");
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=24",
-  "./import-data.js?v=24",
-  "./app.js?v=24",
+  "./styles.css?v=25",
+  "./import-data.js?v=25",
+  "./app.js?v=25",
   "./manifest.json",
   "./icon.svg",
   "./icon-192.png",

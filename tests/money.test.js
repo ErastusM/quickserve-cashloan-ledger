@@ -339,6 +339,109 @@ test("opening float with no as-of date lands before the first movement", () => {
   assert.strictEqual(trail.dips.length, 0, "migrated opening float must not create a phantom negative dip");
 });
 
+test("projection: overdue money is expected now, not left in the past", () => {
+  const app = loadApp();
+  // Due in March, still unpaid. "Now" is whatever today is, always later.
+  app.setState(baseState({
+    loans: [loan({ principal: 1000, interestRate: 30, dueDate: "2026-03-31" })],
+    settings: { ...baseState().settings, projection: { recoveryRate: 100, redeployRate: 0, monthlyCosts: 0, months: 3 } }
+  }));
+  const { rows } = JSON.parse(app.run(`JSON.stringify(projectionRows())`));
+  assert.strictEqual(rows[0].due, 1300, "arrears surface in the first month, not a past one");
+  const later = rows.slice(1).reduce((sum, r) => sum + r.due, 0);
+  assert.strictEqual(later, 0, "and are not double-counted later");
+});
+
+test("projection: a loan due next month lands in that month", () => {
+  const app = loadApp();
+  const nextMonth = app.run(`addMonths(monthKey(new Date()), 1) + "-15"`);
+  app.setState(baseState({
+    loans: [loan({ principal: 2000, interestRate: 30, dueDate: nextMonth })],
+    settings: { ...baseState().settings, projection: { recoveryRate: 100, redeployRate: 0, monthlyCosts: 0, months: 3 } }
+  }));
+  const { rows } = JSON.parse(app.run(`JSON.stringify(projectionRows())`));
+  assert.strictEqual(rows[0].due, 0, "nothing due this month");
+  assert.strictEqual(rows[1].due, 2600, "2000 principal + 30% lands next month");
+});
+
+test("projection: recovery rate is a real loss, not a deferral", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    loans: [loan({ principal: 1000, interestRate: 30, dueDate: "2026-03-31" })],
+    settings: { ...baseState().settings, projection: { recoveryRate: 50, redeployRate: 0, monthlyCosts: 0, months: 4 } }
+  }));
+  const { rows } = JSON.parse(app.run(`JSON.stringify(projectionRows())`));
+  assert.strictEqual(rows[0].inflow, 650, "half of 1300 arrives");
+  const totalIn = rows.reduce((sum, r) => sum + r.inflow, 0);
+  assert.strictEqual(totalIn, 650, "the other half is lost, never collected later");
+});
+
+test("projection: recycling compounds at the book's own rate", () => {
+  const app = loadApp();
+  // No loans at all: pure recycling of cash, so the maths is checkable by hand.
+  app.setState(baseState({
+    settings: {
+      ...baseState().settings,
+      startingCapital: 0,
+      projection: { recoveryRate: 100, redeployRate: 100, monthlyCosts: 0, months: 3 }
+    },
+    capital: [{ id: "k1", direction: "in", amount: 1000, date: "2026-01-01", note: "", createdAt: "" }]
+  }));
+  const { rows, ratePercent } = JSON.parse(app.run(`JSON.stringify(projectionRows())`));
+  assert.strictEqual(ratePercent, 30, "no loans on the book falls back to 30%");
+  // Month 0: lend all 1000. Month 1: 1300 back, lend all. Month 2: 1690 back.
+  assert.strictEqual(rows[0].lend, 1000);
+  assert.strictEqual(rows[1].inflow, 1300);
+  assert.strictEqual(rows[2].inflow, 1690);
+  assert.strictEqual(rows[2].working, 1690, "working capital tracks the compounding");
+});
+
+test("projection: costs and idle cash are not lent out twice", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    settings: {
+      ...baseState().settings,
+      projection: { recoveryRate: 100, redeployRate: 50, monthlyCosts: 100, months: 2 }
+    },
+    capital: [{ id: "k1", direction: "in", amount: 1000, date: "2026-01-01", note: "", createdAt: "" }]
+  }));
+  const { rows } = JSON.parse(app.run(`JSON.stringify(projectionRows())`));
+  // 1000 available, lend 50% = 500, costs 100 -> cash 400.
+  assert.strictEqual(rows[0].lend, 500);
+  assert.strictEqual(rows[0].closing, 400);
+  assert.strictEqual(rows[0].working, 900, "cash 400 + 500 out on loan");
+});
+
+test("projection: settings are clamped, so bad input cannot invent money", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    settings: {
+      ...baseState().settings,
+      projection: { recoveryRate: 900, redeployRate: -50, monthlyCosts: -100, months: 999 }
+    }
+  }));
+  const cfg = JSON.parse(app.run(`JSON.stringify(projectionSettings())`));
+  assert.strictEqual(cfg.recoveryRate, 100, "cannot collect more than is owed");
+  assert.strictEqual(cfg.redeployRate, 0, "cannot lend a negative share");
+  assert.strictEqual(cfg.monthlyCosts, 0, "costs cannot be negative income");
+  assert.strictEqual(cfg.months, 24, "horizon capped");
+});
+
+test("projection: paid and written-off loans are not projected as income", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    loans: [
+      loan({ id: "l1", principal: 1000, interestRate: 30, dueDate: "2026-03-31" }),
+      loan({ id: "l2", principal: 5000, interestRate: 30, dueDate: "2026-03-31", status: "written-off" })
+    ],
+    payments: [payment({ id: "p1", loanId: "l1", amount: 1300, date: "2026-03-31" })],
+    settings: { ...baseState().settings, projection: { recoveryRate: 100, redeployRate: 0, monthlyCosts: 0, months: 2 } }
+  }));
+  const { rows } = JSON.parse(app.run(`JSON.stringify(projectionRows())`));
+  const totalDue = rows.reduce((sum, r) => sum + r.due, 0);
+  assert.strictEqual(totalDue, 0, "settled loan brings nothing more, written-off brings nothing at all");
+});
+
 // Money comparisons: guard against float dust.
 function roundish(value) {
   return Math.round(value * 100) / 100;

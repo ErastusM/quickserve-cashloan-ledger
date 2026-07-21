@@ -853,6 +853,114 @@ function netCapital() {
   return roundMoney(capitalInjected() - capitalWithdrawn());
 }
 
+// ---- Projection ----
+// The near months come from real due dates on the current book. Everything
+// past that is a recycling model, and the two are kept visibly apart: a
+// modelled month five cycles out is an assumption, not a forecast, and
+// dressing it up like one would be the most dangerous thing this app could do.
+
+function clampPercent(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(100, Math.max(0, roundMoney(n)));
+}
+
+function averageMonthlyExpenses() {
+  if (!state.expenses.length) return 0;
+  const months = new Set(state.expenses.map((expense) => monthKey(expense.date)));
+  const total = state.expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  return roundMoney(total / Math.max(1, months.size));
+}
+
+// New lending is assumed to earn what this book already charges.
+function averageLoanRate() {
+  const rates = state.loans.map((loan) => Number(loan.interestRate || 0)).filter((rate) => rate > 0);
+  if (!rates.length) return 30;
+  return roundMoney(rates.reduce((sum, rate) => sum + rate, 0) / rates.length);
+}
+
+function projectionSettings() {
+  const saved = state.settings.projection || {};
+  const pick = (value, fallback) => {
+    const n = Number(value);
+    return Number.isFinite(n) && value !== "" && value !== null ? n : fallback;
+  };
+  return {
+    recoveryRate: clampPercent(pick(saved.recoveryRate, 85)),
+    redeployRate: clampPercent(pick(saved.redeployRate, 85)),
+    monthlyCosts: Math.max(0, roundMoney(pick(saved.monthlyCosts, averageMonthlyExpenses()))),
+    months: Math.min(24, Math.max(1, Math.round(pick(saved.months, 6))))
+  };
+}
+
+// What the existing book is due to bring in, by month. Anything already overdue
+// is expected now, not in the month it was originally due — otherwise the
+// projection would quietly bury the arrears in the past and never collect them.
+function scheduledCollections() {
+  const nowKey = monthKey(new Date());
+  const map = new Map();
+  allAnalyses().forEach((row) => {
+    if (row.status === "paid" || row.status === "written-off") return;
+    if (row.collectableOutstanding <= 0) return;
+    const dueKey = monthKey(row.loan.dueDate);
+    const key = dueKey < nowKey ? nowKey : dueKey;
+    map.set(key, roundMoney((map.get(key) || 0) + row.collectableOutstanding));
+  });
+  return map;
+}
+
+function projectionRows() {
+  const cfg = projectionSettings();
+  const scheduled = scheduledCollections();
+  const ratePercent = averageLoanRate();
+  const rate = ratePercent / 100;
+  const recovery = cfg.recoveryRate / 100;
+  const redeploy = cfg.redeployRate / 100;
+  const start = monthKey(new Date());
+
+  let cash = cashOnHand();
+  let bookLeft = roundMoney(Array.from(scheduled.values()).reduce((sum, value) => sum + value, 0));
+  let lentAwaiting = 0; // issued last month, comes back this month
+  const rows = [];
+
+  for (let index = 0; index < cfg.months; index += 1) {
+    const month = addMonths(start, index);
+    const due = roundMoney(scheduled.get(month) || 0);
+
+    // Whatever is not recovered is a loss: it leaves the book either way.
+    const fromBook = roundMoney(due * recovery);
+    const fromNew = roundMoney(lentAwaiting * (1 + rate) * recovery);
+    const opening = cash;
+    const inflow = roundMoney(fromBook + fromNew);
+    const available = roundMoney(opening + inflow);
+    const lend = roundMoney(Math.max(0, available) * redeploy);
+    const closing = roundMoney(available - lend - cfg.monthlyCosts);
+
+    bookLeft = roundMoney(Math.max(0, bookLeft - due));
+    const working = roundMoney(closing + lend + bookLeft);
+
+    rows.push({
+      month,
+      due,
+      fromBook,
+      fromNew,
+      inflow,
+      opening,
+      lend,
+      costs: cfg.monthlyCosts,
+      closing,
+      working,
+      scheduled: due > 0,
+      profit: roundMoney(lentAwaiting * rate * recovery)
+    });
+
+    cash = closing;
+    lentAwaiting = lend;
+  }
+
+  return { rows, cfg, ratePercent };
+}
+
 // Opening/closing balances and money in/out for the selected report period.
 function cashFlowFor(scope, month, year) {
   const periodOf = (dateValue) => {
@@ -1115,6 +1223,7 @@ function renderReports() {
 
   renderCashReport();
   renderCapital();
+  renderProjection();
   renderTrendChart();
   renderBreakdownTable();
   renderExpenses();
@@ -1143,6 +1252,85 @@ function renderCashReport() {
   ].map(reportCardHtml).join("");
 
   renderCashTrail();
+}
+
+function renderProjection() {
+  const host = qs("#projectionTable");
+  if (!host) return;
+  const summary = qs("#projectionSummary");
+  const note = qs("#projectionNote");
+  const { rows, cfg, ratePercent } = projectionRows();
+
+  if (!rows.length) {
+    host.innerHTML = "";
+    return;
+  }
+
+  const last = rows[rows.length - 1];
+  const change = roundMoney(last.working - totalFunds());
+
+  summary.innerHTML = [
+    ["Working capital", money(last.working), `By ${monthLabel(last.month)}`],
+    ["Change", `${change >= 0 ? "+" : "−"}${money(Math.abs(change))}`, "Against today"],
+    ["Profit that month", money(last.profit), "Interest earned"]
+  ].map(reportCardHtml).join("");
+
+  const body = rows
+    .map((row) => `
+      <tr class="${row.scheduled ? "" : "is-modelled"}">
+        <th scope="row">${escapeHtml(monthShort(row.month))}${row.scheduled ? "" : ' <span class="tag-est">est</span>'}</th>
+        <td>${money(row.due)}</td>
+        <td>${money(row.inflow)}</td>
+        <td>${money(row.lend)}</td>
+        <td>${money(row.closing)}</td>
+        <td>${money(row.working)}</td>
+      </tr>
+    `)
+    .join("");
+
+  host.innerHTML = `
+    <div class="table-scroll">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th scope="col">Month</th>
+            <th scope="col">Due</th>
+            <th scope="col">In</th>
+            <th scope="col">Lend</th>
+            <th scope="col">Cash</th>
+            <th scope="col">Working</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+
+  const realMonths = rows.filter((row) => row.scheduled).length;
+  note.textContent = `Only the first ${realMonths} month${realMonths === 1 ? "" : "s"} rest on loans actually on your books. Months marked "est" assume money keeps recycling at ${ratePercent}% a month, with ${cfg.recoveryRate}% of what is due coming back and ${cfg.redeployRate}% of spare cash lent out again. Change those under the pencil.`;
+}
+
+function openProjectionForm() {
+  const cfg = projectionSettings();
+  openSheet("Projection assumptions", `
+    <p class="form-hint">These drive the estimate. Collected is the share of what is due that actually arrives — your own history is the honest guide, not your best month.</p>
+    <div class="form-grid">
+      <label data-suffix="%"><span>Collected</span><input name="recoveryRate" type="number" min="0" max="100" step="1" required inputmode="decimal" value="${escapeHtml(cfg.recoveryRate)}" /></label>
+      <label data-suffix="%"><span>Re-lent</span><input name="redeployRate" type="number" min="0" max="100" step="1" required inputmode="decimal" value="${escapeHtml(cfg.redeployRate)}" /></label>
+      <label data-prefix="${currency}"><span>Monthly costs</span><input name="monthlyCosts" type="number" min="0" step="0.01" inputmode="decimal" value="${escapeHtml(cfg.monthlyCosts)}" placeholder="0.00" /></label>
+      <label><span>Months ahead</span><input name="months" type="number" min="1" max="24" step="1" required inputmode="numeric" value="${escapeHtml(cfg.months)}" /></label>
+    </div>
+  `, "Save", (form) => {
+    state.settings.projection = {
+      recoveryRate: clampPercent(form.get("recoveryRate")),
+      redeployRate: clampPercent(form.get("redeployRate")),
+      monthlyCosts: Math.max(0, roundMoney(form.get("monthlyCosts"))),
+      months: Math.min(24, Math.max(1, Math.round(Number(form.get("months")) || 6)))
+    };
+    saveState();
+    render();
+    toast("Projection updated.");
+  });
 }
 
 function renderCashTrail() {
@@ -3059,6 +3247,7 @@ function bindEvents() {
     if (event.target.id === "sheet") closeSheet();
   });
 
+  qs("#projectionSettingsBtn")?.addEventListener("click", openProjectionForm);
   qs("#backupEncryptedBtn").addEventListener("click", backupDataEncrypted);
   qs("#exportLoanbookBtn").addEventListener("click", exportLoanbook);
   qs("#exportPaymentsBtn").addEventListener("click", exportPayments);
