@@ -27,7 +27,7 @@
         } catch (e) {}
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=26" />
+    <link rel="stylesheet" href="./styles.css?v=27" />
   </head>
   <body>
     <div class="app-shell">
@@ -208,8 +208,13 @@
                 <span class="btn-icon" data-icon="edit"></span>
               </button>
             </div>
+            <div class="segmented projection-scenarios" role="tablist" aria-label="Projection scenario">
+              <button type="button" data-projection-preset="high">All paid</button>
+              <button type="button" data-projection-preset="mid">Realistic</button>
+              <button type="button" data-projection-preset="low">Cautious</button>
+            </div>
             <div id="projectionSummary"></div>
-            <div class="monthly-breakdown" id="projectionTable"></div>
+            <div class="monthly-breakdown projection-table" id="projectionTable"></div>
             <p class="projection-note" id="projectionNote"></p>
           </section>
 
@@ -361,7 +366,7 @@
       </div>
     </div>
 
-    <script src="./import-data.js?v=26"></script>
-    <script src="./app.js?v=26"></script>
+    <script src="./import-data.js?v=27"></script>
+    <script src="./app.js?v=27"></script>
   </body>
 </html>

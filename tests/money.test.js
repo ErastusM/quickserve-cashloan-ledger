@@ -442,6 +442,50 @@ test("projection: paid and written-off loans are not projected as income", () =>
   assert.strictEqual(totalDue, 0, "settled loan brings nothing more, written-off brings nothing at all");
 });
 
+test("projection presets: 'all paid' really does mean nothing is written off", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    loans: [loan({ principal: 1000, interestRate: 30, dueDate: "2026-03-31" })]
+  }));
+
+  app.run(`applyProjectionPreset("high")`);
+  const high = JSON.parse(app.run(`JSON.stringify(projectionRows())`));
+  assert.strictEqual(high.cfg.recoveryRate, 100);
+  assert.strictEqual(high.rows[0].inflow, 1300, "the whole balance arrives");
+
+  app.run(`applyProjectionPreset("low")`);
+  const low = JSON.parse(app.run(`JSON.stringify(projectionRows())`));
+  assert.strictEqual(low.cfg.recoveryRate, 70);
+  assert.strictEqual(low.rows[0].inflow, 910, "70% of 1300");
+
+  // The headline must actually move, or the control is decorative.
+  assert.ok(
+    high.rows[high.rows.length - 1].working > low.rows[low.rows.length - 1].working * 2,
+    "collecting everything should be worth far more by the horizon"
+  );
+});
+
+test("projection presets: switching does not clobber costs or horizon", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    settings: { ...baseState().settings, projection: { recoveryRate: 85, redeployRate: 85, monthlyCosts: 400, months: 9 } }
+  }));
+  app.run(`applyProjectionPreset("high")`);
+  const cfg = JSON.parse(app.run(`JSON.stringify(projectionSettings())`));
+  assert.strictEqual(cfg.monthlyCosts, 400, "costs preserved");
+  assert.strictEqual(cfg.months, 9, "horizon preserved");
+  assert.strictEqual(cfg.recoveryRate, 100, "only the scenario changed");
+});
+
+test("projection presets: the active one is detected, custom stays custom", () => {
+  const app = loadApp();
+  app.setState(baseState());
+  app.run(`applyProjectionPreset("mid")`);
+  assert.strictEqual(app.run(`activeProjectionPreset()`), "mid");
+  app.run(`state.settings.projection = { recoveryRate: 91, redeployRate: 77, monthlyCosts: 0, months: 6 }`);
+  assert.strictEqual(app.run(`activeProjectionPreset()`), "custom", "hand-set values are not mislabelled as a preset");
+});
+
 // Money comparisons: guard against float dust.
 function roundish(value) {
   return Math.round(value * 100) / 100;

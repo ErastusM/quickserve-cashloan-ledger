@@ -5,6 +5,11 @@ const moneyFormat = new Intl.NumberFormat("en-NA", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
 });
+// For dense tables: no symbol, no cents. Six of "N$ 169,017.53" will not fit a
+// phone, and the cents are noise next to a projection anyway.
+const moneyCompactFormat = new Intl.NumberFormat("en-NA", {
+  maximumFractionDigits: 0
+});
 const dateFormat = new Intl.DateTimeFormat("en-NA", {
   day: "2-digit",
   month: "short",
@@ -98,8 +103,12 @@ const APP_VERSION = (typeof document !== "undefined" && document.currentScript
 
 let updatePromptShown = false;
 
-const qs = (selector, root = document) => root.querySelector(selector);
-const qsa = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+// Default to the document when there is one. Under Node (tests/money.test.js)
+// there is not, and these return empty rather than throwing, so render
+// functions become harmless no-ops instead of blocking the money tests.
+const domRoot = () => (typeof document !== "undefined" ? document : null);
+const qs = (selector, root = domRoot()) => (root ? root.querySelector(selector) : null);
+const qsa = (selector, root = domRoot()) => (root ? Array.from(root.querySelectorAll(selector)) : []);
 
 function loadState() {
   try {
@@ -326,6 +335,10 @@ function money(value) {
   // \u00A0 is a non-breaking space: the symbol and the amount are one unit,
   // otherwise a narrow card wraps "N$" onto its own line above the number.
   return `${currency}\u00A0${moneyFormat.format(roundMoney(value))}`;
+}
+
+function moneyCompact(value) {
+  return moneyCompactFormat.format(roundMoney(value));
 }
 
 function percent(value) {
@@ -879,6 +892,37 @@ function averageLoanRate() {
   return roundMoney(rates.reduce((sum, rate) => sum + rate, 0) / rates.length);
 }
 
+// Named scenarios, so the figure is obviously one of several rather than a
+// prediction. "All paid" is the case where every arrear really does land.
+const PROJECTION_PRESETS = {
+  high: { label: "All paid", recoveryRate: 100, redeployRate: 90 },
+  mid: { label: "Realistic", recoveryRate: 85, redeployRate: 85 },
+  low: { label: "Cautious", recoveryRate: 70, redeployRate: 70 }
+};
+
+function activeProjectionPreset() {
+  const cfg = projectionSettings();
+  const match = Object.keys(PROJECTION_PRESETS).find((key) => {
+    const preset = PROJECTION_PRESETS[key];
+    return preset.recoveryRate === cfg.recoveryRate && preset.redeployRate === cfg.redeployRate;
+  });
+  return match || "custom";
+}
+
+function applyProjectionPreset(key) {
+  const preset = PROJECTION_PRESETS[key];
+  if (!preset) return;
+  const cfg = projectionSettings();
+  state.settings.projection = {
+    recoveryRate: preset.recoveryRate,
+    redeployRate: preset.redeployRate,
+    monthlyCosts: cfg.monthlyCosts,
+    months: cfg.months
+  };
+  saveState();
+  renderProjection();
+}
+
 function projectionSettings() {
   const saved = state.settings.projection || {};
   const pick = (value, fallback) => {
@@ -1268,9 +1312,16 @@ function renderProjection() {
 
   const last = rows[rows.length - 1];
   const change = roundMoney(last.working - totalFunds());
+  const preset = activeProjectionPreset();
+
+  qsa("[data-projection-preset]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.projectionPreset === preset);
+  });
 
   summary.innerHTML = [
-    ["Working capital", money(last.working), `By ${monthLabel(last.month)}`],
+    // The assumption sits on the figure itself. Hidden behind a pencil it
+    // reads as a prediction, which it is not.
+    ["Working capital", money(last.working), `${monthLabel(last.month)} · if you collect ${cfg.recoveryRate}%`],
     ["Change", `${change >= 0 ? "+" : "−"}${money(Math.abs(change))}`, "Against today"],
     ["Profit that month", money(last.profit), "Interest earned"]
   ].map(reportCardHtml).join("");
@@ -1279,11 +1330,11 @@ function renderProjection() {
     .map((row) => `
       <tr class="${row.scheduled ? "" : "is-modelled"}">
         <th scope="row">${escapeHtml(monthShort(row.month))}${row.scheduled ? "" : ' <span class="tag-est">est</span>'}</th>
-        <td>${money(row.due)}</td>
-        <td>${money(row.inflow)}</td>
-        <td>${money(row.lend)}</td>
-        <td>${money(row.closing)}</td>
-        <td>${money(row.working)}</td>
+        <td class="col-extra">${moneyCompact(row.due)}</td>
+        <td>${moneyCompact(row.inflow)}</td>
+        <td class="col-extra">${moneyCompact(row.lend)}</td>
+        <td>${moneyCompact(row.closing)}</td>
+        <td><strong>${moneyCompact(row.working)}</strong></td>
       </tr>
     `)
     .join("");
@@ -1294,11 +1345,19 @@ function renderProjection() {
         <thead>
           <tr>
             <th scope="col">Month</th>
-            <th scope="col">Due</th>
+            <th scope="col" class="col-extra">Due</th>
             <th scope="col">In</th>
-            <th scope="col">Lend</th>
+            <th scope="col" class="col-extra">Lend</th>
             <th scope="col">Cash</th>
             <th scope="col">Working</th>
+          </tr>
+          <tr class="unit-row">
+            <th scope="col"></th>
+            <th scope="col" class="col-extra">${currency}</th>
+            <th scope="col">${currency}</th>
+            <th scope="col" class="col-extra">${currency}</th>
+            <th scope="col">${currency}</th>
+            <th scope="col">${currency}</th>
           </tr>
         </thead>
         <tbody>${body}</tbody>
@@ -1307,7 +1366,8 @@ function renderProjection() {
   `;
 
   const realMonths = rows.filter((row) => row.scheduled).length;
-  note.textContent = `Only the first ${realMonths} month${realMonths === 1 ? "" : "s"} rest on loans actually on your books. Months marked "est" assume money keeps recycling at ${ratePercent}% a month, with ${cfg.recoveryRate}% of what is due coming back and ${cfg.redeployRate}% of spare cash lent out again. Change those under the pencil.`;
+  const presetNote = preset === "custom" ? "Your own settings" : PROJECTION_PRESETS[preset].label;
+  note.textContent = `${presetNote}: ${cfg.recoveryRate}% of what is owed actually arrives, ${cfg.redeployRate}% of spare cash goes back out, money recycles at ${ratePercent}% a month, costs ${money(cfg.monthlyCosts)} a month. Only the first ${realMonths} month${realMonths === 1 ? "" : "s"} rest on loans already on your books — the rest is modelled. Treat the collected figure as what you never recover, not what is merely late.`;
 }
 
 function openProjectionForm() {
@@ -3248,6 +3308,9 @@ function bindEvents() {
   });
 
   qs("#projectionSettingsBtn")?.addEventListener("click", openProjectionForm);
+  qsa("[data-projection-preset]").forEach((button) => {
+    button.addEventListener("click", () => applyProjectionPreset(button.dataset.projectionPreset));
+  });
   qs("#backupEncryptedBtn").addEventListener("click", backupDataEncrypted);
   qs("#exportLoanbookBtn").addEventListener("click", exportLoanbook);
   qs("#exportPaymentsBtn").addEventListener("click", exportPayments);

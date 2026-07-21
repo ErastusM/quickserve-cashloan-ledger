@@ -806,11 +806,43 @@ body.has-update-bar .app-shell {
   vertical-align: middle;
 }
 
+.projection-scenarios {
+  margin-bottom: 12px;
+}
+
 #projectionSummary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px;
   margin-bottom: 14px;
+}
+
+/* Six columns will not fit a phone. Due and Lend are secondary — the story is
+   what comes in, what is left, and what you are worth. */
+@media (max-width: 560px) {
+  .projection-table .col-extra {
+    display: none;
+  }
+}
+
+.projection-table .ledger-table th,
+.projection-table .ledger-table td {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Currency named once per column instead of on every cell. */
+.projection-table .unit-row th {
+  padding-top: 0;
+  padding-bottom: 6px;
+  color: var(--muted-2);
+  font-size: 0.62rem;
+  font-weight: var(--w-medium);
+  letter-spacing: 0.06em;
+}
+
+.projection-table .ledger-table tbody strong {
+  font-weight: var(--w-semibold);
 }
 
 .projection-note {
