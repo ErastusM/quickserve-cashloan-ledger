@@ -10,6 +10,14 @@ compatibility_date = "2024-11-01"
 # The origin your apply.html / inbox.html are served from (for CORS).
 # For GitHub Pages this is your Pages origin, e.g. https://erastusm.github.io
 ALLOWED_ORIGIN = "https://erastusm.github.io"
+# Link included in the "new application" alert so you can jump straight to review.
+INBOX_URL = "https://erastusm.github.io/quickserve-cashloan-ledger/inbox.html"
+
+# ── New-application alerts (optional; set up ONE channel) ────────────────────
+# Secrets are NOT stored here — set them with `wrangler secret put <NAME>`:
+#   Telegram (instant phone push):  TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+#   Email (via Resend):             RESEND_API_KEY, OWNER_EMAIL  [, NOTIFY_FROM]
+# If neither is set, the app still works — you just review from the inbox.
 
 [[d1_databases]]
 binding = "DB"

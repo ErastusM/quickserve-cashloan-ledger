@@ -63,7 +63,7 @@ function safeParse(value) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     const method = request.method;
@@ -72,7 +72,7 @@ export default {
 
     try {
       // Public: submit an application.
-      if (method === "POST" && path === "/applications") return submit(request, env);
+      if (method === "POST" && path === "/applications") return submit(request, env, ctx);
 
       // Everything else under /applications is owner-only.
       if (path === "/applications" || path.startsWith("/applications/")) {
@@ -96,7 +96,7 @@ export default {
   }
 };
 
-async function submit(request, env) {
+async function submit(request, env, ctx) {
   let form;
   try {
     form = await request.formData();
@@ -149,7 +149,45 @@ async function submit(request, env) {
     docIdKey, JSON.stringify(bankKeys), payslipKey
   ).run();
 
+  // Alert the owner in the background. A failed alert must never fail the
+  // application, so it runs via waitUntil and swallows its own errors.
+  if (ctx && typeof ctx.waitUntil === "function") {
+    ctx.waitUntil(notifyOwner(env, { id, name: field("fullName"), purpose: field("purpose"), phone: field("phone") }));
+  }
+
   return json({ ok: true, reference: id }, 201, env);
+}
+
+// Fire an owner alert on a new application. Sends via whichever channels are
+// configured (Telegram and/or email); does nothing if neither is set. Never
+// throws — notification is best-effort and must not affect the applicant.
+async function notifyOwner(env, app) {
+  const review = env.INBOX_URL ? `\nReview: ${env.INBOX_URL}` : "";
+  const text = `New loan application\n${app.name} — ${app.purpose}\nPhone: ${app.phone}\nRef: ${app.id}${review}`;
+  const tasks = [];
+
+  if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
+    tasks.push(fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text, disable_web_page_preview: true })
+    }).catch(() => {}));
+  }
+
+  if (env.RESEND_API_KEY && env.OWNER_EMAIL) {
+    tasks.push(fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.RESEND_API_KEY}` },
+      body: JSON.stringify({
+        from: env.NOTIFY_FROM || "QuickServe Cashloan <onboarding@resend.dev>",
+        to: [env.OWNER_EMAIL],
+        subject: `New loan application — ${app.name}`,
+        text
+      })
+    }).catch(() => {}));
+  }
+
+  await Promise.allSettled(tasks);
 }
 
 async function listApplications(request, env) {

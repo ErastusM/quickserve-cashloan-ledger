@@ -92,6 +92,40 @@ That's it — new applications now flow into **inbox.html**.
   and a **Copy for loan book** button to paste the details into the ledger app when you
   issue the loan.
 
+## New-application alerts (optional but recommended)
+
+Get pinged the moment someone applies, instead of checking the inbox. Set up **one**
+channel, then redeploy. If you set up neither, everything still works — you just
+review from the inbox.
+
+### Option A — Telegram (instant phone push, free)
+1. In Telegram, message **@BotFather** → send `/newbot` → follow the prompts → it gives you a **bot token**.
+2. Send any message to your new bot (search its @name, tap Start, say "hi").
+3. Get your **chat id**: message **@userinfobot** in Telegram — it replies with your numeric `Id`.
+4. Set the two secrets:
+   ```bash
+   npx wrangler secret put TELEGRAM_BOT_TOKEN
+   npx wrangler secret put TELEGRAM_CHAT_ID
+   ```
+
+### Option B — Email (via Resend, free tier)
+1. Sign up at https://resend.com with your own email, and create an **API key**.
+2. Set the secrets (in test mode Resend can send to your own signup email without
+   a verified domain; verify a domain later for best deliverability):
+   ```bash
+   npx wrangler secret put RESEND_API_KEY
+   npx wrangler secret put OWNER_EMAIL
+   ```
+   (Optional: `npx wrangler secret put NOTIFY_FROM` if you have a verified sender.)
+
+### Apply it
+```bash
+npx wrangler deploy
+```
+Now each new application triggers an alert with the applicant's name, purpose, phone,
+reference, and a link straight to the inbox. Alerts run in the background, so a hiccup
+with Telegram/Resend never blocks or loses an application.
+
 ## Local testing (optional)
 ```bash
 npx wrangler dev
