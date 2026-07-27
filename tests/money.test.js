@@ -566,6 +566,75 @@ test("reconcile: the direction of the gap is counted minus cash on hand", () => 
   assert.strictEqual(over.difference, 600, "more real cash than recorded");
 });
 
+test("client references: backfilled in creation order, oldest gets the lowest number", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    clients: [
+      { id: "c1", name: "Bravo", createdAt: "2026-02-01T00:00:00.000Z" },
+      { id: "c2", name: "Alpha", createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "c3", name: "Charlie", createdAt: "2026-03-01T00:00:00.000Z" }
+    ]
+  }));
+  app.run(`assignClientRefs(state)`);
+  const refs = JSON.parse(app.run(`JSON.stringify(state.clients.map((c) => [c.id, c.ref]))`));
+  const byId = Object.fromEntries(refs);
+  assert.strictEqual(byId.c2, "QS-0001", "earliest createdAt is QS-0001");
+  assert.strictEqual(byId.c1, "QS-0002");
+  assert.strictEqual(byId.c3, "QS-0003");
+});
+
+test("client references: existing refs are kept and never renumber on delete", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    clients: [
+      { id: "c1", name: "Alpha", ref: "QS-0001", createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "c3", name: "Charlie", ref: "QS-0003", createdAt: "2026-03-01T00:00:00.000Z" }
+    ]
+  }));
+  // c2 (QS-0002) was deleted. Backfilling must not renumber the survivors.
+  app.run(`assignClientRefs(state)`);
+  const refs = JSON.parse(app.run(`JSON.stringify(state.clients.map((c) => c.ref))`));
+  assert.deepStrictEqual(refs, ["QS-0001", "QS-0003"]);
+  // The next new client continues past the highest, not into the gap.
+  assert.strictEqual(app.run(`nextClientRef()`), "QS-0004");
+});
+
+test("client references: a new client with no refs yet starts at QS-0001", () => {
+  const app = loadApp();
+  app.setState(baseState({ clients: [] }));
+  assert.strictEqual(app.run(`nextClientRef()`), "QS-0001");
+});
+
+test("loan references: backfilled in creation order, oldest gets QSL-0001", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    loans: [
+      loan({ id: "l2", createdAt: "2026-02-01T00:00:00.000Z" }),
+      loan({ id: "l1", createdAt: "2026-01-01T00:00:00.000Z" }),
+      loan({ id: "l3", createdAt: "2026-03-01T00:00:00.000Z" })
+    ]
+  }));
+  app.run(`assignLoanRefs(state)`);
+  const byId = Object.fromEntries(JSON.parse(app.run(`JSON.stringify(state.loans.map((l) => [l.id, l.ref]))`)));
+  assert.strictEqual(byId.l1, "QSL-0001");
+  assert.strictEqual(byId.l2, "QSL-0002");
+  assert.strictEqual(byId.l3, "QSL-0003");
+  assert.strictEqual(app.run(`nextLoanRef()`), "QSL-0004");
+});
+
+test("loan references: existing refs are kept and the next continues past the highest", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    loans: [
+      loan({ id: "l1", ref: "QSL-0001", createdAt: "2026-01-01T00:00:00.000Z" }),
+      loan({ id: "l3", ref: "QSL-0003", createdAt: "2026-03-01T00:00:00.000Z" })
+    ]
+  }));
+  app.run(`assignLoanRefs(state)`);
+  assert.deepStrictEqual(JSON.parse(app.run(`JSON.stringify(state.loans.map((l) => l.ref))`)), ["QSL-0001", "QSL-0003"]);
+  assert.strictEqual(app.run(`nextLoanRef()`), "QSL-0004", "continues past the highest, not into the gap");
+});
+
 // Money comparisons: guard against float dust.
 function roundish(value) {
   return Math.round(value * 100) / 100;

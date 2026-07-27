@@ -18,18 +18,28 @@ const {
   Footer, Header, PageNumber, TabStopType, TabStopPosition, LevelFormat, convertInchesToTwip
 } = D;
 
-const INK = "06302E";      // deep teal, headings
-const GREEN = "12B84F";    // brand green, rules
-const GREY = "5A6B69";     // muted body
-const RULE = "C9D6D3";
-const SHADE = "EEF4F2";    // table header fill
-const FILL = "FFF4D6";     // [PLACEHOLDER] highlight
+// Greyscale only. The single spot of colour in the whole document is the logo
+// image in the letterhead; everything else is black, grey, or white.
+const INK = "1A1A1A";      // near-black, headings
+const GREEN = "8C8C8C";    // (kept name) now a neutral grey rule
+const GREY = "666666";     // muted body / footer
+const RULE = "C8C8C8";     // table + hairline rules
+const SHADE = "F2F2F2";    // table header fill
+const FILL = "ECECEC";     // [PLACEHOLDER] fill — grey, not colour
+const SERIF = "Georgia";   // professional serif for a formal document
 
 const PAGE_W = 11906;      // A4 width in DXA (210mm) — Namibia uses A4
 const MARGIN = convertInchesToTwip(0.85);
 const CONTENT_W = PAGE_W - MARGIN * 2;
 
 const LOGO = fs.readFileSync(path.join(__dirname, "logo.png"));
+
+// Signing assets, shared with the PDF generator and the app. The stamp always
+// exists; the signature appears once assets/signature.png is supplied.
+const ASSETS = path.join(__dirname, "..", "assets");
+const readAsset = (file) => { try { return fs.readFileSync(path.join(ASSETS, file)); } catch { return null; } };
+const STAMP = readAsset("stamp.png");
+const SIGNATURE = readAsset("signature.png");
 
 // ---------- inline formatting ----------
 // Splits on **bold**, *italic*, and [PLACEHOLDER] so each becomes its own run.
@@ -43,7 +53,7 @@ function runs(text, base = {}) {
     if (tok.startsWith("**")) {
       out.push(new TextRun({ text: tok.slice(2, -2), bold: true, ...base }));
     } else if (tok.startsWith("[")) {
-      out.push(new TextRun({ text: tok, bold: true, color: "7A5B00", shading: { type: ShadingType.CLEAR, fill: FILL }, ...base }));
+      out.push(new TextRun({ text: tok, bold: true, color: INK, shading: { type: ShadingType.CLEAR, fill: FILL }, ...base }));
     } else {
       out.push(new TextRun({ text: tok.slice(1, -1), italics: true, ...base }));
     }
@@ -54,9 +64,9 @@ function runs(text, base = {}) {
 }
 
 const P = (text, opts = {}) => {
-  const { size = 21, color = "1E2E2C", bold, spacing, align, indent, base = {} } = opts;
+  const { size = 21, color = "222222", bold, spacing, align, indent, base = {} } = opts;
   return new Paragraph({
-    children: runs(text, { size, color, bold, font: "Calibri", ...base }),
+    children: runs(text, { size, color, bold, font: SERIF, ...base }),
     spacing: spacing || { after: 120, line: 276 },
     alignment: align,
     indent
@@ -71,6 +81,15 @@ function buildTable(rows) {
   const cols = Math.min(20, Math.max(1, ...rows.map((r) => r.length)));
   const norm = rows.map((r) => [...r.slice(0, cols), ...Array(Math.max(0, cols - r.length)).fill("")]);
   const hasHeader = norm.length > 1 && norm[0].some((c) => c.trim() !== "");
+  // Right-align a column only when every value in it is a number, so a column
+  // that mixes money with dates or text stays left-aligned and even.
+  const isNum = (c) => /^[N$\s\d.,()%-]+$/.test(c) && c.trim();
+  const bodyStart = hasHeader ? 1 : 0;
+  const numericCol = [];
+  for (let ci = 0; ci < cols; ci++) {
+    const vals = norm.slice(bodyStart).map((r) => (r[ci] || "").trim()).filter((v) => v !== "");
+    numericCol[ci] = vals.length > 0 && vals.every(isNum);
+  }
   // First column carries the label and gets more room; rest split evenly.
   const first = Math.round(CONTENT_W * (cols === 2 ? 0.46 : 0.34));
   const rest = Math.floor((CONTENT_W - first) / (cols - 1 || 1));
@@ -102,11 +121,11 @@ function buildTable(rows) {
                 children: runs(cell || " ", {
                   size: 20,
                   bold: isHead || undefined,
-                  color: isHead ? INK : "1E2E2C",
-                  font: "Calibri"
+                  color: isHead ? INK : "222222",
+                  font: SERIF
                 }),
                 spacing: { after: 0, line: 250 },
-                alignment: ci > 0 && /^[N$\s\d.,()%-]+$/.test(cell) && cell.trim() ? AlignmentType.RIGHT : undefined
+                alignment: ci > 0 && numericCol[ci] ? AlignmentType.RIGHT : undefined
               })
             ]
           })
@@ -152,24 +171,53 @@ function convert(md) {
 
     if (/^---+$/.test(t)) { kids.push(hr()); i++; continue; }
 
+    // Signing assets on their own line.
+    if (t === "{{STAMP}}") {
+      if (STAMP) {
+        kids.push(new Paragraph({
+          children: [new ImageRun({ data: STAMP, type: "png", transformation: { width: 128, height: 128 } })],
+          spacing: { before: 160, after: 60 }
+        }));
+      }
+      i++; continue;
+    }
+    if (t === "{{SIGNATURE}}") {
+      if (SIGNATURE) {
+        kids.push(new Paragraph({
+          children: [new ImageRun({ data: SIGNATURE, type: "png", transformation: { width: 180, height: 60 } })],
+          spacing: { before: 200, after: 0 }
+        }));
+      } else {
+        kids.push(new Paragraph({ text: "", spacing: { before: 240, after: 0 } }));
+      }
+      // A ruled line under the signature, either way.
+      kids.push(new Paragraph({
+        text: "",
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "555555" } },
+        spacing: { after: 40 },
+        indent: { left: 0 }
+      }));
+      i++; continue;
+    }
+
     // headings
     if (t.startsWith("#### ")) {
       kids.push(new Paragraph({
-        children: runs(t.slice(5), { size: 21, bold: true, color: INK, font: "Calibri" }),
+        children: runs(t.slice(5), { size: 21, bold: true, color: INK, font: SERIF }),
         spacing: { before: 200, after: 90 }
       }));
       i++; continue;
     }
     if (t.startsWith("### ")) {
       kids.push(new Paragraph({
-        children: runs(t.slice(4), { size: 22, bold: true, color: INK, font: "Calibri" }),
+        children: runs(t.slice(4), { size: 22, bold: true, color: INK, font: SERIF }),
         spacing: { before: 240, after: 100 }
       }));
       i++; continue;
     }
     if (t.startsWith("## ")) {
       kids.push(new Paragraph({
-        children: runs(t.slice(3).toUpperCase(), { size: 23, bold: true, color: INK, font: "Calibri" }),
+        children: runs(t.slice(3).toUpperCase(), { size: 23, bold: true, color: INK, font: SERIF }),
         heading: HeadingLevel.HEADING_2,
         spacing: { before: 320, after: 130 },
         border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: GREEN } }
@@ -178,7 +226,7 @@ function convert(md) {
     }
     if (t.startsWith("# ")) {
       kids.push(new Paragraph({
-        children: runs(t.slice(2).toUpperCase(), { size: 30, bold: true, color: INK, font: "Calibri" }),
+        children: runs(t.slice(2).toUpperCase(), { size: 30, bold: true, color: INK, font: SERIF }),
         heading: HeadingLevel.HEADING_1,
         alignment: AlignmentType.CENTER,
         spacing: { before: 60, after: 220 }
@@ -189,7 +237,7 @@ function convert(md) {
     // bullets
     if (/^[-*]\s+/.test(t)) {
       kids.push(new Paragraph({
-        children: runs(t.replace(/^[-*]\s+/, ""), { size: 21, color: "1E2E2C", font: "Calibri" }),
+        children: runs(t.replace(/^[-*]\s+/, ""), { size: 21, color: "222222", font: SERIF }),
         bullet: { level: (line.match(/^\s*/)[0].length >= 2) ? 1 : 0 },
         spacing: { after: 90, line: 270 }
       }));
@@ -202,8 +250,8 @@ function convert(md) {
     if (clause) {
       kids.push(new Paragraph({
         children: [
-          new TextRun({ text: clause[1].padEnd(Math.max(clause[1].length + 1, 5)), bold: true, size: 21, color: INK, font: "Calibri" }),
-          ...runs(clause[2], { size: 21, color: "1E2E2C", font: "Calibri" })
+          new TextRun({ text: clause[1].padEnd(Math.max(clause[1].length + 1, 5)), bold: true, size: 21, color: INK, font: SERIF }),
+          ...runs(clause[2], { size: 21, color: "222222", font: SERIF })
         ],
         spacing: { after: 110, line: 276 },
         indent: { left: 420, hanging: 420 }
@@ -227,14 +275,20 @@ function header() {
       }),
       new Paragraph({
         children: [
-          new TextRun({ text: "Quickserve Financial Services CC", bold: true, size: 16, color: INK, font: "Calibri" }),
-          new TextRun({ text: "   ·   Reg. No. CC/2026/01904   ·   NAMFISA Reg. No. [NAMFISA REGISTRATION NUMBER]", size: 16, color: GREY, font: "Calibri" })
+          new TextRun({ text: "Quickserve Financial Services CC", bold: true, size: 16, color: INK, font: SERIF }),
+          new TextRun({ text: "   ·   Reg. No. CC/2026/01904", size: 16, color: GREY, font: SERIF })
         ],
-        spacing: { after: 20 }
+        spacing: { after: 14 }
       }),
       new Paragraph({
         children: [
-          new TextRun({ text: "[PHYSICAL ADDRESS]   ·   Tel / WhatsApp +264 81 264 6222   ·   [EMAIL ADDRESS]", size: 16, color: GREY, font: "Calibri" })
+          new TextRun({ text: "Cell +264 81 281 9840   ·   WhatsApp +264 81 264 6222", size: 15, color: GREY, font: SERIF })
+        ],
+        spacing: { after: 14 }
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "3403 Danger Ashipala Street, Swakopmund, Namibia   ·   P.O. Box 197, Swakopmund   ·   erastusmatheus3@gmail.com", size: 15, color: GREY, font: SERIF })
         ],
         spacing: { after: 90 },
         border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: GREEN } }
@@ -251,12 +305,12 @@ function footer(title) {
         spacing: { before: 60 },
         tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
         children: [
-          new TextRun({ text: `QuickServe Cashloan · ${title}`, size: 15, color: GREY, font: "Calibri" }),
+          new TextRun({ text: `QuickServe Cashloan · ${title}`, size: 15, color: GREY, font: SERIF }),
           new TextRun({ text: "\t", size: 15 }),
-          new TextRun({ text: "Page ", size: 15, color: GREY, font: "Calibri" }),
-          new TextRun({ children: [PageNumber.CURRENT], size: 15, color: GREY, font: "Calibri" }),
-          new TextRun({ text: " of ", size: 15, color: GREY, font: "Calibri" }),
-          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 15, color: GREY, font: "Calibri" })
+          new TextRun({ text: "Page ", size: 15, color: GREY, font: SERIF }),
+          new TextRun({ children: [PageNumber.CURRENT], size: 15, color: GREY, font: SERIF }),
+          new TextRun({ text: " of ", size: 15, color: GREY, font: SERIF }),
+          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 15, color: GREY, font: SERIF })
         ]
       })
     ]

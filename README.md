@@ -10,7 +10,7 @@ The app runs entirely in a phone browser and stores all data **on that device on
 
 - Dashboard: outstanding, overdue, due this month, money collected, revenue, net profit, and active clients at a glance. Every figure is tappable and opens the matching filtered view.
 - Cash float: cash on hand, out on loan, and total funds, backed by a running bank-style ledger of every movement.
-- Client management: names, phone numbers, ID numbers, employer, address, next of kin, and notes.
+- Client management: a stable reference number (QS-0001, QS-0002, …) plus names, phone numbers, ID numbers, employer, address, next of kin, and notes. References are searchable and never renumber when a client is deleted.
 - Loan tracking: amount, interest rate, service fee, issue date, due date, payment status, and write-off status.
 - **Rollover:** extend an unpaid loan — push the due date out and charge another interest cycle — without creating a second loan or faking a cash movement.
 - **Reminders:** one tap on an open loan builds a message with the balance and due date, ready to send over WhatsApp or SMS, or to copy.

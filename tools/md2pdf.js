@@ -12,13 +12,27 @@ const { chromium } = require("playwright");
 const HERE = __dirname;
 const LOGO_B64 = fs.readFileSync(path.join(HERE, "logo.png")).toString("base64");
 
+// Optional signing assets. The stamp always exists; the signature is added once
+// the owner supplies a scan (assets/signature.png). Both are looked up relative
+// to the repo root so the generators and the app share one source of truth.
+const ASSETS = path.join(HERE, "..", "assets");
+const dataUri = (file, mime) => {
+  try { return `data:${mime};base64,${fs.readFileSync(path.join(ASSETS, file)).toString("base64")}`; }
+  catch { return null; }
+};
+const STAMP_URI = dataUri("stamp.png", "image/png");
+const SIGNATURE_URI = dataUri("signature.png", "image/png");
+
+// PT Serif — a formal, professional serif for a confidential legal document.
 const FONT_CSS = fs
   .readdirSync(path.join(HERE, "fonts", "out"))
-  .filter((f) => f.startsWith("Inter") && f.endsWith(".woff2"))
+  .filter((f) => f.startsWith("PTSerif") && f.endsWith(".woff2"))
   .map((file) => {
-    const weight = file.split("-")[1].replace(".woff2", "");
+    const stem = file.replace(".woff2", "").split("-")[1]; // e.g. "700i"
+    const weight = stem.replace("i", "");
+    const style = stem.endsWith("i") ? "italic" : "normal";
     const b64 = fs.readFileSync(path.join(HERE, "fonts", "out", file)).toString("base64");
-    return `@font-face{font-family:'Inter';font-style:normal;font-weight:${weight};font-display:block;src:url(data:font/woff2;base64,${b64}) format('woff2');}`;
+    return `@font-face{font-family:'PT Serif';font-style:${style};font-weight:${weight};font-display:block;src:url(data:font/woff2;base64,${b64}) format('woff2');}`;
   })
   .join("\n");
 
@@ -59,13 +73,22 @@ function render(md) {
       const rows = rawRows.map((r) => r.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim()));
       const num = (c) => /^[N$\s\d.,()%-]+$/.test(c) && c.trim();
       const hasHeader = rows.length > 1 && rows[0].some((c) => c !== "");
+      // Right-align a column only when every value in it is a number, so a
+      // column that mixes money with dates or text stays left-aligned and even.
+      const bodyStart = hasHeader ? 1 : 0;
+      const colCount = Math.max(...rows.map((r) => r.length));
+      const numericCol = [];
+      for (let ci = 0; ci < colCount; ci++) {
+        const vals = rows.slice(bodyStart).map((r) => (r[ci] || "").trim()).filter((v) => v !== "");
+        numericCol[ci] = vals.length > 0 && vals.every(num);
+      }
       out.push("<table>");
       rows.forEach((cells, ri) => {
         out.push("<tr>");
         cells.forEach((c, ci) => {
           const head = hasHeader && ri === 0;
           const tag = head ? "th" : "td";
-          const cls = !head && ci > 0 && num(c) ? ' class="n"' : "";
+          const cls = !head && ci > 0 && numericCol[ci] ? ' class="n"' : "";
           out.push(`<${tag}${cls}>${inline(c) || "&nbsp;"}</${tag}>`);
         });
         out.push("</tr>");
@@ -75,6 +98,20 @@ function render(md) {
     }
 
     if (/^---+$/.test(t)) { closeList(); out.push("<hr/>"); i++; continue; }
+
+    // Signing assets on their own line.
+    if (t === "{{STAMP}}") {
+      closeList();
+      if (STAMP_URI) out.push(`<div class="stamp-wrap"><img class="stamp" src="${STAMP_URI}" alt="Official stamp"/></div>`);
+      i++; continue;
+    }
+    if (t === "{{SIGNATURE}}") {
+      closeList();
+      out.push(SIGNATURE_URI
+        ? `<div class="sig-wrap"><img class="sig" src="${SIGNATURE_URI}" alt="Signature"/><div class="sig-rule"></div></div>`
+        : `<div class="sig-wrap"><div class="sig-blank"></div><div class="sig-rule"></div></div>`);
+      i++; continue;
+    }
 
     let m;
     if ((m = t.match(/^(#{1,4})\s+(.*)$/))) {
@@ -108,46 +145,55 @@ function render(md) {
 
 const page = (doc) => `<!doctype html><html><head><meta charset="utf-8"><style>
 ${FONT_CSS}
-@page { size: A4; margin: 22mm 18mm 20mm 18mm; }
+/* Greyscale only. The one spot of colour in the document is the header logo. */
+/* Margins are set on page.pdf() so the header/footer reserve matches the body;
+   a conflicting @page margin here would push the body under the letterhead. */
+@page { size: A4; }
 * { box-sizing: border-box; }
-body { font-family: Inter, sans-serif; font-size: 10.2pt; line-height: 1.52; color: #1e2e2c; margin: 0; }
-h1 { font-size: 16pt; font-weight: 800; color: #06302e; text-align: center; letter-spacing: -0.3px; margin: 0 0 14pt; }
-h2 { font-size: 11.4pt; font-weight: 700; color: #06302e; letter-spacing: .2px; margin: 17pt 0 7pt;
-     border-bottom: 1.6pt solid #12b84f; padding-bottom: 3pt; break-after: avoid; }
-h3 { font-size: 10.8pt; font-weight: 700; color: #06302e; margin: 12pt 0 5pt; break-after: avoid; }
-h4 { font-size: 10.2pt; font-weight: 700; color: #06302e; margin: 10pt 0 4pt; break-after: avoid; }
+body { font-family: 'PT Serif', Georgia, serif; font-size: 10.4pt; line-height: 1.5; color: #222; margin: 0; }
+h1 { font-size: 15.5pt; font-weight: 700; color: #1a1a1a; text-align: center; letter-spacing: .2px; margin: 0 0 14pt; text-transform: uppercase; }
+h2 { font-size: 11.5pt; font-weight: 700; color: #1a1a1a; letter-spacing: .2px; margin: 17pt 0 7pt;
+     border-bottom: 1pt solid #9a9a9a; padding-bottom: 3pt; break-after: avoid; }
+h3 { font-size: 10.8pt; font-weight: 700; color: #1a1a1a; margin: 12pt 0 5pt; break-after: avoid; }
+h4 { font-size: 10.4pt; font-weight: 700; color: #1a1a1a; margin: 10pt 0 4pt; break-after: avoid; }
 p  { margin: 0 0 6pt; }
 p.cl { display: flex; gap: 7pt; align-items: baseline; }
-p.cl .no { flex: 0 0 auto; min-width: 27pt; font-weight: 700; color: #06302e; }
+p.cl .no { flex: 0 0 auto; min-width: 27pt; font-weight: 700; color: #1a1a1a; }
 p.cl .tx { flex: 1 1 auto; }
 ul { margin: 0 0 7pt; padding-left: 17pt; }
 li { margin-bottom: 3.5pt; }
-hr { border: 0; border-top: 1pt solid #c9d6d3; margin: 13pt 0; }
-table { width: 100%; border-collapse: collapse; margin: 8pt 0 11pt; font-size: 9.6pt; break-inside: avoid; }
-th, td { border: 0.9pt solid #c9d6d3; padding: 5pt 7pt; text-align: left; vertical-align: top; }
-th { background: #eef4f2; color: #06302e; font-weight: 700; }
+hr { border: 0; border-top: 1pt solid #c8c8c8; margin: 13pt 0; }
+table { width: 100%; border-collapse: collapse; margin: 8pt 0 11pt; font-size: 9.8pt; break-inside: avoid; }
+th, td { border: 0.9pt solid #c8c8c8; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+th { background: #f2f2f2; color: #1a1a1a; font-weight: 700; }
 td.n { text-align: right; white-space: nowrap; }
-.ph { background: #fff4d6; color: #7a5b00; font-weight: 600; padding: 0 2pt; border-radius: 2pt; }
+.ph { background: #ececec; color: #1a1a1a; font-weight: 700; padding: 0 2pt; border-radius: 2pt; }
+.stamp-wrap { margin: 10pt 0 4pt; }
+.stamp { width: 34mm; height: auto; }
+.sig-wrap { margin: 14pt 0 2pt; }
+.sig { height: 16mm; width: auto; display: block; margin-bottom: -4pt; margin-left: 2mm; }
+.sig-blank { height: 14mm; }
+.sig-rule { width: 72mm; border-bottom: 0.8pt solid #555; }
 </style></head><body>${render(doc.markdown)}</body></html>`;
 
 const headerTpl = () => `
-<div style="width:100%; font-family:Inter,sans-serif; font-size:6.6pt; color:#5a6b69;
-            padding:0 18mm; margin-top:8mm; -webkit-print-color-adjust:exact;">
-  <div style="display:flex; align-items:flex-end; justify-content:space-between;
-              border-bottom:1.4pt solid #12b84f; padding-bottom:3pt;">
-    <img src="data:image/png;base64,${LOGO_B64}" style="height:8.5mm"/>
-    <div style="text-align:right; line-height:1.45;">
-      <div><strong style="color:#06302e;">Quickserve Financial Services CC</strong> &nbsp;·&nbsp; Reg. No. CC/2026/01904</div>
-      <div>NAMFISA Reg. No. [NAMFISA REGISTRATION NUMBER] &nbsp;·&nbsp; [PHYSICAL ADDRESS]</div>
-      <div>Tel / WhatsApp +264 81 264 6222 &nbsp;·&nbsp; [EMAIL ADDRESS]</div>
+<div style="width:100%; font-family:'PT Serif',Georgia,serif; font-size:6pt; color:#666;
+            padding:0 18mm; margin-top:7mm; -webkit-print-color-adjust:exact;">
+  <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:6mm;
+              border-bottom:1pt solid #9a9a9a; padding-bottom:3pt;">
+    <img src="data:image/png;base64,${LOGO_B64}" style="height:8mm; flex:0 0 auto;"/>
+    <div style="text-align:right; line-height:1.55; white-space:nowrap;">
+      <div><strong style="color:#1a1a1a; font-size:6.8pt;">Quickserve Financial Services CC</strong> &nbsp;·&nbsp; Reg. No. CC/2026/01904</div>
+      <div>Cell +264 81 281 9840 &nbsp;·&nbsp; WhatsApp +264 81 264 6222</div>
+      <div>3403 Danger Ashipala Street, Swakopmund, Namibia &nbsp;·&nbsp; P.O. Box 197, Swakopmund &nbsp;·&nbsp; erastusmatheus3@gmail.com</div>
     </div>
   </div>
 </div>`;
 
 const footerTpl = (title) => `
-<div style="width:100%; font-family:Inter,sans-serif; font-size:6.6pt; color:#5a6b69;
+<div style="width:100%; font-family:'PT Serif',Georgia,serif; font-size:6.6pt; color:#666;
             padding:0 18mm; margin-bottom:6mm; -webkit-print-color-adjust:exact;">
-  <div style="display:flex; justify-content:space-between; border-top:0.8pt solid #c9d6d3; padding-top:3pt;">
+  <div style="display:flex; justify-content:space-between; border-top:0.8pt solid #c8c8c8; padding-top:3pt;">
     <span>QuickServe Cashloan &nbsp;·&nbsp; ${title.replace(/</g, "")}</span>
     <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
   </div>
@@ -158,9 +204,9 @@ const footerTpl = (title) => `
   const pack = JSON.parse(fs.readFileSync(packPath, "utf8"));
   fs.mkdirSync(outDir, { recursive: true });
 
-  const browser = await chromium.launch({
-    executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
-  });
+  const browser = await chromium.launch(
+    process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}
+  );
   const p = await browser.newPage();
 
   for (const doc of pack.documents) {
@@ -174,7 +220,7 @@ const footerTpl = (title) => `
       displayHeaderFooter: true,
       headerTemplate: headerTpl(),
       footerTemplate: footerTpl(doc.title),
-      margin: { top: "30mm", bottom: "18mm", left: "18mm", right: "18mm" }
+      margin: { top: "34mm", bottom: "16mm", left: "18mm", right: "18mm" }
     });
     console.log(`  ${(doc.slug + ".pdf").padEnd(46)} ${String(Math.round(fs.statSync(file).size / 1024)).padStart(4)} KB   ${doc.title}`);
   }

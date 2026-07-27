@@ -28,17 +28,18 @@ below).
 | 04 | Microloan Agreement | The contract the client signs |
 | 05 | Schedule of Fees & Charges (Annexure A) | Attaches to the agreement |
 | 06 | Payment Receipt | Issued for every payment received |
-| 07 | Statement of Account | Full history on request |
-| 08 | Early Settlement Quotation | Figure to close a loan early |
-| 09 | Loan Extension (Rollover) Addendum | When a due date is pushed out |
-| 10 | Paid-Up Letter / Settlement Confirmation | "To whom it may concern" — loan settled in full |
-| 11 | First Reminder | Shortly after a missed due date |
-| 12 | Final Letter of Demand | Formal pre-litigation demand |
-| 13 | Acknowledgement of Debt & Payment Arrangement | Client admits the debt and agrees a plan |
-| 14 | Write-Off & Account Closure Notice | Internal — a balance written off |
-| 15 | Consent & Privacy Notice | How client data is handled |
-| 16 | Client Rights & Complaints Charter | Plain-language rights + how to complain |
-| 17 | Debit Order / Payment Authority Mandate | Authority to collect an instalment |
+| 07 | Paid-Up Letter / Settlement Confirmation | "To whom it may concern" — loan settled in full |
+| 08 | Final Letter of Demand | Formal pre-litigation demand |
+| 09 | Acknowledgement of Debt & Payment Arrangement | Client admits the debt and agrees a plan |
+| 10 | Consent & Privacy Notice | How client data is handled |
+| 11 | Debit Order / Payment Authority Mandate | Authority to collect an instalment |
+
+This is a focused, professional set. Some optional or internal-only forms — a statement
+of account, an early-settlement quotation, a first-reminder letter, a write-off notice,
+and a client-rights charter — were intentionally left out to keep the pack lean, and can
+be restored at any time. No rollover / loan-extension form is included on purpose: until
+the rollover pricing is confirmed lawful (see the compliance sheet), issuing paperwork
+for it would encourage a practice that is likely unlawful.
 
 ## Before you use these — the essentials
 
@@ -75,7 +76,8 @@ node md2docx.js ../documents/pack.json ../documents/docx
 node md2pdf.js  ../documents/pack.json ../documents/pdf
 ```
 
-The Word files use Word's built-in Calibri; the PDFs embed Inter (bundled in
-`../tools/fonts/`). Both share the same letterhead, which reads the company identity
-from the top of each generator — change it in one place there if the registered details
-ever change.
+The documents are set in a formal serif (Georgia in the Word files, PT Serif — bundled
+in `../tools/fonts/` — in the PDFs) and are entirely greyscale: the only colour anywhere
+is the logo in the letterhead. Both formats share the same letterhead, which reads the
+company identity from the top of each generator — change it in one place there if the
+registered details ever change.
