@@ -866,6 +866,80 @@ function netCapital() {
   return roundMoney(capitalInjected() - capitalWithdrawn());
 }
 
+// ---- Reconciliation ----
+// Cash on hand is only as honest as the ledger behind it. When the cash the
+// owner can physically count differs from the figure here, the gap IS a
+// recording error — something entered twice, entered wrong, or never entered.
+// These helpers hunt the usual suspects so the owner does not have to re-read
+// every movement by hand. Each list is "check these first", not a verdict.
+
+function daysApart(a, b) {
+  return Math.abs(Math.round((dateFromISO(a) - dateFromISO(b)) / 86400000));
+}
+
+// Single movements the size of the whole gap. A duplicate of one of these, or
+// one of these entered in error, would explain the difference in one shot.
+function reconcileMatches(difference) {
+  const target = roundMoney(Math.abs(difference));
+  if (target <= 0) return [];
+  return sortedLedger().filter((row) => roundMoney(Math.abs(row.amount)) === target);
+}
+
+// Same kind, same amount, same name, dated within a few days — the classic
+// shape of one movement entered twice. The window is short on purpose: a
+// client who genuinely pays the same amount every week must not be flagged
+// on every instalment.
+function duplicateSuspects(windowDays = 3) {
+  const groups = new Map();
+  sortedLedger().forEach((row) => {
+    const key = `${row.kind}|${roundMoney(Math.abs(row.amount))}|${row.label}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  });
+
+  const pairs = [];
+  groups.forEach((rows) => {
+    for (let i = 1; i < rows.length; i += 1) {
+      if (daysApart(rows[i - 1].date, rows[i].date) <= windowDays) {
+        pairs.push([rows[i - 1], rows[i]]);
+      }
+    }
+  });
+  return pairs;
+}
+
+// Paid more than the loan was ever due. Real overpayments happen, but a
+// payment logged against the wrong (already settled) loan looks exactly like
+// this too, and it quietly inflates cash on hand.
+function overpaidLoans() {
+  return allAnalyses()
+    .map((row) => ({ ...row, excess: roundMoney(row.paid - row.terms.totalDue) }))
+    .filter((row) => row.excess > 0);
+}
+
+// Payments pointing at a loan that no longer exists. Deleting a loan removes
+// its payments today, but an older build or a hand-edited backup can leave
+// these behind — counted in cash on hand yet invisible on every loan screen.
+function orphanPayments() {
+  return state.payments.filter((payment) => !getLoan(payment.loanId));
+}
+
+function reconcileReport(counted) {
+  const cash = cashOnHand();
+  // Positive difference: more real cash than the ledger knows. Negative: less.
+  const difference = roundMoney(roundMoney(counted) - cash);
+  return {
+    counted: roundMoney(counted),
+    cashOnHand: cash,
+    difference,
+    matches: reconcileMatches(difference),
+    duplicates: duplicateSuspects(),
+    overpaid: overpaidLoans(),
+    orphans: orphanPayments(),
+    trail: cashTrail()
+  };
+}
+
 // ---- Projection ----
 // The near months come from real due dates on the current book. Everything
 // past that is a recycling model, and the two are kept visibly apart: a
@@ -1517,6 +1591,139 @@ function cashRowHtml(row) {
       </div>
     </div>
   `;
+}
+
+function openReconcileForm() {
+  const cash = cashOnHand();
+  const last = state.settings.lastReconcile;
+  const lastNote = last
+    ? `Last reconciled ${formatDate(last.at)}: counted ${money(last.counted)}, ${last.difference === 0
+        ? "and it matched exactly — so whatever is off now happened after that date."
+        : `${money(Math.abs(last.difference))} ${last.difference > 0 ? "more" : "less"} than the app.`}`
+    : "Count everything the float lives in — cash box, bank, e-wallet — and enter the total.";
+
+  openSheet("Reconcile cash", `
+    <p class="form-hint">${escapeHtml(lastNote)}</p>
+    <div class="form-grid">
+      <label class="wide" data-prefix="${currency}"><span>Cash you actually hold</span><input name="counted" type="number" min="0" step="0.01" required inputmode="decimal" placeholder="0.00" /></label>
+    </div>
+    <p class="form-hint">The app currently says ${money(cash)}.</p>
+  `, "Compare", (form) => {
+    const counted = roundMoney(form.get("counted"));
+    if (counted < 0 || !Number.isFinite(counted)) {
+      toast("Enter the amount you counted.");
+      return false;
+    }
+    const report = reconcileReport(counted);
+    state.settings.lastReconcile = { at: todayISO(), counted: report.counted, difference: report.difference };
+    saveState();
+    openReconcilePanel(report);
+    return false; // the panel reuses the sheet — closing it now would wipe the report
+  });
+}
+
+// A suspect row: same shape as a statement row, minus the running balance,
+// which means nothing when rows are pulled out of ledger order.
+function reconcileRowHtml(row) {
+  const positive = row.amount >= 0;
+  return `
+    <div class="ledger-row">
+      <span class="ledger-row-icon ${row.kind}">${iconSvg(cashIconFor(row.kind))}</span>
+      <div class="ledger-row-main">
+        <strong>${escapeHtml(row.label)}</strong>
+        <p class="item-meta">${formatDate(row.date)} · ${escapeHtml(row.sub)}</p>
+      </div>
+      <div class="ledger-row-amount">
+        <strong class="${positive ? "pos" : "neg"}">${positive ? "+" : "−"}${money(Math.abs(row.amount))}</strong>
+      </div>
+    </div>
+  `;
+}
+
+function reconcileSectionHtml(title, hint, bodyHtml) {
+  return `
+    <div class="ledger-group">
+      <div class="ledger-group-head">${escapeHtml(title)}</div>
+      ${hint ? `<p class="item-meta">${escapeHtml(hint)}</p>` : ""}
+      <div class="ledger-rows">${bodyHtml}</div>
+    </div>
+  `;
+}
+
+function openReconcilePanel(report) {
+  const gap = Math.abs(report.difference);
+  const over = report.difference > 0;
+  const matched = report.difference === 0;
+
+  const explanation = matched
+    ? "Everything the ledger says matches what you hold. Reconciling regularly keeps it this way — next time something is off, you will know it happened after today."
+    : over
+      ? `You hold ${money(gap)} the ledger does not know about. Either money in was never recorded (a repayment or a capital injection), or money out was recorded twice or bigger than it really was.`
+      : `The ledger believes there is ${money(gap)} more than you can count. Either money in was recorded twice or too big (a repayment or an injection), or money out was never recorded (a loan paid out, an expense, or a withdrawal).`;
+
+  const sections = [];
+  if (!matched && report.matches.length) {
+    sections.push(reconcileSectionHtml(
+      `Movements of exactly ${money(gap)}`,
+      "One entry the size of the whole gap — start here. A duplicate of one of these, or one of these entered in error, explains the difference in one shot.",
+      report.matches.map(reconcileRowHtml).join("")
+    ));
+  }
+  if (report.duplicates.length) {
+    sections.push(reconcileSectionHtml(
+      "Possible double entries",
+      "Same kind, same amount, same name, dated within days of each other. Instalments can genuinely look like this — check before deleting anything.",
+      report.duplicates.map((pair) => pair.map(reconcileRowHtml).join("")).join("")
+    ));
+  }
+  if (report.overpaid.length) {
+    sections.push(reconcileSectionHtml(
+      "Loans paid beyond what was due",
+      "A real overpayment, or a payment logged against the wrong loan.",
+      report.overpaid.map((row) => reconcileRowHtml({
+        kind: "repayment",
+        label: getClientName(row.loan.clientId),
+        date: row.loan.dueDate,
+        sub: `Paid ${money(row.paid)} against ${money(row.terms.totalDue)} due`,
+        amount: row.excess
+      })).join("")
+    ));
+  }
+  if (report.orphans.length) {
+    sections.push(reconcileSectionHtml(
+      "Payments with no loan",
+      "Counted in cash on hand but invisible on every loan screen. Usually left behind by an old backup.",
+      report.orphans.map((payment) => reconcileRowHtml({
+        kind: "repayment",
+        label: "Repayment",
+        date: payment.date,
+        sub: `Loan record missing · ${payment.method || "Cash"}`,
+        amount: roundMoney(payment.amount)
+      })).join("")
+    ));
+  }
+
+  const trailNote = report.trail && report.trail.dips.length
+    ? `<p class="form-hint">The cash trail also goes negative on ${formatDate(report.trail.firstDip.date)} — money moved in and out around then that was never recorded. See the check in the Cash flow section.</p>`
+    : "";
+
+  const noLeads = !matched && !sections.length
+    ? `<p class="form-hint">No single entry explains this gap, which points to a movement that was never recorded at all. Open the Statement and compare each month's closing balance against your bank and cash records to find the month it first appears — reconciling regularly narrows that window.</p>`
+    : "";
+
+  openPanel("Reconcile", `
+    <div class="statement ledger-view">
+      <div class="ledger-hero">
+        <span class="ledger-hero-label">${matched ? "Reconciled" : (over ? "More cash than recorded" : "Less cash than recorded")}</span>
+        <strong class="ledger-hero-value">${money(gap)}</strong>
+        <span class="ledger-hero-note">App ${money(report.cashOnHand)} · Counted ${money(report.counted)}</span>
+      </div>
+      <p class="form-hint">${escapeHtml(explanation)}</p>
+      ${sections.join("")}
+      ${trailNote}
+      ${noLeads}
+    </div>
+  `);
 }
 
 function openCapitalForm(direction = "in") {
@@ -3327,6 +3534,7 @@ function bindEvents() {
   qs("#addCapitalInBtn")?.addEventListener("click", () => openCapitalForm("in"));
   qs("#addCapitalOutBtn")?.addEventListener("click", () => openCapitalForm("out"));
   qs("#viewStatementBtn")?.addEventListener("click", openCashStatement);
+  qs("#reconcileBtn")?.addEventListener("click", openReconcileForm);
 
   qs("#themeToggleBtn")?.addEventListener("click", toggleTheme);
   qsa("[data-theme-option]").forEach((button) => {

@@ -61,6 +61,17 @@ Reports replays every cash movement in date order and reports the lowest point y
 
 You cannot lend money you do not have, so if the running balance ever goes **negative**, cash went into the business around that date which was never recorded. The check names the date and the shortfall. If the closing balance still matches the cash you actually hold, then an equal amount also left unrecorded — typically owner withdrawals. Totals can look right while the history is wrong, and this is what surfaces that.
 
+## Reconcile Cash
+
+**Reports > Cash flow > Reconcile cash**: count everything the float lives in — cash box, bank, e-wallet — enter the total, and the app compares it against cash on hand. A gap is by definition a recording error, and the report hunts the usual suspects for you:
+
+- **Movements of exactly the gap** — a duplicate of one of these, or one entered in error, explains the whole difference in one shot.
+- **Possible double entries** — same kind, same amount, same name, within days of each other.
+- **Loans paid beyond what was due** — a real overpayment, or a payment logged against the wrong loan.
+- **Payments with no loan** — counted in cash but invisible on loan screens; usually left behind by an old backup.
+
+The date and result of the last reconciliation are remembered, so the next gap can be bounded: if it matched on the 12th and is off on the 27th, the error happened in between. Reconcile regularly and the window stays small.
+
 ## Staying Up To Date
 
 The app shows its build number in **Reports > Data status** (`App version`), read from the `?v=` query on its own script tag so it cannot drift from what was deployed.

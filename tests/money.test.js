@@ -486,6 +486,86 @@ test("projection presets: the active one is detected, custom stays custom", () =
   assert.strictEqual(app.run(`activeProjectionPreset()`), "custom", "hand-set values are not mislabelled as a preset");
 });
 
+test("reconcile: a matching count reconciles to zero with no suspects", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    capital: [{ id: "k1", direction: "in", amount: 5000, date: "2026-03-01", note: "", createdAt: "" }],
+    loans: [loan({ principal: 1000, issueDate: "2026-03-05" })],
+    payments: [payment({ amount: 300, date: "2026-03-20" })]
+  }));
+  const report = JSON.parse(app.run(`JSON.stringify(reconcileReport(4300))`));
+  assert.strictEqual(report.cashOnHand, 4300, "5000 in - 1000 out + 300 back");
+  assert.strictEqual(report.difference, 0);
+  assert.strictEqual(report.matches.length, 0, "a zero gap matches nothing");
+  assert.strictEqual(report.duplicates.length, 0);
+});
+
+test("reconcile: the gap names movements of exactly its size", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    capital: [{ id: "k1", direction: "in", amount: 5000, date: "2026-03-01", note: "", createdAt: "" }],
+    loans: [loan({ principal: 1000, issueDate: "2026-03-05" })],
+    payments: [payment({ amount: 300, date: "2026-03-20" })]
+  }));
+  // Counted 300 less than the app: the 300 repayment is the prime suspect.
+  const report = JSON.parse(app.run(`JSON.stringify(reconcileReport(4000))`));
+  assert.strictEqual(report.difference, -300);
+  assert.strictEqual(report.matches.length, 1);
+  assert.strictEqual(report.matches[0].kind, "repayment");
+  assert.strictEqual(report.matches[0].amount, 300);
+});
+
+test("reconcile: the same movement entered twice within days is flagged, instalments are not", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    loans: [loan({ principal: 1000, issueDate: "2026-03-01" })],
+    payments: [
+      payment({ id: "p1", amount: 500, date: "2026-03-10" }),
+      payment({ id: "p2", amount: 500, date: "2026-03-11" }), // suspicious echo
+      payment({ id: "p3", amount: 150, date: "2026-03-17" }),
+      payment({ id: "p4", amount: 150, date: "2026-03-24" }) // a week apart: instalments
+    ]
+  }));
+  const pairs = JSON.parse(app.run(`JSON.stringify(duplicateSuspects())`));
+  assert.strictEqual(pairs.length, 1, "only the day-apart echo is flagged");
+  assert.strictEqual(pairs[0][0].amount, 500);
+  assert.strictEqual(pairs[0][1].date, "2026-03-11");
+});
+
+test("reconcile: loans paid beyond what was due surface the excess", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    loans: [loan({ principal: 1000, interestRate: 30, serviceFee: 0 })], // totalDue 1300
+    payments: [payment({ amount: 1500 })]
+  }));
+  const overpaid = JSON.parse(app.run(`JSON.stringify(overpaidLoans())`));
+  assert.strictEqual(overpaid.length, 1);
+  assert.strictEqual(overpaid[0].excess, 200, "1500 paid on 1300 due");
+});
+
+test("reconcile: payments with no loan still count as cash and are flagged", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    capital: [{ id: "k1", direction: "in", amount: 1000, date: "2026-03-01", note: "", createdAt: "" }],
+    payments: [payment({ loanId: "ghost", amount: 250, date: "2026-03-10" })]
+  }));
+  assert.strictEqual(app.run(`cashOnHand()`), 1250, "the orphan moves cash");
+  const orphans = JSON.parse(app.run(`JSON.stringify(orphanPayments())`));
+  assert.strictEqual(orphans.length, 1);
+  assert.strictEqual(orphans[0].amount, 250);
+});
+
+test("reconcile: the direction of the gap is counted minus cash on hand", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    capital: [{ id: "k1", direction: "in", amount: 2000, date: "2026-03-01", note: "", createdAt: "" }]
+  }));
+  const short = JSON.parse(app.run(`JSON.stringify(reconcileReport(1500))`));
+  assert.strictEqual(short.difference, -500, "less real cash than recorded");
+  const over = JSON.parse(app.run(`JSON.stringify(reconcileReport(2600))`));
+  assert.strictEqual(over.difference, 600, "more real cash than recorded");
+});
+
 // Money comparisons: guard against float dust.
 function roundish(value) {
   return Math.round(value * 100) / 100;
