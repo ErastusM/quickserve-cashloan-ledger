@@ -486,6 +486,120 @@ test("projection presets: the active one is detected, custom stays custom", () =
   assert.strictEqual(app.run(`activeProjectionPreset()`), "custom", "hand-set values are not mislabelled as a preset");
 });
 
+test("projection: an explicit cfg override models a scenario without touching saved settings", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    loans: [loan({ principal: 1000, interestRate: 30, dueDate: "2026-03-31" })],
+    settings: { ...baseState().settings, projection: { recoveryRate: 100, redeployRate: 0, monthlyCosts: 0, months: 3 } }
+  }));
+  const override = JSON.parse(app.run(
+    `JSON.stringify(projectionRows({ recoveryRate: 50, redeployRate: 0, monthlyCosts: 0, months: 3 }))`
+  ));
+  assert.strictEqual(override.cfg.recoveryRate, 50, "override drives the run");
+  assert.strictEqual(override.rows[0].inflow, 650, "only half of 1300 arrives under the override");
+  // Saved settings are left exactly as they were.
+  const saved = JSON.parse(app.run(`JSON.stringify(projectionSettings())`));
+  assert.strictEqual(saved.recoveryRate, 100, "saved projection settings are untouched");
+});
+
+// A fixed book with a paid loan, an overdue loan and a written-off loan, so
+// every headline the investor report leans on has a hand-checkable value.
+function investorState() {
+  return baseState({
+    clients: [
+      { id: "c1", name: "SECRET_NAME_ALPHA", phone: "264811111111", nationalId: "ID-AAA-111", createdAt: "" },
+      { id: "c2", name: "SECRET_NAME_BRAVO", phone: "264822222222", nationalId: "ID-BBB-222", createdAt: "" },
+      { id: "c3", name: "SECRET_NAME_CHARLIE", phone: "264833333333", nationalId: "ID-CCC-333", createdAt: "" }
+    ],
+    loans: [
+      loan({ id: "l1", clientId: "c1", principal: 1000, interestRate: 30, issueDate: "2026-03-01", dueDate: "2026-03-31" }),
+      loan({ id: "l2", clientId: "c2", principal: 2000, interestRate: 30, issueDate: "2026-04-01", dueDate: "2026-04-30" }),
+      loan({ id: "l3", clientId: "c3", principal: 500, interestRate: 30, issueDate: "2026-05-01", dueDate: "2026-05-31", status: "written-off" })
+    ],
+    payments: [payment({ id: "p1", loanId: "l1", amount: 1300, date: "2026-03-20" })],
+    expenses: [{ id: "x1", amount: 120, date: "2026-03-25", category: "Transport", note: "", createdAt: "" }],
+    capital: [{ id: "k1", direction: "in", amount: 5000, date: "2026-01-01", note: "", createdAt: "" }]
+  });
+}
+
+test("investor report: lifetime and position figures reconcile", () => {
+  const app = loadApp();
+  app.setState(investorState());
+  const r = JSON.parse(app.run(`JSON.stringify(investorReport())`));
+
+  assert.strictEqual(r.isEmpty, false);
+  // Lifetime activity
+  assert.strictEqual(r.advanced, 3500, "1000 + 2000 + 500 lent");
+  assert.strictEqual(r.collected, 1300);
+  assert.strictEqual(r.revenue, 300, "interest portion collected on the paid loan");
+  assert.strictEqual(r.expenses, 120);
+  assert.strictEqual(r.netProfit, 180, "300 revenue - 120 expenses");
+  assert.strictEqual(r.principalRecovered, 1000);
+  assert.strictEqual(r.loansIssued, 3);
+  assert.strictEqual(r.clientsServed, 3);
+  assert.strictEqual(r.paidLoans, 1);
+
+  // Position today
+  assert.strictEqual(r.outstanding, 2600, "only the overdue loan is still collectable");
+  assert.strictEqual(r.capitalOut, 2000, "written-off principal excluded");
+  assert.strictEqual(r.overdue, 2600);
+  assert.strictEqual(r.overdueLoans, 1);
+  assert.strictEqual(r.activeClients, 1, "only the client with an open balance");
+
+  // Capital and cash
+  assert.strictEqual(r.capitalInjected, 5000);
+  assert.strictEqual(r.netCapital, 5000);
+  assert.strictEqual(r.cashOnHand, 2680, "5000 in + 1300 back - 3500 out - 120 costs");
+  assert.strictEqual(r.outOnLoan, 2000);
+  assert.strictEqual(r.totalFunds, 4680, "cash on hand + out on loan");
+});
+
+test("investor report: quality and return ratios", () => {
+  const app = loadApp();
+  app.setState(investorState());
+  const r = JSON.parse(app.run(`JSON.stringify(investorReport())`));
+
+  assert.strictEqual(r.repaidRate, 33.33, "1 of 3 loans fully paid");
+  assert.strictEqual(r.overdueShare, 100, "all of what is outstanding is overdue");
+  assert.strictEqual(r.writeOffRate, 14.29, "500 lost of 3500 lent");
+  assert.strictEqual(r.writtenOffPrincipal, 500);
+  assert.strictEqual(r.writtenOffLoans, 1);
+  assert.strictEqual(r.collectionRate, 28.57, "1300 paid of 4550 total due");
+  assert.strictEqual(r.grossYield, 8.57, "300 revenue per 3500 lent");
+  assert.strictEqual(r.returnOnCapital, 3.6, "180 profit on 5000 capital");
+  assert.strictEqual(r.avgMonthlyProfit, roundish(180 / r.monthsActive), "profit spread over months active");
+  assert.strictEqual(r.trailSound, true, "the recorded float never goes negative");
+});
+
+test("investor report: carries no client PII, in the data or the rendered text", () => {
+  const app = loadApp();
+  app.setState(investorState());
+
+  const asJson = app.run(`JSON.stringify(investorReport())`);
+  const asText = app.run(`investorReportText(investorReport())`);
+  const asDoc = app.run(`investorReportDocument(investorReport())`);
+
+  ["SECRET_NAME_ALPHA", "SECRET_NAME_BRAVO", "SECRET_NAME_CHARLIE",
+   "264811111111", "264822222222", "264833333333",
+   "ID-AAA-111", "ID-BBB-222", "ID-CCC-333"].forEach((secret) => {
+    assert.ok(!asJson.includes(secret), `report object must not leak ${secret}`);
+    assert.ok(!asText.includes(secret), `report text must not leak ${secret}`);
+    assert.ok(!asDoc.includes(secret), `report document must not leak ${secret}`);
+  });
+});
+
+test("investor report: an empty book reports nothing rather than dividing by zero", () => {
+  const app = loadApp();
+  app.setState(baseState({ clients: [], loans: [], payments: [], expenses: [], capital: [] }));
+  const r = JSON.parse(app.run(`JSON.stringify(investorReport())`));
+  assert.strictEqual(r.isEmpty, true);
+  assert.strictEqual(r.loansIssued, 0);
+  assert.strictEqual(r.returnOnCapital, 0, "no capital, no divide-by-zero");
+  assert.strictEqual(r.collectionRate, 0);
+  assert.strictEqual(r.avgMonthlyProfit, 0);
+  assert.ok(r.monthsActive >= 1, "months active never drops below one");
+});
+
 // Money comparisons: guard against float dust.
 function roundish(value) {
   return Math.round(value * 100) / 100;

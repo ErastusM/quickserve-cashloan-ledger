@@ -57,7 +57,8 @@ const icons = {
   arrowIn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 7 8 16"/><path d="M16 16H8V8"/></svg>',
   arrowOut: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 17 9-9"/><path d="M8 8h8v8"/></svg>',
   minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>',
-  chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>'
+  chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>',
+  printer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7" rx="1"/></svg>'
 };
 
 const aliasIcons = {
@@ -953,8 +954,10 @@ function scheduledCollections() {
   return map;
 }
 
-function projectionRows() {
-  const cfg = projectionSettings();
+function projectionRows(cfgOverride) {
+  // cfgOverride lets a caller (the investor report) model a named scenario
+  // without touching the user's own saved projection settings.
+  const cfg = cfgOverride || projectionSettings();
   const scheduled = scheduledCollections();
   const ratePercent = averageLoanRate();
   const rate = ratePercent / 100;
@@ -1003,6 +1006,135 @@ function projectionRows() {
   }
 
   return { rows, cfg, ratePercent };
+}
+
+// ---- Investor report ----
+// A due-diligence one-pager built entirely from the figure engine above. It is
+// deliberately AGGREGATE ONLY: no client names, phone numbers or ID numbers go
+// into it, because an investor needs portfolio-level numbers and this app's
+// whole design keeps that PII on the device. Figures are lifetime / all-time
+// unless a label says otherwise.
+
+function businessName() {
+  return cleanText(state.settings.companyName) || "QuickServe Cashloan";
+}
+
+// Whole calendar months from the first recorded activity to today, floored at
+// one, so per-month averages never divide by zero on a brand-new book.
+function monthsActive() {
+  const dates = [];
+  state.loans.forEach((loan) => dates.push(loan.issueDate));
+  state.payments.forEach((payment) => dates.push(payment.date));
+  state.capital.forEach((entry) => dates.push(entry.date));
+  const valid = dates.filter(Boolean).sort();
+  if (!valid.length) return 1;
+  const first = dateFromISO(valid[0]);
+  const now = new Date();
+  const months = (now.getFullYear() - first.getFullYear()) * 12 + (now.getMonth() - first.getMonth()) + 1;
+  return Math.max(1, months);
+}
+
+function investorReport() {
+  const analyses = allAnalyses();
+  const life = figuresFor("all"); // lifetime flows
+  const position = totalsFor(); // where the book stands now
+  const trail = cashTrail();
+  const months = monthsActive();
+
+  const totalLoans = analyses.length;
+  const paidLoans = analyses.filter((row) => row.status === "paid").length;
+  const writtenOff = analyses.filter((row) => row.status === "written-off");
+  const writtenOffPrincipal = roundMoney(writtenOff.reduce((sum, row) => sum + row.principalOutstanding, 0));
+  const clientsServed = new Set(state.loans.map((loan) => loan.clientId)).size;
+
+  const netCap = netCapital();
+  const pct = (num, den) => (den > 0 ? roundMoney((num / den) * 100) : 0);
+
+  // Forward view: the app's own "Realistic" scenario, computed here without
+  // disturbing whatever the user has set on the Projection card.
+  const projectionCfg = {
+    recoveryRate: PROJECTION_PRESETS.mid.recoveryRate,
+    redeployRate: PROJECTION_PRESETS.mid.redeployRate,
+    monthlyCosts: averageMonthlyExpenses(),
+    months: 6
+  };
+  const projection = projectionRows(projectionCfg);
+  const projLast = projection.rows.length ? projection.rows[projection.rows.length - 1] : null;
+
+  const trend = reportYears()
+    .sort()
+    .map((year) => {
+      const f = figuresFor("year", null, year);
+      return {
+        label: year,
+        advanced: f.cashOut,
+        collected: f.collections,
+        revenue: f.revenue,
+        profit: f.profit,
+        outstanding: yearOutstanding(year)
+      };
+    });
+
+  return {
+    business: businessName(),
+    generatedOn: todayISO(),
+    monthsActive: months,
+    isEmpty: totalLoans === 0,
+
+    // Lifetime activity
+    loansIssued: totalLoans,
+    clientsServed,
+    advanced: life.cashOut,
+    collected: life.collections,
+    revenue: life.revenue,
+    expenses: life.expenses,
+    netProfit: life.profit,
+    principalRecovered: life.principalRecovered,
+    avgMonthlyProfit: roundMoney(life.profit / months),
+
+    // Returns
+    avgInterestRate: averageLoanRate(),
+    grossYield: life.profitReturn, // revenue earned per N$ lent
+    collectionRate: life.collectionRate,
+    returnOnCapital: pct(life.profit, netCap), // lifetime net profit vs owner capital in
+
+    // Position today
+    outstanding: position.totalOutstanding,
+    capitalOut: position.capitalOut,
+    overdue: position.overdueOutstanding,
+    overdueLoans: position.overdueLoans,
+    activeClients: position.activeClients,
+    activeLoans: position.activeLoans,
+    paidLoans,
+
+    // Portfolio quality
+    repaidRate: pct(paidLoans, totalLoans),
+    overdueShare: pct(position.overdueOutstanding, position.totalOutstanding),
+    writeOffRate: pct(writtenOffPrincipal, life.cashOut),
+    writtenOffPrincipal,
+    writtenOffLoans: writtenOff.length,
+
+    // Capital and cash
+    capitalInjected: capitalInjected(),
+    capitalWithdrawn: capitalWithdrawn(),
+    netCapital: netCap,
+    cashOnHand: cashOnHand(),
+    outOnLoan: outOnLoan(),
+    totalFunds: totalFunds(),
+
+    // Data integrity — a real due-diligence signal
+    trailSound: trail ? !trail.dips.length : true,
+    trailLowest: trail ? trail.lowest.balance : null,
+    trailFirstDipDate: trail && trail.firstDip ? trail.firstDip.date : null,
+    trailShortfall: trail && trail.worstDip ? trail.worstDip.balance : null,
+
+    // Forward view (modelled, not a forecast)
+    projection: projLast
+      ? { month: projLast.month, working: projLast.working, months: projectionCfg.months, recoveryRate: projectionCfg.recoveryRate }
+      : null,
+
+    trend
+  };
 }
 
 // Opening/closing balances and money in/out for the selected report period.
@@ -2507,6 +2639,355 @@ function openStatement(client) {
   qs("#statementCsvBtn")?.addEventListener("click", () => exportClientStatement(statement));
 }
 
+// ---- Investor report: presentation ----
+
+function investorGrid(cards) {
+  return `<div class="report-grid">${cards.map(reportCardHtml).join("")}</div>`;
+}
+
+function investorTrendTable(report) {
+  if (!report.trend.length) return "";
+  const body = report.trend
+    .map((row) => `
+      <tr>
+        <th scope="row">${escapeHtml(row.label)}</th>
+        <td>${money(row.advanced)}</td>
+        <td>${money(row.collected)}</td>
+        <td>${money(row.revenue)}</td>
+        <td>${money(row.profit)}</td>
+        <td>${money(row.outstanding)}</td>
+      </tr>
+    `)
+    .join("");
+  return `
+    <div class="table-scroll">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th scope="col">Year</th>
+            <th scope="col">Advanced</th>
+            <th scope="col">Collected</th>
+            <th scope="col">Revenue</th>
+            <th scope="col">Profit</th>
+            <th scope="col">Outstanding</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// The section blocks shared by the in-app preview and the standalone document,
+// so the two can never drift apart.
+function investorSections(report) {
+  const integrity = report.trailSound
+    ? `The cash trail reconciles: replaying every recorded movement in date order, the float never fell below zero${report.trailLowest !== null ? ` (lowest point ${money(report.trailLowest)})` : ""}. Recorded cash covers every loan made.`
+    : `The cash trail dips below zero around ${formatDate(report.trailFirstDipDate)}${report.trailShortfall !== null ? ` (down to ${money(report.trailShortfall)})` : ""}, which means some capital going in was not recorded. Worth reconciling before sharing.`;
+
+  const forward = report.projection
+    ? `Under the app's "Realistic" scenario (${report.projection.recoveryRate}% of what is owed is collected and spare cash is re-lent), modelled working capital reaches ${money(report.projection.working)} by ${monthLabel(report.projection.month)} — ${report.projection.months} months out. This is a scenario, not a forecast or a guarantee.`
+    : "";
+
+  return [
+    {
+      title: "Headline",
+      grid: investorGrid([
+        ["Total funds", money(report.totalFunds), "Working capital: cash + out on loan"],
+        ["Net profit", money(report.netProfit), "Lifetime, after expenses"],
+        ["Return on capital", percent(report.returnOnCapital), "Lifetime profit vs owner capital"],
+        ["Collection rate", percent(report.collectionRate), "Paid vs total due, on loans issued"]
+      ])
+    },
+    {
+      title: "The business",
+      grid: investorGrid([
+        ["Months active", String(report.monthsActive), "Since first recorded activity"],
+        ["Clients served", String(report.clientsServed), "Distinct borrowers"],
+        ["Loans issued", String(report.loansIssued), "Lifetime"],
+        ["Avg interest rate", percent(report.avgInterestRate), "Charged per cycle"]
+      ])
+    },
+    {
+      title: "Lifetime performance",
+      grid: investorGrid([
+        ["Advanced", money(report.advanced), "Cash lent to clients"],
+        ["Collected", money(report.collected), "Repayments received"],
+        ["Revenue", money(report.revenue), "Interest + fees earned"],
+        ["Expenses", money(report.expenses), "Business costs"],
+        ["Net profit", money(report.netProfit), "Revenue minus expenses"],
+        ["Avg profit / month", money(report.avgMonthlyProfit), "Net profit ÷ months active"]
+      ])
+    },
+    {
+      title: "Position today",
+      grid: investorGrid([
+        ["Outstanding", money(report.outstanding), "Still collectable"],
+        ["Capital out", money(report.capitalOut), "Principal still with clients"],
+        ["Overdue", money(report.overdue), `${report.overdueLoans} loan${report.overdueLoans === 1 ? "" : "s"}`],
+        ["Active clients", String(report.activeClients), "With an open balance"],
+        ["Cash on hand", money(report.cashOnHand), "Live cash balance"],
+        ["Out on loan", money(report.outOnLoan), "Principal in clients' hands"]
+      ])
+    },
+    {
+      title: "Portfolio quality",
+      grid: investorGrid([
+        ["Loans repaid", percent(report.repaidRate), `${report.paidLoans} of ${report.loansIssued} fully paid`],
+        ["Overdue share", percent(report.overdueShare), "Of what is outstanding"],
+        ["Write-off rate", percent(report.writeOffRate), "Principal lost vs advanced"],
+        ["Written off", money(report.writtenOffPrincipal), `${report.writtenOffLoans} loan${report.writtenOffLoans === 1 ? "" : "s"}`]
+      ])
+    },
+    {
+      title: "Capital & cash",
+      grid: investorGrid([
+        ["Capital added", money(report.capitalInjected), "Put into the business"],
+        ["Capital withdrawn", money(report.capitalWithdrawn), "Taken out"],
+        ["Net capital", money(report.netCapital), "Owner money still in"],
+        ["Gross yield", percent(report.grossYield), "Revenue earned per N$ lent"]
+      ])
+    },
+    { title: "Year by year", html: investorTrendTable(report) },
+    { title: "Data integrity", html: `<p class="item-meta">${escapeHtml(integrity)}</p>` },
+    forward ? { title: "Forward view", html: `<p class="item-meta">${escapeHtml(forward)}</p>` } : null
+  ].filter(Boolean);
+}
+
+function investorPreviewHtml(report) {
+  const sections = investorSections(report)
+    .map((section) => `
+      <section class="surface">
+        <div class="section-head"><h3>${escapeHtml(section.title)}</h3></div>
+        ${section.grid || section.html || ""}
+      </section>
+    `)
+    .join("");
+
+  return `
+    <div class="statement">
+      <div class="statement-head">
+        <div class="item-title">
+          <strong>${escapeHtml(report.business)}</strong>
+          <p class="item-meta">Investor summary · ${formatDate(report.generatedOn)}</p>
+        </div>
+      </div>
+      <p class="form-hint">Aggregate figures only — no client names, phone numbers or ID numbers are included. All amounts in ${currency}.</p>
+      ${sections}
+    </div>
+  `;
+}
+
+// Plain text, for Copy and native Share.
+function investorReportText(report) {
+  const lines = [
+    `${report.business} — Investor Summary`,
+    `As at ${formatDate(report.generatedOn)}. All figures in ${currency}. Aggregate only; no client details.`,
+    "",
+    "HEADLINE",
+    `  Total funds (working capital): ${money(report.totalFunds)}`,
+    `  Net profit (lifetime): ${money(report.netProfit)}`,
+    `  Return on capital (lifetime): ${percent(report.returnOnCapital)}`,
+    `  Collection rate: ${percent(report.collectionRate)}`,
+    "",
+    "THE BUSINESS",
+    `  Months active: ${report.monthsActive}`,
+    `  Clients served: ${report.clientsServed}`,
+    `  Loans issued: ${report.loansIssued}`,
+    `  Average interest rate: ${percent(report.avgInterestRate)}`,
+    "",
+    "LIFETIME PERFORMANCE",
+    `  Advanced: ${money(report.advanced)}`,
+    `  Collected: ${money(report.collected)}`,
+    `  Revenue: ${money(report.revenue)}`,
+    `  Expenses: ${money(report.expenses)}`,
+    `  Net profit: ${money(report.netProfit)}`,
+    `  Average profit / month: ${money(report.avgMonthlyProfit)}`,
+    "",
+    "POSITION TODAY",
+    `  Outstanding: ${money(report.outstanding)}`,
+    `  Capital out: ${money(report.capitalOut)}`,
+    `  Overdue: ${money(report.overdue)} (${report.overdueLoans} loan${report.overdueLoans === 1 ? "" : "s"})`,
+    `  Active clients: ${report.activeClients}`,
+    `  Cash on hand: ${money(report.cashOnHand)}`,
+    `  Out on loan: ${money(report.outOnLoan)}`,
+    "",
+    "PORTFOLIO QUALITY",
+    `  Loans repaid: ${percent(report.repaidRate)} (${report.paidLoans}/${report.loansIssued})`,
+    `  Overdue share of outstanding: ${percent(report.overdueShare)}`,
+    `  Write-off rate: ${percent(report.writeOffRate)} (${money(report.writtenOffPrincipal)}, ${report.writtenOffLoans} loan${report.writtenOffLoans === 1 ? "" : "s"})`,
+    "",
+    "CAPITAL & CASH",
+    `  Capital added: ${money(report.capitalInjected)}`,
+    `  Capital withdrawn: ${money(report.capitalWithdrawn)}`,
+    `  Net capital: ${money(report.netCapital)}`,
+    `  Gross yield (revenue per N$ lent): ${percent(report.grossYield)}`,
+    "",
+    `DATA INTEGRITY: ${report.trailSound ? "Cash trail reconciles — the recorded float never goes negative." : "Cash trail goes negative — some capital in was not recorded; reconcile before sharing."}`
+  ];
+
+  if (report.trend.length) {
+    lines.push("", "YEAR BY YEAR (advanced / collected / revenue / profit / outstanding)");
+    report.trend.forEach((row) => {
+      lines.push(`  ${row.label}: ${money(row.advanced)} / ${money(row.collected)} / ${money(row.revenue)} / ${money(row.profit)} / ${money(row.outstanding)}`);
+    });
+  }
+
+  if (report.projection) {
+    lines.push(
+      "",
+      `FORWARD VIEW (modelled, not a forecast): under the "Realistic" scenario, working capital reaches ${money(report.projection.working)} by ${monthLabel(report.projection.month)}.`
+    );
+  }
+
+  return lines.join("\n");
+}
+
+// A self-contained, printable HTML page. It carries its own styles so it opens
+// and prints cleanly on its own — nothing here depends on the app's CSS.
+function investorReportDocument(report) {
+  const sections = investorSections(report)
+    .map((section) => `
+      <section>
+        <h2>${escapeHtml(section.title)}</h2>
+        ${section.grid || section.html || ""}
+      </section>
+    `)
+    .join("");
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${escapeHtml(report.business)} — Investor Summary</title>
+<style>
+  :root { --ink:#1c1c1e; --muted:#6b7280; --line:#e5e7eb; --accent:#0a5f38; --bg:#ffffff; --card:#f7f7f8; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .page { max-width: 820px; margin: 0 auto; padding: 32px 28px 48px; }
+  header.doc { border-bottom: 3px solid var(--accent); padding-bottom: 14px; margin-bottom: 8px; }
+  header.doc h1 { margin:0; font-size: 26px; letter-spacing:-0.01em; }
+  header.doc .kicker { color: var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.08em; font-size:12px; margin:0 0 4px; }
+  header.doc .meta { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+  .privacy { background: var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; color:var(--muted); font-size:12.5px; margin:16px 0 8px; }
+  section { margin-top: 22px; break-inside: avoid; }
+  section h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin:0 0 10px; border-bottom:1px solid var(--line); padding-bottom:6px; }
+  .report-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
+  .report-card { background: var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+  .report-card .mini-label { display:block; font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); }
+  .report-card strong { display:block; font-size:19px; margin:4px 0 2px; letter-spacing:-0.01em; }
+  .report-card .item-meta { margin:0; font-size:12px; color:var(--muted); }
+  .item-meta { color: var(--muted); font-size: 13px; }
+  .table-scroll { overflow-x:auto; }
+  table.ledger-table { width:100%; border-collapse: collapse; font-size:13.5px; }
+  table.ledger-table th, table.ledger-table td { text-align:right; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  table.ledger-table thead th { color:var(--muted); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:0.04em; }
+  table.ledger-table th[scope="row"], table.ledger-table thead th:first-child { text-align:left; }
+  footer.doc { margin-top: 28px; padding-top: 14px; border-top:1px solid var(--line); color:var(--muted); font-size:11.5px; }
+  footer.doc p { margin: 4px 0; }
+  @media print { .page { padding: 0 8px; } @page { margin: 14mm; } }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header class="doc">
+      <p class="kicker">Investor Summary</p>
+      <h1>${escapeHtml(report.business)}</h1>
+      <p class="meta">As at ${formatDate(report.generatedOn)} · all amounts in ${currency}</p>
+    </header>
+    <p class="privacy">Aggregate figures only. No client names, phone numbers or ID numbers appear in this document. Prepared from the QuickServe Cashloan Ledger on this device.</p>
+    ${sections}
+    <footer class="doc">
+      <p><strong>How the figures are defined.</strong> Revenue is the interest and service-fee portion of repayments. Net profit is revenue minus recorded expenses. Collection rate is amount paid ÷ total due on loans issued. Return on capital is lifetime net profit ÷ net owner capital still in the business. Working capital (total funds) is cash on hand plus principal still out on loan. A repayment clears interest and fees before principal.</p>
+      <p>The forward view is a modelled scenario, not a forecast or a guarantee. Written-off balances are excluded from what is collectable. Figures are drawn from the loan book recorded on one device and have not been independently audited.</p>
+    </footer>
+  </div>
+</body>
+</html>`;
+}
+
+// Print via a hidden iframe rather than a popup window: no popup blocker, and
+// it works the same on a phone as on a desktop. The user picks "Save as PDF"
+// in the print dialog to get a file.
+function printInvestorReport(html) {
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.position = "fixed";
+  frame.style.right = "0";
+  frame.style.bottom = "0";
+  frame.style.width = "0";
+  frame.style.height = "0";
+  frame.style.border = "0";
+  document.body.appendChild(frame);
+
+  const doc = frame.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  let removed = false;
+  const cleanup = () => {
+    if (removed) return;
+    removed = true;
+    frame.remove();
+  };
+  frame.contentWindow.addEventListener("afterprint", () => setTimeout(cleanup, 200));
+
+  setTimeout(() => {
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    } catch {
+      cleanup();
+    }
+    // Safety net if afterprint never fires (some mobile browsers).
+    setTimeout(cleanup, 60000);
+  }, 250);
+}
+
+function openInvestorReport() {
+  const report = investorReport();
+
+  if (report.isEmpty) {
+    openPanel("Investor report", `
+      <div class="statement">
+        <p class="form-hint">There are no loans on this device yet, so there is nothing to report. Add your clients, loans, payments and capital first — then generate the report and it will fill in from the real book.</p>
+      </div>
+    `);
+    return;
+  }
+
+  const shareBtn = navigator.share
+    ? `<button class="icon-text-btn" type="button" id="investorShareBtn"><span class="btn-icon">${iconSvg("share")}</span><span>Share</span></button>`
+    : "";
+
+  openPanel("Investor report", `
+    ${investorPreviewHtml(report)}
+    <div class="sheet-actions">
+      <button class="icon-text-btn" type="button" id="investorCopyBtn"><span class="btn-icon">${iconSvg("copy")}</span><span>Copy</span></button>
+      ${shareBtn}
+      <button class="icon-text-btn" type="button" id="investorDownloadBtn"><span class="btn-icon">${iconSvg("download")}</span><span>Download</span></button>
+      <button class="icon-text-btn primary" type="button" id="investorPrintBtn"><span class="btn-icon">${iconSvg("printer")}</span><span>Print / PDF</span></button>
+    </div>
+  `);
+
+  const text = investorReportText(report);
+  qs("#investorCopyBtn")?.addEventListener("click", async () => {
+    toast((await copyText(text)) ? "Report copied." : "Could not copy.");
+  });
+  qs("#investorShareBtn")?.addEventListener("click", () => {
+    navigator.share({ title: `${report.business} — Investor Summary`, text }).catch(() => {});
+  });
+  qs("#investorDownloadBtn")?.addEventListener("click", () => {
+    downloadFile(`quickserve-investor-report-${report.generatedOn}.html`, investorReportDocument(report), "text/html");
+  });
+  qs("#investorPrintBtn")?.addEventListener("click", () => {
+    printInvestorReport(investorReportDocument(report));
+  });
+}
+
 function switchView(viewId, options = {}) {
   const nextView = viewRoutes[viewId] ? viewId : "dashboardView";
   ui.activeView = nextView;
@@ -3307,6 +3788,7 @@ function bindEvents() {
     if (event.target.id === "sheet") closeSheet();
   });
 
+  qs("#investorReportBtn")?.addEventListener("click", openInvestorReport);
   qs("#projectionSettingsBtn")?.addEventListener("click", openProjectionForm);
   qsa("[data-projection-preset]").forEach((button) => {
     button.addEventListener("click", () => applyProjectionPreset(button.dataset.projectionPreset));
