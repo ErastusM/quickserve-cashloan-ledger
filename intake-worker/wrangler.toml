@@ -1,0 +1,21 @@
+# QuickServe Cashloan — intake Worker configuration.
+# Fill in the two REPLACE_ values after creating the D1 database (see README.md).
+# Secrets (OWNER_TOKEN) are NOT stored here — set them with `wrangler secret put`.
+
+name = "quickserve-intake"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+[vars]
+# The origin your apply.html / inbox.html are served from (for CORS).
+# For GitHub Pages this is your Pages origin, e.g. https://erastusm.github.io
+ALLOWED_ORIGIN = "https://erastusm.github.io"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "quickserve-intake"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[[r2_buckets]]
+binding = "DOCS"
+bucket_name = "quickserve-docs"
