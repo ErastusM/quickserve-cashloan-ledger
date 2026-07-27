@@ -73,6 +73,9 @@
     .after a,.after button{display:block;text-align:center;text-decoration:none;border-radius:11px;padding:13px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;border:none;}
     .wa{background:#25d366;color:#062e15;}
     .copy{background:var(--card);border:1px solid var(--line)!important;color:var(--ink);}
+    .delzone{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);text-align:center;}
+    .delbtn{background:none;border:none;color:var(--no);font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:6px;}
+    .delbtn:hover{text-decoration:underline;}
     .closex{position:absolute;}
     .modalHead{display:flex;align-items:flex-start;gap:10px;}
     .modalHead .x{background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;line-height:1;padding:0 4px;}
@@ -231,17 +234,31 @@
           <button class="decline" id="btnDecline">Decline</button>
           <button class="approve" id="btnApprove">Approve</button>
         </div>
-        <div class="after" id="after"></div>`;
+        <div class="after" id="after"></div>
+        <div class="delzone">
+          <button class="delbtn" id="btnDelete">Delete application &amp; its documents</button>
+        </div>`;
 
       $("closeModal").addEventListener("click", closeModal);
       $("modal").querySelectorAll(".docbtn").forEach(b =>
         b.addEventListener("click", () => viewDoc(a.id, b.dataset.doc, b.dataset.n)));
       $("btnApprove").addEventListener("click", () => decide(a, "approved"));
       $("btnDecline").addEventListener("click", () => decide(a, "declined"));
+      $("btnDelete").addEventListener("click", () => removeApplication(a));
     }
 
     $("scrim").addEventListener("click", (e) => { if (e.target === $("scrim")) closeModal(); });
     function closeModal(){ $("scrim").classList.remove("show"); }
+
+    async function removeApplication(a){
+      if (!confirm(`Permanently delete ${a.full_name}'s application (${a.id}) and its documents — ID, bank statement and payslip?\n\nThis cannot be undone.`)) return;
+      try {
+        const r = await fetch(`${WORKER_BASE}/applications/${a.id}`, { method: "DELETE", headers: authHeaders() });
+        if (!r.ok) throw new Error();
+      } catch { alert("Could not delete. Please try again."); return; }
+      closeModal();
+      load();
+    }
 
     async function viewDoc(id, doc, n){
       const url = `${WORKER_BASE}/applications/${id}/file/${doc}` + (n != null ? `/${n}` : "");

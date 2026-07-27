@@ -24,7 +24,7 @@ const STATUSES = ["new", "approved", "declined"];
 function cors(env, extra = {}) {
   return {
     "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Authorization,Content-Type",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
@@ -84,6 +84,7 @@ export default {
         if (m) {
           const [, id, action, field, n] = m;
           if (!action && method === "GET") return getApplication(id, env);
+          if (!action && method === "DELETE") return deleteApplication(id, env);
           if (action === "status" && method === "POST") return setStatus(id, request, env);
           if (action === "file" && method === "GET") return getFile(id, field, n, env);
         }
@@ -243,4 +244,24 @@ async function getFile(id, field, n, env) {
       "Cache-Control": "private, no-store"
     })
   });
+}
+
+// Permanently remove an application and all of its documents (ID, bank
+// statement pages, payslip) — the R2 files first, then the D1 record.
+async function deleteApplication(id, env) {
+  const row = await env.DB.prepare(
+    `SELECT doc_id_key, doc_bank_keys, doc_payslip_key FROM applications WHERE id = ?`
+  ).bind(id).first();
+  if (!row) return json({ error: "not found" }, 404, env);
+
+  const keys = [row.doc_id_key, row.doc_payslip_key, ...safeParse(row.doc_bank_keys)].filter(Boolean);
+  if (keys.length) {
+    try {
+      await env.DOCS.delete(keys); // R2 accepts an array of keys
+    } catch {
+      for (const key of keys) await env.DOCS.delete(key).catch(() => {});
+    }
+  }
+  await env.DB.prepare(`DELETE FROM applications WHERE id = ?`).bind(id).run();
+  return json({ ok: true }, 200, env);
 }
