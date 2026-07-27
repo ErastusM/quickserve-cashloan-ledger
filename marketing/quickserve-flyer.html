@@ -102,10 +102,11 @@ body {
   color: var(--ink); text-align: center; letter-spacing: -0.3px;
 }
 .card .label .big { display: block; font-weight: 600; font-size: 25px; }
+.card .label .fine { font-weight: 500; font-size: 16px; color: var(--body); }
 
 /* ---------- requirements ---------- */
 .req-head {
-  position: absolute; top: 934px; left: 74px; z-index: 5;
+  position: absolute; top: 906px; left: 74px; z-index: 5;
   display: flex; align-items: center; gap: 18px; width: 452px;
 }
 .req-head span {
@@ -115,7 +116,7 @@ body {
 .req-head i { flex: 1; height: 2px; background: rgba(10,91,84,.26); }
 
 .req-list {
-  position: absolute; top: 984px; left: 74px; z-index: 5;
+  position: absolute; top: 956px; left: 74px; z-index: 5;
   display: flex; flex-direction: column; gap: 15px;
 }
 .req-list li { list-style: none; display: flex; align-items: center; gap: 15px; }
@@ -131,7 +132,7 @@ body {
 
 /* ---------- trust strip ---------- */
 .trust {
-  position: absolute; top: 1002px; left: 556px; z-index: 5;
+  position: absolute; top: 980px; left: 556px; z-index: 5;
   display: flex; align-items: center; gap: 22px;
 }
 .trust .lock {
@@ -151,7 +152,7 @@ body {
 
 /* ---------- contact bar ---------- */
 .contact {
-  position: absolute; left: 62px; right: 62px; bottom: 56px; z-index: 5;
+  position: absolute; left: 62px; right: 62px; bottom: 96px; z-index: 5;
   height: 148px; border-radius: 26px;
   border: 2.5px solid rgba(10,91,84,.34);
   background: rgba(255,255,255,.55);
@@ -183,6 +184,17 @@ body {
   font-weight: 700; font-size: 46px; color: var(--ink);
   letter-spacing: -1.4px; white-space: nowrap;
 }
+
+/* ---------- compliance disclosure ribbon ---------- */
+.disclosure {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 6;
+  background: var(--teal-900); color: rgba(255,255,255,.82);
+  font-family: Inter, sans-serif; font-size: 13.5px; line-height: 1.55;
+  letter-spacing: -0.1px; text-align: center;
+  padding: 13px 46px 14px;
+}
+.disclosure strong { color: #fff; font-weight: 700; }
+.disclosure .sep { color: rgba(255,255,255,.4); padding: 0 4px; }
 
 /* ---------- phone mockup ---------- */
 .phone {
@@ -329,7 +341,7 @@ body {
 
   <div class="card">
     <div class="badge amber"><span class="pct">30%</span></div>
-    <div class="label"><span class="big">30%</span>interest</div>
+    <div class="label"><span class="big">30%</span>once-off<br/><span class="fine">not per month</span></div>
   </div>
 
   <div class="card">
@@ -429,5 +441,10 @@ body {
   </div>
 </div>
 
+
+<div class="disclosure">
+  <strong>Quickserve Financial Services CC</strong> t/a QuickServe Cashloan<span class="sep">&middot;</span>NAMFISA-registered microlender, reg. [NAMFISA&nbsp;REG.&nbsp;NO.]<span class="sep">&middot;</span>loans up to 5 months
+  <br/>Total charges never exceed 30% of the amount borrowed (interest + service fee)<span class="sep">&middot;</span>We never keep your bank card, PIN or ID
+</div>
 </body>
 </html>

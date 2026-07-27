@@ -32,7 +32,7 @@ console.log(`Source: ${OUT_HTML} (${(fs.statSync(OUT_HTML).size / 1024).toFixed(
     const sel = {
       logo: '.header', headline: '.headline', subhead: '.subhead',
       cards: '.features', reqHead: '.req-head', reqList: '.req-list',
-      trust: '.trust', contact: '.contact', phone: '.phone'
+      trust: '.trust', contact: '.contact', phone: '.phone', disclosure: '.disclosure'
     };
     const out = {};
     for (const [k, s] of Object.entries(sel)) {
@@ -47,7 +47,8 @@ console.log(`Source: ${OUT_HTML} (${(fs.statSync(OUT_HTML).size / 1024).toFixed(
     ['headline','phone'], ['subhead','phone'], ['cards','phone'],
     ['cards','reqHead'], ['reqHead','reqList'], ['reqList','contact'],
     ['reqList','trust'], ['trust','contact'], ['trust','phone'],
-    ['logo','phone'], ['subhead','cards'], ['headline','subhead']
+    ['logo','phone'], ['subhead','cards'], ['headline','subhead'],
+    ['contact','disclosure'], ['reqList','disclosure'], ['contact','reqList']
   ];
 
   console.log('\n  element      x     y     right  bottom');
@@ -60,5 +61,16 @@ console.log(`Source: ${OUT_HTML} (${(fs.statSync(OUT_HTML).size / 1024).toFixed(
     : '\n  LAYOUT OK - no collisions');
   const overflow = Object.entries(boxes).filter(([,v]) => v.r > 1080 || v.b > 1350 || v.x < 0 || v.y < 0);
   if (overflow.length) console.log('  OFF-CANVAS: ' + overflow.map(([k]) => k).join(', '));
+
+  // Fixed-height cards clip overflow without changing their bounding box, so
+  // measure scroll vs client height directly — this is what a long label breaks.
+  const clipped = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.card')).flatMap((c, i) => {
+      const label = c.querySelector('.label');
+      return label && label.scrollHeight > label.clientHeight + 2 ? [i] : [];
+    })
+  );
+  if (clipped.length) console.log('  CARD TEXT OVERFLOWS: card #' + clipped.join(', #'));
+  else console.log('  cards fit');
   await browser.close();
 })();
