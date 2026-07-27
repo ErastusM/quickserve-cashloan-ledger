@@ -65,8 +65,12 @@ const P = (text, opts = {}) => {
 
 // ---------- tables ----------
 function buildTable(rows) {
-  const cols = Math.max(...rows.map((r) => r.length));
-  const norm = rows.map((r) => [...r, ...Array(cols - r.length).fill("")]);
+  // A table can have an empty header (| | |) used purely for layout, or empty
+  // body cells (a stamp box). Clamp columns so a malformed row can never crash
+  // the run, and only treat row 0 as a header when it actually has text.
+  const cols = Math.min(20, Math.max(1, ...rows.map((r) => r.length)));
+  const norm = rows.map((r) => [...r.slice(0, cols), ...Array(Math.max(0, cols - r.length)).fill("")]);
+  const hasHeader = norm.length > 1 && norm[0].some((c) => c.trim() !== "");
   // First column carries the label and gets more room; rest split evenly.
   const first = Math.round(CONTENT_W * (cols === 2 ? 0.46 : 0.34));
   const rest = Math.floor((CONTENT_W - first) / (cols - 1 || 1));
@@ -84,20 +88,21 @@ function buildTable(rows) {
       insideHorizontal: { style: BorderStyle.SINGLE, size: 2, color: RULE },
       insideVertical:   { style: BorderStyle.SINGLE, size: 2, color: RULE }
     },
-    rows: norm.map((cells, ri) =>
-      new TableRow({
-        tableHeader: ri === 0,
+    rows: norm.map((cells, ri) => {
+      const isHead = hasHeader && ri === 0;
+      return new TableRow({
+        tableHeader: isHead,
         children: cells.map((cell, ci) =>
           new TableCell({
             width: { size: widths[ci], type: WidthType.DXA },
-            shading: ri === 0 ? { type: ShadingType.CLEAR, fill: SHADE } : undefined,
+            shading: isHead ? { type: ShadingType.CLEAR, fill: SHADE } : undefined,
             margins: { top: 90, bottom: 90, left: 130, right: 130 },
             children: [
               new Paragraph({
-                children: runs(cell, {
+                children: runs(cell || " ", {
                   size: 20,
-                  bold: ri === 0 || undefined,
-                  color: ri === 0 ? INK : "1E2E2C",
+                  bold: isHead || undefined,
+                  color: isHead ? INK : "1E2E2C",
                   font: "Calibri"
                 }),
                 spacing: { after: 0, line: 250 },
@@ -106,8 +111,8 @@ function buildTable(rows) {
             ]
           })
         )
-      })
-    )
+      });
+    })
   });
 }
 
@@ -131,14 +136,15 @@ function convert(md) {
 
     // table
     if (t.startsWith("|") && lines[i + 1] && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1])) {
-      const rows = [];
+      const rawRows = [];
       while (i < lines.length && lines[i].trim().startsWith("|")) {
-        const raw = lines[i].trim();
-        if (!/^\|[\s:|-]+\|$/.test(raw)) {
-          rows.push(raw.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim()));
-        }
+        rawRows.push(lines[i].trim());
         i++;
       }
+      // The second line is the header/body separator (---). Drop only that one;
+      // every other row is real, including rows with deliberately empty cells.
+      if (rawRows.length > 1 && /^\|[\s:|-]+\|$/.test(rawRows[1])) rawRows.splice(1, 1);
+      const rows = rawRows.map((r) => r.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim()));
       kids.push(buildTable(rows));
       kids.push(new Paragraph({ text: "", spacing: { after: 140 } }));
       continue;
@@ -221,8 +227,8 @@ function header() {
       }),
       new Paragraph({
         children: [
-          new TextRun({ text: "[REGISTERED BUSINESS NAME]", bold: true, size: 16, color: INK, font: "Calibri" }),
-          new TextRun({ text: "   ·   Reg. No. [COMPANY REGISTRATION NUMBER]   ·   NAMFISA Reg. No. [NAMFISA REGISTRATION NUMBER]", size: 16, color: GREY, font: "Calibri" })
+          new TextRun({ text: "Quickserve Financial Services CC", bold: true, size: 16, color: INK, font: "Calibri" }),
+          new TextRun({ text: "   ·   Reg. No. CC/2026/01904   ·   NAMFISA Reg. No. [NAMFISA REGISTRATION NUMBER]", size: 16, color: GREY, font: "Calibri" })
         ],
         spacing: { after: 20 }
       }),

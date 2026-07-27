@@ -49,22 +49,24 @@ function render(md) {
 
     if (t.startsWith("|") && lines[i + 1] && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1])) {
       closeList();
-      const rows = [];
+      const rawRows = [];
       while (i < lines.length && lines[i].trim().startsWith("|")) {
-        const r = lines[i].trim();
-        if (!/^\|[\s:|-]+\|$/.test(r)) {
-          rows.push(r.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim()));
-        }
+        rawRows.push(lines[i].trim());
         i++;
       }
+      // Drop only the header separator (second line); keep empty-cell rows.
+      if (rawRows.length > 1 && /^\|[\s:|-]+\|$/.test(rawRows[1])) rawRows.splice(1, 1);
+      const rows = rawRows.map((r) => r.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim()));
       const num = (c) => /^[N$\s\d.,()%-]+$/.test(c) && c.trim();
+      const hasHeader = rows.length > 1 && rows[0].some((c) => c !== "");
       out.push("<table>");
       rows.forEach((cells, ri) => {
         out.push("<tr>");
         cells.forEach((c, ci) => {
-          const tag = ri === 0 ? "th" : "td";
-          const cls = ri > 0 && ci > 0 && num(c) ? ' class="n"' : "";
-          out.push(`<${tag}${cls}>${inline(c)}</${tag}>`);
+          const head = hasHeader && ri === 0;
+          const tag = head ? "th" : "td";
+          const cls = !head && ci > 0 && num(c) ? ' class="n"' : "";
+          out.push(`<${tag}${cls}>${inline(c) || "&nbsp;"}</${tag}>`);
         });
         out.push("</tr>");
       });
@@ -135,7 +137,7 @@ const headerTpl = () => `
               border-bottom:1.4pt solid #12b84f; padding-bottom:3pt;">
     <img src="data:image/png;base64,${LOGO_B64}" style="height:8.5mm"/>
     <div style="text-align:right; line-height:1.45;">
-      <div><strong style="color:#06302e;">[REGISTERED BUSINESS NAME]</strong> &nbsp;·&nbsp; Reg. No. [COMPANY REGISTRATION NUMBER]</div>
+      <div><strong style="color:#06302e;">Quickserve Financial Services CC</strong> &nbsp;·&nbsp; Reg. No. CC/2026/01904</div>
       <div>NAMFISA Reg. No. [NAMFISA REGISTRATION NUMBER] &nbsp;·&nbsp; [PHYSICAL ADDRESS]</div>
       <div>Tel / WhatsApp +264 81 264 6222 &nbsp;·&nbsp; [EMAIL ADDRESS]</div>
     </div>
@@ -172,7 +174,7 @@ const footerTpl = (title) => `
       displayHeaderFooter: true,
       headerTemplate: headerTpl(),
       footerTemplate: footerTpl(doc.title),
-      margin: { top: "26mm", bottom: "18mm", left: "18mm", right: "18mm" }
+      margin: { top: "30mm", bottom: "18mm", left: "18mm", right: "18mm" }
     });
     console.log(`  ${(doc.slug + ".pdf").padEnd(46)} ${String(Math.round(fs.statSync(file).size / 1024)).padStart(4)} KB   ${doc.title}`);
   }
