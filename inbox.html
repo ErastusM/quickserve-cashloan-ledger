@@ -336,21 +336,27 @@
     async function decide(a, status){
       let note = "";
       if (status === "declined") { note = prompt("Optional note / reason (the applicant won't see this):") || ""; }
+      let result = {};
       try {
         const r = await fetch(`${WORKER_BASE}/applications/${a.id}/status`, {
           method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" },
           body: JSON.stringify({ status, note })
         });
         if (!r.ok) throw new Error();
+        result = await r.json().catch(() => ({}));
       } catch { alert("Could not save. Try again."); return; }
 
       a.status = status; a.decided_note = note;
       const msg = status === "approved"
         ? `Hi ${a.full_name}, good news — your QuickServe Cashloan request (${a.id}) has been approved. We'll be in touch shortly with the details. Thank you!`
         : `Hi ${a.full_name}, thank you for your QuickServe Cashloan application (${a.id}). Unfortunately we're unable to approve it at this time. You're welcome to apply again in future.`;
+      const notifyLine = result.notified
+        ? `<div class="ledger"><span class="lok">✓ Sent to ${esc(firstName(a.full_name))} on WhatsApp automatically.</span></div>`
+        : (result.notifyError ? `<div class="ledger"><span class="lwarn">Couldn't auto-send (${esc(String(result.notifyError).slice(0, 70))}). Use the WhatsApp button below.</span></div>` : "");
       const after = $("after");
       after.innerHTML = `
-        <a class="wa" href="${waLink(a.phone, msg)}" target="_blank" rel="noopener">Reply to ${esc(firstName(a.full_name))} on WhatsApp</a>
+        ${notifyLine}
+        <a class="wa" href="${waLink(a.phone, msg)}" target="_blank" rel="noopener">${result.notified ? "Send again on WhatsApp" : `Reply to ${esc(firstName(a.full_name))} on WhatsApp`}</a>
         <a class="copy" href="tel:+${normPhone(a.phone)}" style="text-decoration:none">Call ${esc(firstName(a.full_name))}</a>
         ${status === "approved" ? `<div class="ledger" id="ledger"></div>` : ""}
         <button class="copy" id="copyBtn">Copy details for the loan book</button>`;

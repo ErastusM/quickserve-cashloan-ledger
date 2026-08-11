@@ -11,6 +11,15 @@ compatibility_date = "2024-11-01"
 # For GitHub Pages this is your Pages origin, e.g. https://erastusm.github.io
 ALLOWED_ORIGIN = "https://erastusm.github.io"
 
+# WhatsApp Cloud API — auto-notify the applicant on approve/decline.
+# The access TOKEN is a secret: `wrangler secret put WHATSAPP_TOKEN` (not here).
+# See WHATSAPP.md. Leave WHATSAPP_PHONE_ID as-is to keep auto-send OFF.
+WHATSAPP_PHONE_ID = "REPLACE_WITH_YOUR_PHONE_NUMBER_ID"
+WA_TEMPLATE_APPROVED = "loan_approved"
+WA_TEMPLATE_DECLINED = "loan_declined"
+WA_LANG = "en"
+WA_API_VERSION = "v21.0"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "quickserve-intake"
