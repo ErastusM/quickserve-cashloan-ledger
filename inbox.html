@@ -87,6 +87,17 @@
     .login button{width:100%;margin-top:12px;background:var(--accent);color:#fff;border:none;border-radius:11px;padding:13px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;}
     .login .err{color:var(--no);font-size:12.5px;margin-top:10px;min-height:16px;}
     .hidden{display:none!important;}
+    /* approve → ledger */
+    .ledger{background:var(--field);border:1px solid var(--line);border-radius:11px;padding:11px 13px;font-size:13.5px;}
+    .ledger .lok{color:var(--ok);font-weight:600;}
+    .ledger .lwarn{color:var(--no);font-weight:600;}
+    .ledger .lmsg{color:var(--muted);}
+    .ledger.connect{display:flex;flex-direction:column;gap:8px;}
+    .ledger .lhint{color:var(--muted);font-size:12.5px;}
+    .ledger input{width:100%;font:inherit;font-size:15px;background:var(--card);border:1.5px solid var(--line);border-radius:9px;padding:10px;color:var(--ink);}
+    .ledger .lconnect{background:var(--accent);color:#fff;border:none;border-radius:9px;padding:11px;font:inherit;font-weight:700;cursor:pointer;}
+    .ledger .lerr{color:var(--no);font-size:12px;min-height:14px;}
+    .ledger .lretry{background:none;border:none;color:var(--accent-ink);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;padding:0;}
   </style>
 </head>
 <body>
@@ -134,6 +145,73 @@
 
     const $ = (id) => document.getElementById(id);
     const authHeaders = () => ({ Authorization: "Bearer " + token });
+
+    // ── Ledger (Supabase) ────────────────────────────────────────────────────
+    // Optional: approving an application auto-adds the client to your loan book.
+    // Same origin as the app, so we reuse the cloud-sync login it already stored.
+    const SB = { url: "https://ptlwhpvzyfpxtpghwlqs.supabase.co", key: "sb_publishable_jy5bMPcZ9uIwXHV2M7Sq0g_5uYtWcZH" };
+    const SB_SESSION_KEY = "quickserve_cloud_v1";
+    function sbSession(){ try { return JSON.parse(localStorage.getItem(SB_SESSION_KEY) || "null"); } catch { return null; } }
+    async function sbToken(){
+      const s = sbSession(); if (!s || !s.access_token) return null;
+      if (Date.now() < (s.expires_at || 0) - 60000) return s.access_token;
+      try {
+        const r = await fetch(`${SB.url}/auth/v1/token?grant_type=refresh_token`, { method:"POST", headers:{ apikey:SB.key, "Content-Type":"application/json" }, body: JSON.stringify({ refresh_token: s.refresh_token }) });
+        const j = await r.json(); if (!r.ok) return null;
+        s.access_token = j.access_token; s.refresh_token = j.refresh_token; s.expires_at = Date.now() + (j.expires_in || 3600) * 1000;
+        localStorage.setItem(SB_SESSION_KEY, JSON.stringify(s)); return j.access_token;
+      } catch { return null; }
+    }
+    async function sbSignIn(email, password){
+      try {
+        const r = await fetch(`${SB.url}/auth/v1/token?grant_type=password`, { method:"POST", headers:{ apikey:SB.key, "Content-Type":"application/json" }, body: JSON.stringify({ email, password }) });
+        const j = await r.json(); if (!r.ok) return { ok:false, error: j.error_description || j.msg || "Sign in failed." };
+        const prev = sbSession() || {};
+        localStorage.setItem(SB_SESSION_KEY, JSON.stringify({ ...prev, access_token:j.access_token, refresh_token:j.refresh_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, email }));
+        return { ok:true };
+      } catch { return { ok:false, error:"No connection." }; }
+    }
+    function ledgerUid(p){ return `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`; }
+    function ledgerClientFromApp(a){
+      const notes = [ "From application " + a.id, a.income ? ("Stated income: N$ " + a.income) : "", a.purpose ? ("Purpose: " + a.purpose) : "", a.repay_date ? ("Wanted repay by: " + a.repay_date) : "", "ID, payslip & bank docs on file in the intake inbox." ].filter(Boolean).join(" · ");
+      return { name: a.full_name || "", phone: a.phone || "", nationalId: a.national_id || "", employer: a.employer || "", address: a.address || "", nextOfKin: (a.kin_name || "") + (a.kin_phone ? (" (" + a.kin_phone + ")") : ""), notes };
+    }
+    function ledgerAppendClient(state, a){
+      if (!state || !Array.isArray(state.clients)) return { error:"ledger data looks wrong" };
+      const idn = String(a.national_id || "").replace(/\s/g, "");
+      const dup = idn && state.clients.find(c => String(c.nationalId || "").replace(/\s/g, "") === idn);
+      if (dup) return { added:false, name: dup.name || "that client" };
+      // No ref here on purpose — the app backfills client references by creation
+      // order when it loads the synced book, so we never risk a collision.
+      const client = Object.assign({ id: ledgerUid("client"), createdAt: new Date().toISOString() }, ledgerClientFromApp(a));
+      state.clients.push(client); state.updatedAt = new Date().toISOString();
+      return { added:true };
+    }
+    async function addToLedger(a){
+      const tok = await sbToken(); if (!tok) return { needsConnect:true };
+      let row;
+      try {
+        const r = await fetch(`${SB.url}/rest/v1/ledger?id=eq.main&select=data,rev`, { headers:{ apikey:SB.key, Authorization:"Bearer " + tok } });
+        if (!r.ok) return { error:"read " + r.status };
+        row = (await r.json())[0];
+      } catch { return { error:"offline" }; }
+      if (!row) return { error:"No cloud ledger yet — open the app and sign into Cloud sync first." };
+      const state = row.data, rev = row.rev;
+      const res = ledgerAppendClient(state, a);
+      if (res.error) return res;
+      if (!res.added) return { added:false, name: res.name };
+      try {
+        const r = await fetch(`${SB.url}/rest/v1/ledger?id=eq.main&rev=eq.${rev}`, {
+          method:"PATCH",
+          headers:{ apikey:SB.key, Authorization:"Bearer " + tok, "Content-Type":"application/json", Prefer:"return=representation" },
+          body: JSON.stringify({ data: state, rev: rev + 1, updated_at: new Date().toISOString(), updated_by: (sbSession() || {}).email || "inbox" })
+        });
+        if (!r.ok) return { error:"write " + r.status };
+        const rows = await r.json();
+        if (!rows || !rows.length) return { conflict:true };
+        return { added:true, ref: res.ref };
+      } catch { return { error:"offline" }; }
+    }
 
     // ---- auth / boot ----
     if (!WORKER_BASE) { $("loginErr").textContent = "Set WORKER_BASE in inbox.html first."; }
@@ -273,11 +351,44 @@
       const after = $("after");
       after.innerHTML = `
         <a class="wa" href="${waLink(a.phone, msg)}" target="_blank" rel="noopener">Reply to ${esc(firstName(a.full_name))} on WhatsApp</a>
+        <a class="copy" href="tel:+${normPhone(a.phone)}" style="text-decoration:none">Call ${esc(firstName(a.full_name))}</a>
+        ${status === "approved" ? `<div class="ledger" id="ledger"></div>` : ""}
         <button class="copy" id="copyBtn">Copy details for the loan book</button>`;
       after.classList.add("show");
       $("copyBtn").addEventListener("click", () => copySummary(a));
       const actionsRow = document.querySelector(".actions");
       if (actionsRow) actionsRow.style.display = "none";
+      if (status === "approved") runLedgerAdd(a);
+    }
+
+    async function runLedgerAdd(a){
+      const box = $("ledger"); if (!box) return;
+      if (!sbSession()) { showLedgerConnect(a); return; }
+      box.className = "ledger"; box.innerHTML = `<span class="lmsg">Adding ${esc(firstName(a.full_name))} to your ledger…</span>`;
+      const res = await addToLedger(a);
+      if (res.needsConnect) { showLedgerConnect(a); return; }
+      if (res.added) box.innerHTML = `<span class="lok">✓ Added to your ledger. Issue the loan from the app when you hand over the cash.</span>`;
+      else if (res.conflict) { box.innerHTML = `<span class="lwarn">Your ledger just changed on another device — </span><button class="lretry" id="lretry">try again</button>`; $("lretry").addEventListener("click", () => runLedgerAdd(a)); }
+      else if (res.added === false) box.innerHTML = `<span class="lok">Already in your ledger (${esc(res.name || "this client")}).</span>`;
+      else box.innerHTML = `<span class="lwarn">Couldn't add to the ledger (${esc(res.error || "error")}). Use “Copy details” below.</span>`;
+    }
+    function showLedgerConnect(a){
+      const box = $("ledger"); if (!box) return;
+      box.className = "ledger connect";
+      box.innerHTML = `
+        <div class="lhint">Connect your ledger account once to auto-add approved clients:</div>
+        <input id="lEmail" type="email" placeholder="Email" autocomplete="username" />
+        <input id="lPass" type="password" placeholder="Password" autocomplete="current-password" />
+        <button class="lconnect" id="lConnect">Connect &amp; add</button>
+        <div class="lerr" id="lErr"></div>`;
+      $("lConnect").addEventListener("click", async () => {
+        const email = ($("lEmail").value || "").trim(), pass = $("lPass").value || "";
+        if (!email || pass.length < 6) { $("lErr").textContent = "Enter your email and password."; return; }
+        $("lErr").textContent = "Connecting…";
+        const r = await sbSignIn(email, pass);
+        if (!r.ok) { $("lErr").textContent = r.error || "Sign in failed."; return; }
+        runLedgerAdd(a);
+      });
     }
 
     function copySummary(a){
