@@ -7,9 +7,11 @@ main = "src/index.js"
 compatibility_date = "2024-11-01"
 
 [vars]
-# The origin your apply.html / inbox.html are served from (for CORS).
-# For GitHub Pages this is your Pages origin, e.g. https://erastusm.github.io
-ALLOWED_ORIGIN = "https://erastusm.github.io"
+# Which site origin may call this Worker (CORS). Owner endpoints are gated by
+# the token regardless of origin, and the apply form is public, so "*" is safe
+# and lets both the GitHub Pages inbox and the Hostinger admin console
+# (admin.quickserve.global) reach it. Set a single origin to lock it down later.
+ALLOWED_ORIGIN = "*"
 
 # WhatsApp Cloud API — auto-notify the applicant on approve/decline.
 # The access TOKEN is a secret: `wrangler secret put WHATSAPP_TOKEN` (not here).
