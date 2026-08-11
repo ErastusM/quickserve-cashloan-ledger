@@ -13,6 +13,28 @@ Dedicated number for automation: **+264 81 281 9840**
 
 ---
 
+## Start here: the free test number (no real number moved)
+
+You can prove the whole thing works without touching any real number. Every new
+Meta app comes with a **test sender number** that can message a few **allowed
+recipient numbers** you add yourself.
+
+1. Do step 1 below to create the app + add the WhatsApp product.
+2. Under **WhatsApp → API Setup**, find the **"To"** field and **add your own
+   phone number** as an allowed recipient (Meta texts it a code to confirm).
+   Test numbers can *only* message recipients you've added this way.
+3. Create and submit the two templates (step 2) and wait for approval.
+4. Point the Worker at the **test number's Phone Number ID** and the temporary
+   token (step 4). The temp token lasts ~24 hours — fine for a test.
+5. Submit a test application using **your own phone number**, then approve it in
+   the inbox — your phone gets the WhatsApp message.
+
+When that works, register the real number **+264 81 281 9840** the same way and
+swap in a long-lived token (step 3). Your chat number **+264 81 264 6222 is
+never touched** — it stays in the WhatsApp Business app for talking to clients.
+
+---
+
 ## 1. Create the Meta pieces (once)
 
 1. Go to **https://developers.facebook.com** → log in → **My Apps** → **Create App** → type **Business**.
