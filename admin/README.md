@@ -1,10 +1,26 @@
 # QuickServe Admin Console — deploy to `admin.quickserve.global`
 
 A single self-contained web page (`index.html`) — no build step, no server, no
-framework. It signs in against your existing Supabase project, reads the same
-loan-book ledger the phone app writes, and shows the dashboard, clients, loans,
-payments and the applications inbox on a full desktop screen. Nothing lives in
-this file but code: every figure is pulled live from Supabase at sign-in.
+framework, and no external dependencies (the typeface is embedded). It signs in
+against your existing Supabase project, reads the same loan-book ledger the phone
+app writes, and presents it as an institutional statement on a full desktop
+screen:
+
+- **Dashboard** — a *Statement of Position* (cash, out on loan, total funds,
+  receivable), a portfolio panel with the book's composition, this month's
+  cashflow, and an *Attention* list (loans due, overdue, single-borrower
+  concentration, and clients missing a National ID).
+- **Clients / Loans / Payments** — searchable, filterable registers. Click any
+  row to open a full drill-down: a client's whole borrowing history and KYC, or a
+  loan's terms, schedule and payments.
+- **Reports** — monthly cashflow (advanced vs collected, net flow) and borrower
+  concentration, with a *Print statement* button that renders a clean document.
+- **Applications** — the intake inbox, read through the Worker's owner token.
+- **Settings** — the registered entity, lending parameters, and the live status
+  of the cloud ledger and intake service.
+
+Nothing lives in this file but code: every figure is pulled live from Supabase at
+sign-in.
 
 ```
 Browser (admin.quickserve.global)
