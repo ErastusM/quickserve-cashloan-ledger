@@ -57,7 +57,8 @@ const icons = {
   arrowIn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 7 8 16"/><path d="M16 16H8V8"/></svg>',
   arrowOut: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 17 9-9"/><path d="M8 8h8v8"/></svg>',
   minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>',
-  chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>'
+  chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/><path d="M12 17.5h.01"/></svg>'
 };
 
 const aliasIcons = {
@@ -1240,6 +1241,7 @@ function renderDashboard() {
   const totals = totalsFor(dashboardMonth, dashboardYear);
 
   renderFloat();
+  renderRiskBanner();
 
   const metrics = [
     ["outstanding", "Outstanding", money(totals.totalOutstanding), "Collectable balance", ""],
@@ -2541,8 +2543,8 @@ function openClientForm(client = null) {
   openSheet(isEdit ? "Edit client" : "New client", `
     <div class="form-grid">
       <label class="wide"><span>Name</span><input name="name" required value="${escapeHtml(client?.name || "")}" autocomplete="name" placeholder="Full name" /></label>
-      <label><span>Phone</span><input name="phone" value="${escapeHtml(client?.phone || "")}" inputmode="tel" autocomplete="tel" placeholder="Optional" /></label>
-      <label><span>ID or passport</span><input name="nationalId" value="${escapeHtml(client?.nationalId || "")}" placeholder="Optional" /></label>
+      <label><span>Phone</span><input name="phone" required value="${escapeHtml(client?.phone || "")}" inputmode="tel" autocomplete="tel" placeholder="e.g. 081 123 4567" /></label>
+      <label><span>ID or passport</span><input name="nationalId" required value="${escapeHtml(client?.nationalId || "")}" placeholder="ID or passport no." /></label>
     </div>
     <p class="form-section-label">Details</p>
     <div class="form-grid">
@@ -2552,10 +2554,26 @@ function openClientForm(client = null) {
       <label class="wide"><span>Notes</span><textarea name="notes" placeholder="Anything worth remembering">${escapeHtml(client?.notes || "")}</textarea></label>
     </div>
   `, isEdit ? "Save client" : "Add client", (form) => {
+    const name = cleanText(form.get("name"));
+    const phone = cleanText(form.get("phone"));
+    const nationalId = cleanText(form.get("nationalId"));
+    if (!name) {
+      toast("Enter the client's name.");
+      return false;
+    }
+    if (phone.replace(/\D/g, "").length < 8) {
+      toast("Enter a valid phone number — it's required for a compliant loan.");
+      return false;
+    }
+    if (nationalId.replace(/\s/g, "").length < 6) {
+      toast("Enter the client's ID or passport number — it's required.");
+      return false;
+    }
+
     const record = {
-      name: cleanText(form.get("name")),
-      phone: cleanText(form.get("phone")),
-      nationalId: cleanText(form.get("nationalId")),
+      name,
+      phone,
+      nationalId,
       employer: cleanText(form.get("employer")),
       address: cleanText(form.get("address")),
       nextOfKin: cleanText(form.get("nextOfKin")),
@@ -2740,18 +2758,46 @@ function openLoanForm(loan = null, forcedClientId = "") {
     </div>
   `, isEdit ? "Save loan" : "Create loan", (form) => {
     const principal = roundMoney(form.get("principal"));
+    const interestRate = roundMoney(form.get("interestRate"));
+    const serviceFee = roundMoney(form.get("serviceFee"));
+    const issueDate = form.get("issueDate");
+    const dueDate = form.get("dueDate");
     if (principal <= 0) {
       toast("Enter the amount given.");
+      return false;
+    }
+    if (!(interestRate >= 0) || interestRate > 100) {
+      toast("Interest rate must be between 0 and 100%.");
+      return false;
+    }
+    if (!(serviceFee >= 0)) {
+      toast("Service fee can't be negative.");
+      return false;
+    }
+    if (!issueDate || !dueDate) {
+      toast("Set both the issue and due dates.");
+      return false;
+    }
+    if (issueDate > todayISO()) {
+      toast("Issue date can't be in the future.");
+      return false;
+    }
+    if (dueDate <= issueDate) {
+      toast("Due date must be after the issue date.");
+      return false;
+    }
+    if (principal * (interestRate / 100) + serviceFee > principal * 0.3 + 0.001) {
+      toast("Interest + fees are above the 30% NAMFISA cap for this loan.");
       return false;
     }
 
     const record = {
       clientId: form.get("clientId"),
       principal,
-      interestRate: roundMoney(form.get("interestRate")),
-      serviceFee: roundMoney(form.get("serviceFee")),
-      issueDate: form.get("issueDate"),
-      dueDate: form.get("dueDate"),
+      interestRate,
+      serviceFee,
+      issueDate,
+      dueDate,
       purpose: cleanText(form.get("purpose"))
     };
 
@@ -3287,6 +3333,36 @@ function renderBackupBanner() {
         <p>${escapeHtml(status.note)}</p>
       </div>
       <button class="icon-text-btn primary" type="button" data-action="backup-now">Back up</button>
+    </div>
+  `;
+}
+
+// Warn when one borrower carries too much of the book — a single default there
+// would hurt disproportionately. Purely derived from live loan data.
+function renderRiskBanner() {
+  const host = qs("#riskBanner");
+  if (!host) return;
+  host.innerHTML = "";
+  const open = allAnalyses().filter((row) => row.status === "active" || row.status === "overdue");
+  const total = roundMoney(open.reduce((sum, row) => sum + row.outstanding, 0));
+  if (total < 5000) return; // book too small for concentration to matter
+  const byClient = new Map();
+  open.forEach((row) => {
+    byClient.set(row.loan.clientId, roundMoney((byClient.get(row.loan.clientId) || 0) + row.outstanding));
+  });
+  let topId = null;
+  let topAmt = 0;
+  byClient.forEach((amt, id) => { if (amt > topAmt) { topAmt = amt; topId = id; } });
+  const share = total > 0 ? topAmt / total : 0;
+  if (share < 0.25) return;
+  const level = share >= 0.4 ? "danger" : "warn";
+  host.innerHTML = `
+    <div class="backup-banner ${level}">
+      <span class="backup-banner-icon">${iconSvg("alert")}</span>
+      <div class="backup-banner-text">
+        <strong>Single-borrower risk</strong>
+        <p>${escapeHtml(getClientName(topId))} owes ${money(topAmt)} — ${Math.round(share * 100)}% of everything out on loan. One default here would sting.</p>
+      </div>
     </div>
   `;
 }
