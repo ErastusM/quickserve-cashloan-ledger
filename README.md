@@ -20,6 +20,7 @@ The app runs entirely in a phone browser and stores all data **on that device on
 - Per-client statement: open a client to see every loan and payment with a running balance, then copy, share, or export it.
 - PIN lock: protect the loan book on a phone with a passcode asked each time the app opens.
 - Reports: monthly, yearly and all-time figures, a monthly breakdown table, and a collections trend chart.
+- **Investor report:** a one-page summary of the whole book — lifetime performance, portfolio quality, capital and cash position, a year-by-year table and a modelled forward view — for handing to a lender or investor. It is **aggregate only**: no client names, phone numbers or ID numbers appear in it. Copy it, share it, download it as a self-contained HTML file, or print / save it as a PDF.
 - CSV export for the loan book, payments, and expenses.
 - **Backup, with warnings:** save and restore the full loan book as a JSON file, optionally encrypted. The dashboard warns when the last backup is getting old.
 - Offline / installable: a service worker and web app manifest let the app be installed to a phone home screen and used offline.

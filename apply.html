@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a5f38" />
+  <meta name="robots" content="noindex" />
+  <title>QuickServe Cashloan — Apply</title>
+  <style>
+    :root{
+      --paper:#f4f6f1;--card:#fff;--ink:#15201a;--muted:#566258;--line:#dce2d6;
+      --accent:#0a5f38;--accent-ink:#0a5f38;--field:#fbfcfa;--danger:#b3341f;
+      --shadow:0 1px 2px rgba(21,32,26,.05),0 10px 30px rgba(21,32,26,.07);
+    }
+    @media (prefers-color-scheme:dark){:root{
+      --paper:#0d1310;--card:#161e19;--ink:#e9ece7;--muted:#9aa89e;--line:#2a342d;
+      --accent:#4cc085;--accent-ink:#6bd39c;--field:#101711;--danger:#ef7a63;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.4);
+    }}
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--paper);color:var(--ink);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5;font-size:16px;-webkit-font-smoothing:antialiased;}
+    .wrap{max-width:520px;margin:0 auto;padding:22px 18px 60px;}
+    .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+    .logo{width:34px;height:34px;border-radius:9px;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:800;font-size:17px;font-family:Georgia,serif;}
+    .brand b{font-size:18px;letter-spacing:-.01em;}
+    .brand b span{color:var(--muted);font-weight:600;}
+    h1{font-family:Georgia,"Times New Roman",serif;font-size:25px;margin:14px 0 4px;letter-spacing:-.01em;}
+    .sub{color:var(--muted);font-size:14px;margin:0 0 8px;}
+    .disclaimer{background:color-mix(in srgb,var(--accent) 9%,transparent);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--muted);margin:14px 0 20px;}
+    form{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 18px;box-shadow:var(--shadow);}
+    .sec{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-ink);font-weight:700;margin:20px 0 10px;}
+    .sec:first-child{margin-top:0;}
+    .sec small{display:block;text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted);font-size:12px;margin-top:3px;}
+    label{display:block;margin-bottom:14px;}
+    label .lab{display:block;font-size:13px;font-weight:600;margin-bottom:5px;}
+    label .req{color:var(--accent-ink);}
+    label .opt{color:var(--muted);font-weight:500;}
+    input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--field);
+      border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;transition:border-color .15s;}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
+    .amt{position:relative;}
+    .amt span{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;pointer-events:none;}
+    .amt input{padding-left:38px;}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    input[type=file]{padding:9px 11px;font-size:13.5px;color:var(--muted);}
+    input[type=file]::file-selector-button{font:inherit;font-size:13px;font-weight:600;color:#fff;background:var(--accent);border:none;border-radius:8px;padding:8px 12px;margin-right:10px;cursor:pointer;}
+    .consent{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--muted);margin:12px 0 4px;}
+    .consent input{width:20px;height:20px;flex:0 0 auto;margin-top:1px;accent-color:var(--accent);}
+    .err{color:var(--danger);font-size:12px;margin-top:5px;display:none;}
+    label.invalid input,label.invalid select,label.invalid textarea{border-color:var(--danger);}
+    label.invalid .err{display:block;}
+    button{width:100%;margin-top:18px;background:var(--accent);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;}
+    button:disabled{opacity:.6;cursor:default;}
+    .foot{text-align:center;color:var(--muted);font-size:11.5px;margin-top:16px;}
+    .done{display:none;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:34px 22px;text-align:center;box-shadow:var(--shadow);}
+    .done.show{display:block;}
+    .tick{width:60px;height:60px;border-radius:50%;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);display:grid;place-items:center;margin:0 auto 14px;font-size:30px;}
+    .done h2{margin:0 0 6px;font-family:Georgia,serif;}
+    .done p{color:var(--muted);font-size:14px;margin:0 auto;max-width:36ch;}
+    .ref{margin-top:14px;font-size:12px;color:var(--muted);}
+    .ref b{color:var(--ink);font-variant-numeric:tabular-nums;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand"><span class="logo">Q</span><b>QuickServe<span>&nbsp;Cashloan</span></b></div>
+    <h1>Apply for a cash loan</h1>
+    <p class="sub">Takes a few minutes. Have your documents ready. We'll reply on WhatsApp.</p>
+    <div class="disclaimer">Submitting this form is a <b>request</b>, not an approved loan. We review each application and the amount is decided from your documents. All details are kept private and used only to assess your request.</div>
+
+    <form id="applyForm" novalidate>
+      <div class="sec">About you</div>
+      <label><span class="lab">Full name <span class="req">*</span></span><input name="fullName" autocomplete="name" required /><span class="err">Please enter your full name.</span></label>
+      <label><span class="lab">WhatsApp number <span class="req">*</span></span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="081 234 5678" required /><span class="err">Please enter a valid phone number.</span></label>
+      <label><span class="lab">National ID number <span class="req">*</span></span><input name="nationalId" inputmode="numeric" required /><span class="err">Please enter your ID number.</span></label>
+      <label><span class="lab">Home address <span class="opt">(optional)</span></span><input name="address" autocomplete="street-address" /></label>
+      <label><span class="lab">Employer / income source <span class="req">*</span></span><input name="employer" required /><span class="err">Please tell us how you earn an income.</span></label>
+      <label><span class="lab">Monthly income <span class="opt">(optional)</span></span><div class="amt"><span>N$</span><input name="income" type="number" min="0" inputmode="decimal" placeholder="0.00" /></div></label>
+
+      <div class="sec">Next of kin</div>
+      <label><span class="lab">Full name <span class="req">*</span></span><input name="kinName" required /><span class="err">Please enter your next of kin's name.</span></label>
+      <label><span class="lab">Their phone number <span class="req">*</span></span><input name="kinPhone" type="tel" inputmode="tel" required /><span class="err">Please enter their phone number.</span></label>
+
+      <div class="sec">The loan</div>
+      <label><span class="lab">Purpose of funds <span class="req">*</span></span><input name="purpose" required placeholder="e.g. school fees, transport, emergency" /><span class="err">Please tell us what the loan is for.</span></label>
+      <label><span class="lab">When can you repay? <span class="req">*</span></span><input name="repayDate" type="date" required /><span class="err">Please choose a repayment date.</span></label>
+
+      <div class="sec">Documents <small>Clear photo or PDF of each, up to 10 MB.</small></div>
+      <label><span class="lab">ID copy <span class="req">*</span></span><input name="docId" type="file" accept="image/*,application/pdf" required /><span class="err">Please attach a copy of your ID.</span></label>
+      <label><span class="lab">Bank statement — last 3 months <span class="req">*</span></span><input name="docBank" type="file" accept="image/*,application/pdf" multiple required /><span class="err">Please attach your bank statement.</span></label>
+      <label><span class="lab">Latest payslip <span class="req">*</span></span><input name="docPayslip" type="file" accept="image/*,application/pdf" required /><span class="err">Please attach your latest payslip.</span></label>
+
+      <label class="consent" id="consentWrap">
+        <input type="checkbox" name="consent" required />
+        <span>I confirm the information and documents are true, and I agree that QuickServe may contact me and use these details to assess my loan request. <span class="req">*</span></span>
+      </label>
+      <span class="err" id="consentErr" style="display:none">Please tick to continue.</span>
+
+      <button type="submit" id="submitBtn">Submit application</button>
+      <p class="foot">🔒 Your information and documents are sent securely and seen only by QuickServe.</p>
+    </form>
+
+    <div class="done" id="done">
+      <div class="tick">✓</div>
+      <h2>Application received</h2>
+      <p>Thank you. We've got your request and documents, and will review them and reply to you on WhatsApp shortly.</p>
+      <p class="ref">Your reference: <b id="refNo">—</b></p>
+    </div>
+  </div>
+
+  <script>
+    // ── CONFIG ──────────────────────────────────────────────────────────────
+    // After deploying the Worker (see intake-worker/README.md), set this to your
+    // Worker URL + "/applications". Leave "" to run the form in preview mode.
+    const ENDPOINT = "https://quickserve-intake.quickservefinance.workers.dev/applications";
+    const MAX_MB = 10;
+    // ────────────────────────────────────────────────────────────────────────
+
+    const form = document.getElementById("applyForm");
+    const btn = document.getElementById("submitBtn");
+
+    function isBad(el){
+      if (el.type === "checkbox") return !el.checked;
+      if (el.type === "file") return el.files.length === 0;
+      return !String(el.value).trim();
+    }
+    function validate(){
+      let ok = true;
+      form.querySelectorAll("[required]").forEach(el => {
+        const wrap = el.closest("label");
+        const bad = isBad(el);
+        if (wrap) wrap.classList.toggle("invalid", bad);
+        if (el.name === "consent") document.getElementById("consentErr").style.display = bad ? "block" : "none";
+        if (bad) ok = false;
+      });
+      return ok;
+    }
+    function oversize(){
+      for (const el of form.querySelectorAll("input[type=file]"))
+        for (const f of el.files) if (f.size > MAX_MB*1024*1024) return f.name;
+      return null;
+    }
+    form.addEventListener("input", e => { const w = e.target.closest("label"); if (w) w.classList.remove("invalid"); });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!validate()) return;
+      const big = oversize();
+      if (big){ alert(`"${big}" is larger than ${MAX_MB} MB. Please attach a smaller file.`); return; }
+
+      btn.disabled = true; btn.textContent = "Submitting…";
+      const fd = new FormData(form);
+      fd.set("consent", form.consent.checked ? "yes" : "no");
+      fd.set("submittedAt", new Date().toISOString());
+
+      try {
+        if (ENDPOINT){
+          const res = await fetch(ENDPOINT, { method:"POST", body: fd });
+          if (!res.ok) throw new Error("bad status");
+          const out = await res.json().catch(()=>({}));
+          showDone(out.reference);
+        } else {
+          const summary = {};
+          fd.forEach((v,k)=>{ summary[k] = (v instanceof File) ? (v.name || "(file)") : v; });
+          console.log("Preview — would upload:", summary);
+          await new Promise(r => setTimeout(r, 700));
+          showDone("QS-PREVIEW");
+        }
+      } catch (err) {
+        btn.disabled = false; btn.textContent = "Submit application";
+        alert("Sorry, something went wrong sending your application. Please try again, or message us on WhatsApp.");
+      }
+    });
+
+    function showDone(ref){
+      form.style.display = "none";
+      document.querySelector(".disclaimer").style.display = "none";
+      document.getElementById("refNo").textContent = ref || "received";
+      document.getElementById("done").classList.add("show");
+      window.scrollTo({ top:0, behavior:"smooth" });
+    }
+  </script>
+</body>
+</html>
