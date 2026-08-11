@@ -385,6 +385,8 @@ function uniqueRecordId(prefix, label, records) {
 function saveState() {
   state.updatedAt = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  // Let the optional cloud layer know something changed (no-op if absent).
+  try { document.dispatchEvent(new CustomEvent("qs:saved")); } catch (e) {}
 }
 
 function uid(prefix) {
