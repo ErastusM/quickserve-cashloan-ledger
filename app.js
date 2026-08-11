@@ -59,7 +59,8 @@ const icons = {
   minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>',
   chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>',
   alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/><path d="M12 17.5h.01"/></svg>',
-  printer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7" rx="1"/></svg>'
+  printer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7" rx="1"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.09 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.32 1.85.55 2.81.68A2 2 0 0 1 22 16.92Z"/></svg>'
 };
 
 const aliasIcons = {
@@ -1375,6 +1376,7 @@ function renderDashboard() {
   const totals = totalsFor(dashboardMonth, dashboardYear);
 
   renderFloat();
+  renderDueBanner();
   renderRiskBanner();
 
   const metrics = [
@@ -2322,6 +2324,7 @@ function clientCard(client) {
         <div class="detail"><span>ID</span><strong>${escapeHtml(client.nationalId || "Not saved")}</strong></div>
       </div>
       <div class="card-actions">
+        ${client.phone ? `<a class="icon-text-btn" href="tel:+${escapeHtml(normalisePhone(client.phone))}"><span class="btn-icon">${iconSvg("phone")}</span><span>Call</span></a>` : ""}
         <button class="icon-text-btn" type="button" data-action="client-loan" data-id="${client.id}">
           <span class="btn-icon">${iconSvg("plus")}</span><span>Loan</span>
         </button>
@@ -2842,6 +2845,9 @@ function openReminder(loanId) {
       <button class="icon-text-btn" type="button" id="reminderCopyBtn">
         <span class="btn-icon">${iconSvg("copy")}</span><span>Copy</span>
       </button>
+      ${phone ? `<a class="icon-text-btn" href="tel:+${escapeHtml(phone)}">
+        <span class="btn-icon">${iconSvg("phone")}</span><span>Call</span>
+      </a>` : ""}
       ${phone ? `<a class="icon-text-btn" href="sms:+${escapeHtml(phone)}?body=${encoded}">
         <span class="btn-icon">${iconSvg("receipt")}</span><span>SMS</span>
       </a>` : ""}
@@ -3818,6 +3824,36 @@ function renderBackupBanner() {
       <button class="icon-text-btn primary" type="button" data-action="backup-now">Back up</button>
     </div>
   `;
+}
+
+// Remind the admin about loans that need collecting — anything due within a day
+// (today or tomorrow) or already overdue. Shows the moment the app opens.
+function renderDueBanner() {
+  const host = qs("#dueBanner");
+  if (!host) return;
+  host.innerHTML = "";
+  const rows = allAnalyses().filter((row) =>
+    (row.status === "active" || row.status === "overdue") && daysUntil(row.loan.dueDate) <= 1);
+  if (!rows.length) return;
+  const overdue = rows.filter((row) => row.status === "overdue");
+  const soon = rows.filter((row) => row.status !== "overdue");
+  const total = roundMoney(rows.reduce((sum, row) => sum + row.outstanding, 0));
+  const parts = [];
+  if (overdue.length) parts.push(`${overdue.length} overdue`);
+  if (soon.length) parts.push(`${soon.length} due by tomorrow`);
+  const level = overdue.length ? "danger" : "warn";
+  host.innerHTML = `
+    <div class="backup-banner ${level}" data-due-jump style="cursor:pointer" role="button" tabindex="0">
+      <span class="backup-banner-icon">${iconSvg("alert")}</span>
+      <div class="backup-banner-text">
+        <strong>${parts.join(" · ")}</strong>
+        <p>${money(total)} to collect. Tap to open these loans.</p>
+      </div>
+    </div>`;
+  const jump = () => { ui.loanFilter = "open"; renderLoans(); switchView("loansView"); };
+  const el = host.querySelector("[data-due-jump]");
+  el?.addEventListener("click", jump);
+  el?.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); jump(); } });
 }
 
 // Warn when one borrower carries too much of the book — a single default there
