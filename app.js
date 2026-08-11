@@ -58,6 +58,7 @@ const icons = {
   arrowOut: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 17 9-9"/><path d="M8 8h8v8"/></svg>',
   minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>',
   chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/><path d="M12 17.5h.01"/></svg>',
   printer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7" rx="1"/></svg>'
 };
 
@@ -78,6 +79,11 @@ const routeViews = Object.fromEntries(Object.entries(viewRoutes).map(([view, rou
 
 let state = loadState();
 applySpreadsheetImport();
+// Persist client references on first run (including any the import added), so
+// each client's reference is stored and never renumbers when one is deleted.
+assignClientRefs(state);
+assignLoanRefs(state);
+saveState();
 const savedUi = loadUiState();
 const ui = {
   activeView: initialView(savedUi),
@@ -143,7 +149,7 @@ function emptyState() {
 
 function normalizeState(value) {
   const base = emptyState();
-  return migrateStartingCapital({
+  return assignLoanRefs(assignClientRefs(migrateStartingCapital({
     ...base,
     ...value,
     settings: { ...base.settings, ...(value.settings || {}) },
@@ -153,7 +159,65 @@ function normalizeState(value) {
     expenses: Array.isArray(value.expenses) ? value.expenses : [],
     capital: Array.isArray(value.capital) ? value.capital : [],
     imports: Array.isArray(value.imports) ? value.imports : []
-  });
+  })));
+}
+
+// ---- Client reference numbers ----
+// Every client carries a human-readable reference (QS-0001, QS-0002, …) that
+// staff and paperwork can quote. It is stored on the client and never
+// recomputed once set, so deleting one client never renumbers the others.
+
+function clientRefNumber(ref) {
+  const match = String(ref || "").match(/(\d+)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function formatClientRef(n) {
+  return `QS-${String(n).padStart(4, "0")}`;
+}
+
+function highestClientRef(clients) {
+  return clients.reduce((max, client) => Math.max(max, clientRefNumber(client.ref)), 0);
+}
+
+function nextClientRef() {
+  return formatClientRef(highestClientRef(state.clients) + 1);
+}
+
+// Backfill references for any client created before this feature, in creation
+// order so the oldest client gets the lowest number. Idempotent: a client that
+// already has a reference keeps it. Mutates and returns the same state object.
+function assignClientRefs(next) {
+  let highest = highestClientRef(next.clients);
+  const missing = next.clients
+    .filter((client) => !client.ref)
+    .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+  missing.forEach((client) => { client.ref = formatClientRef(++highest); });
+  return next;
+}
+
+// Loan reference numbers (QSL-0001, QSL-0002, …), same idea as client
+// references: stored on the loan, backfilled in creation order, never
+// recomputed, so deleting a loan never renumbers the others.
+function formatLoanRef(n) {
+  return `QSL-${String(n).padStart(4, "0")}`;
+}
+
+function highestLoanRef(loans) {
+  return loans.reduce((max, loan) => Math.max(max, clientRefNumber(loan.ref)), 0);
+}
+
+function nextLoanRef() {
+  return formatLoanRef(highestLoanRef(state.loans) + 1);
+}
+
+function assignLoanRefs(next) {
+  let highest = highestLoanRef(next.loans);
+  next.loans
+    .filter((loan) => !loan.ref)
+    .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
+    .forEach((loan) => { loan.ref = formatLoanRef(++highest); });
+  return next;
 }
 
 // "Starting capital" used to be a setting separate from the capital ledger,
@@ -322,6 +386,8 @@ function uniqueRecordId(prefix, label, records) {
 function saveState() {
   state.updatedAt = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  // Let the optional cloud layer know something changed (no-op if absent).
+  try { document.dispatchEvent(new CustomEvent("qs:saved")); } catch (e) {}
 }
 
 function uid(prefix) {
@@ -867,6 +933,80 @@ function netCapital() {
   return roundMoney(capitalInjected() - capitalWithdrawn());
 }
 
+// ---- Reconciliation ----
+// Cash on hand is only as honest as the ledger behind it. When the cash the
+// owner can physically count differs from the figure here, the gap IS a
+// recording error — something entered twice, entered wrong, or never entered.
+// These helpers hunt the usual suspects so the owner does not have to re-read
+// every movement by hand. Each list is "check these first", not a verdict.
+
+function daysApart(a, b) {
+  return Math.abs(Math.round((dateFromISO(a) - dateFromISO(b)) / 86400000));
+}
+
+// Single movements the size of the whole gap. A duplicate of one of these, or
+// one of these entered in error, would explain the difference in one shot.
+function reconcileMatches(difference) {
+  const target = roundMoney(Math.abs(difference));
+  if (target <= 0) return [];
+  return sortedLedger().filter((row) => roundMoney(Math.abs(row.amount)) === target);
+}
+
+// Same kind, same amount, same name, dated within a few days — the classic
+// shape of one movement entered twice. The window is short on purpose: a
+// client who genuinely pays the same amount every week must not be flagged
+// on every instalment.
+function duplicateSuspects(windowDays = 3) {
+  const groups = new Map();
+  sortedLedger().forEach((row) => {
+    const key = `${row.kind}|${roundMoney(Math.abs(row.amount))}|${row.label}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  });
+
+  const pairs = [];
+  groups.forEach((rows) => {
+    for (let i = 1; i < rows.length; i += 1) {
+      if (daysApart(rows[i - 1].date, rows[i].date) <= windowDays) {
+        pairs.push([rows[i - 1], rows[i]]);
+      }
+    }
+  });
+  return pairs;
+}
+
+// Paid more than the loan was ever due. Real overpayments happen, but a
+// payment logged against the wrong (already settled) loan looks exactly like
+// this too, and it quietly inflates cash on hand.
+function overpaidLoans() {
+  return allAnalyses()
+    .map((row) => ({ ...row, excess: roundMoney(row.paid - row.terms.totalDue) }))
+    .filter((row) => row.excess > 0);
+}
+
+// Payments pointing at a loan that no longer exists. Deleting a loan removes
+// its payments today, but an older build or a hand-edited backup can leave
+// these behind — counted in cash on hand yet invisible on every loan screen.
+function orphanPayments() {
+  return state.payments.filter((payment) => !getLoan(payment.loanId));
+}
+
+function reconcileReport(counted) {
+  const cash = cashOnHand();
+  // Positive difference: more real cash than the ledger knows. Negative: less.
+  const difference = roundMoney(roundMoney(counted) - cash);
+  return {
+    counted: roundMoney(counted),
+    cashOnHand: cash,
+    difference,
+    matches: reconcileMatches(difference),
+    duplicates: duplicateSuspects(),
+    overpaid: overpaidLoans(),
+    orphans: orphanPayments(),
+    trail: cashTrail()
+  };
+}
+
 // ---- Projection ----
 // The near months come from real due dates on the current book. Everything
 // past that is a recycling model, and the two are kept visibly apart: a
@@ -1235,6 +1375,7 @@ function renderDashboard() {
   const totals = totalsFor(dashboardMonth, dashboardYear);
 
   renderFloat();
+  renderRiskBanner();
 
   const metrics = [
     ["outstanding", "Outstanding", money(totals.totalOutstanding), "Collectable balance", ""],
@@ -1277,7 +1418,7 @@ function renderClients() {
   const term = ui.clientSearch.toLowerCase();
   const clients = state.clients
     .filter((client) => {
-      const haystack = [client.name, client.phone, client.nationalId, client.employer].join(" ").toLowerCase();
+      const haystack = [client.ref, client.name, client.phone, client.nationalId, client.employer].join(" ").toLowerCase();
       return haystack.includes(term);
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -1299,6 +1440,7 @@ function renderLoans() {
       const statusMatch = ui.loanFilter === "all" || row.status === ui.loanFilter || (ui.loanFilter === "open" && (row.status === "active" || row.status === "overdue"));
       const monthMatch = ui.loanMonth === "all" || monthKey(row.loan.issueDate) === ui.loanMonth;
       const searchMatch = matchesSearch(ui.loanSearch, [
+        row.loan.ref,
         getClientName(row.loan.clientId),
         row.loan.purpose,
         statusLabel(row.status),
@@ -1649,6 +1791,139 @@ function cashRowHtml(row) {
       </div>
     </div>
   `;
+}
+
+function openReconcileForm() {
+  const cash = cashOnHand();
+  const last = state.settings.lastReconcile;
+  const lastNote = last
+    ? `Last reconciled ${formatDate(last.at)}: counted ${money(last.counted)}, ${last.difference === 0
+        ? "and it matched exactly — so whatever is off now happened after that date."
+        : `${money(Math.abs(last.difference))} ${last.difference > 0 ? "more" : "less"} than the app.`}`
+    : "Count everything the float lives in — cash box, bank, e-wallet — and enter the total.";
+
+  openSheet("Reconcile cash", `
+    <p class="form-hint">${escapeHtml(lastNote)}</p>
+    <div class="form-grid">
+      <label class="wide" data-prefix="${currency}"><span>Cash you actually hold</span><input name="counted" type="number" min="0" step="0.01" required inputmode="decimal" placeholder="0.00" /></label>
+    </div>
+    <p class="form-hint">The app currently says ${money(cash)}.</p>
+  `, "Compare", (form) => {
+    const counted = roundMoney(form.get("counted"));
+    if (counted < 0 || !Number.isFinite(counted)) {
+      toast("Enter the amount you counted.");
+      return false;
+    }
+    const report = reconcileReport(counted);
+    state.settings.lastReconcile = { at: todayISO(), counted: report.counted, difference: report.difference };
+    saveState();
+    openReconcilePanel(report);
+    return false; // the panel reuses the sheet — closing it now would wipe the report
+  });
+}
+
+// A suspect row: same shape as a statement row, minus the running balance,
+// which means nothing when rows are pulled out of ledger order.
+function reconcileRowHtml(row) {
+  const positive = row.amount >= 0;
+  return `
+    <div class="ledger-row">
+      <span class="ledger-row-icon ${row.kind}">${iconSvg(cashIconFor(row.kind))}</span>
+      <div class="ledger-row-main">
+        <strong>${escapeHtml(row.label)}</strong>
+        <p class="item-meta">${formatDate(row.date)} · ${escapeHtml(row.sub)}</p>
+      </div>
+      <div class="ledger-row-amount">
+        <strong class="${positive ? "pos" : "neg"}">${positive ? "+" : "−"}${money(Math.abs(row.amount))}</strong>
+      </div>
+    </div>
+  `;
+}
+
+function reconcileSectionHtml(title, hint, bodyHtml) {
+  return `
+    <div class="ledger-group">
+      <div class="ledger-group-head">${escapeHtml(title)}</div>
+      ${hint ? `<p class="item-meta">${escapeHtml(hint)}</p>` : ""}
+      <div class="ledger-rows">${bodyHtml}</div>
+    </div>
+  `;
+}
+
+function openReconcilePanel(report) {
+  const gap = Math.abs(report.difference);
+  const over = report.difference > 0;
+  const matched = report.difference === 0;
+
+  const explanation = matched
+    ? "Everything the ledger says matches what you hold. Reconciling regularly keeps it this way — next time something is off, you will know it happened after today."
+    : over
+      ? `You hold ${money(gap)} the ledger does not know about. Either money in was never recorded (a repayment or a capital injection), or money out was recorded twice or bigger than it really was.`
+      : `The ledger believes there is ${money(gap)} more than you can count. Either money in was recorded twice or too big (a repayment or an injection), or money out was never recorded (a loan paid out, an expense, or a withdrawal).`;
+
+  const sections = [];
+  if (!matched && report.matches.length) {
+    sections.push(reconcileSectionHtml(
+      `Movements of exactly ${money(gap)}`,
+      "One entry the size of the whole gap — start here. A duplicate of one of these, or one of these entered in error, explains the difference in one shot.",
+      report.matches.map(reconcileRowHtml).join("")
+    ));
+  }
+  if (report.duplicates.length) {
+    sections.push(reconcileSectionHtml(
+      "Possible double entries",
+      "Same kind, same amount, same name, dated within days of each other. Instalments can genuinely look like this — check before deleting anything.",
+      report.duplicates.map((pair) => pair.map(reconcileRowHtml).join("")).join("")
+    ));
+  }
+  if (report.overpaid.length) {
+    sections.push(reconcileSectionHtml(
+      "Loans paid beyond what was due",
+      "A real overpayment, or a payment logged against the wrong loan.",
+      report.overpaid.map((row) => reconcileRowHtml({
+        kind: "repayment",
+        label: getClientName(row.loan.clientId),
+        date: row.loan.dueDate,
+        sub: `Paid ${money(row.paid)} against ${money(row.terms.totalDue)} due`,
+        amount: row.excess
+      })).join("")
+    ));
+  }
+  if (report.orphans.length) {
+    sections.push(reconcileSectionHtml(
+      "Payments with no loan",
+      "Counted in cash on hand but invisible on every loan screen. Usually left behind by an old backup.",
+      report.orphans.map((payment) => reconcileRowHtml({
+        kind: "repayment",
+        label: "Repayment",
+        date: payment.date,
+        sub: `Loan record missing · ${payment.method || "Cash"}`,
+        amount: roundMoney(payment.amount)
+      })).join("")
+    ));
+  }
+
+  const trailNote = report.trail && report.trail.dips.length
+    ? `<p class="form-hint">The cash trail also goes negative on ${formatDate(report.trail.firstDip.date)} — money moved in and out around then that was never recorded. See the check in the Cash flow section.</p>`
+    : "";
+
+  const noLeads = !matched && !sections.length
+    ? `<p class="form-hint">No single entry explains this gap, which points to a movement that was never recorded at all. Open the Statement and compare each month's closing balance against your bank and cash records to find the month it first appears — reconciling regularly narrows that window.</p>`
+    : "";
+
+  openPanel("Reconcile", `
+    <div class="statement ledger-view">
+      <div class="ledger-hero">
+        <span class="ledger-hero-label">${matched ? "Reconciled" : (over ? "More cash than recorded" : "Less cash than recorded")}</span>
+        <strong class="ledger-hero-value">${money(gap)}</strong>
+        <span class="ledger-hero-note">App ${money(report.cashOnHand)} · Counted ${money(report.counted)}</span>
+      </div>
+      <p class="form-hint">${escapeHtml(explanation)}</p>
+      ${sections.join("")}
+      ${trailNote}
+      ${noLeads}
+    </div>
+  `);
 }
 
 function openCapitalForm(direction = "in") {
@@ -2036,7 +2311,7 @@ function clientCard(client) {
       <div class="item-top">
         <div class="item-title">
           <strong>${escapeHtml(client.name)}</strong>
-          <p class="item-meta">${escapeHtml(client.phone || "No phone")} · ${escapeHtml(client.employer || "No employer")}</p>
+          <p class="item-meta">${client.ref ? `${escapeHtml(client.ref)} · ` : ""}${escapeHtml(client.phone || "No phone")} · ${escapeHtml(client.employer || "No employer")}</p>
         </div>
         <span class="status ${openRows.length ? "active" : "paid"}">${openRows.length ? "Active" : "Clear"}</span>
       </div>
@@ -2079,7 +2354,7 @@ function loanCard(row) {
       <div class="item-top">
         <div class="item-title">
           <strong>${escapeHtml(getClientName(loan.clientId))}</strong>
-          <p class="item-meta">${escapeHtml(loan.purpose || "Cashloan")} · Issued ${formatDate(loan.issueDate)}${rollMeta}</p>
+          <p class="item-meta">${loan.ref ? `${escapeHtml(loan.ref)} · ` : ""}${escapeHtml(loan.purpose || "Cashloan")} · Issued ${formatDate(loan.issueDate)}${rollMeta}</p>
         </div>
         <span class="status ${row.status}">${escapeHtml(statusLabel(row.status))}</span>
       </div>
@@ -2100,6 +2375,9 @@ function loanCard(row) {
         </button>` : ""}
         ${open ? `<button class="icon-text-btn" type="button" data-action="remind-loan" data-id="${loan.id}">
           <span class="btn-icon">${iconSvg("share")}</span><span>Remind</span>
+        </button>` : ""}
+        ${row.status === "paid" ? `<button class="icon-text-btn" type="button" data-action="paid-up-letter" data-id="${loan.id}">
+          <span class="btn-icon">${iconSvg("fileText")}</span><span>Paid-up letter</span>
         </button>` : ""}
         <button class="icon-text-btn" type="button" data-action="edit-loan" data-id="${loan.id}">
           <span class="btn-icon">${iconSvg("edit")}</span><span>Edit</span>
@@ -2140,13 +2418,267 @@ function paymentCard(row) {
   `;
 }
 
+// ============================================================
+// Paid-up letter generator
+// Issues a client a print-ready settlement letter for a fully-paid loan,
+// straight from the ledger: letterhead, the settlement facts, a stable
+// reference number, the official stamp, and the owner's signature. The
+// signature is held only on this device (Reports > Signature) and is never
+// sent anywhere. The stamp is drawn from the business details below, which
+// are the same public details that appear on the letterhead.
+// ============================================================
+
+const BUSINESS = {
+  legalName: "Quickserve Financial Services CC",
+  tradingAs: "QuickServe Cashloan",
+  cc: "CC/2026/01904",
+  addressLine: "3403 Danger Ashipala Street, Swakopmund, Namibia",
+  postal: "P.O. Box 197, Swakopmund",
+  email: "erastusmatheus3@gmail.com",
+  cell: "+264 81 281 9840",
+  whatsapp: "+264 81 264 6222",
+  town: "Swakopmund",
+  officer: "Erastus Taapopi Matheus",
+  officerCapacity: "Owner and Member"
+};
+
+// The brand wordmark, inline so the letter renders offline and when printed.
+const LETTERHEAD_LOGO = `<svg viewBox="0 0 720 180" xmlns="http://www.w3.org/2000/svg" style="height:34px;width:auto">
+  <g transform="translate(18 44)">
+    <path fill="#12b84f" d="M0 50h36v8H0zM10 28h44v8H10zM18 72h44v8H18z"/>
+    <path fill="#053437" d="M97 0h62c14 0 25 11 25 25v5h-34v-1c0-3-2-5-5-5H99c-17 0-30 13-30 30s13 30 30 30h46c3 0 5-2 5-5v-1h34v5c0 14-11 25-25 25H97c-35 0-63-24-63-54S62 0 97 0z"/>
+    <path fill="#053437" d="M116 37h33l40 71h-37l-18-33h-31l13-22h6z"/>
+    <path fill="#12b84f" d="M194 0h80l-19 28h-61c-6 0-10 4-10 9s4 9 10 9h35c28 0 48 13 48 34 0 19-17 28-39 28h-72l19-28h52c6 0 10-4 10-9s-4-9-10-9h-35c-29 0-48-13-48-34 0-19 17-28 40-28z"/>
+  </g>
+  <path stroke="#053437" stroke-width="7" stroke-linecap="round" d="M324 29v122"/>
+  <g transform="translate(360 31)">
+    <text x="0" y="55" font-family="Georgia, serif" font-weight="700" font-size="56"><tspan fill="#053437">Quick</tspan><tspan fill="#12b84f">Serve</tspan></text>
+    <text x="3" y="108" fill="#243437" font-family="Georgia, serif" font-weight="500" font-size="24" letter-spacing="13">CASHLOAN</text>
+  </g>
+</svg>`;
+
+// The official stamp, drawn from the business details (no stored image).
+function businessStampSvg() {
+  const top = BUSINESS.legalName.toUpperCase();
+  const bottom = `${BUSINESS.town.toUpperCase()} · NAMIBIA`;
+  return `<svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" style="width:104px;height:104px">
+    <defs>
+      <path id="stampTopL" d="M 52,160 A 108,108 0 0 1 268,160"/>
+      <path id="stampBottomL" d="M 56,160 A 104,104 0 0 0 264,160"/>
+    </defs>
+    <g transform="rotate(-7 160 160)" fill="#0a5b54" stroke="#0a5b54">
+      <circle cx="160" cy="160" r="146" fill="none" stroke-width="5"/>
+      <circle cx="160" cy="160" r="120" fill="none" stroke-width="2.5"/>
+      <text font-family="Arial, sans-serif" font-weight="700" font-size="15.5" letter-spacing="0.5" stroke="none"><textPath href="#stampTopL" startOffset="50%" text-anchor="middle">${escapeHtml(top)}</textPath></text>
+      <text font-family="Arial, sans-serif" font-weight="700" font-size="16.5" letter-spacing="2" stroke="none"><textPath href="#stampBottomL" startOffset="50%" text-anchor="middle">${escapeHtml(bottom)}</textPath></text>
+      <circle cx="30.5" cy="160" r="3.2" stroke="none"/><circle cx="289.5" cy="160" r="3.2" stroke="none"/>
+      <g stroke="none" text-anchor="middle" font-family="Arial, sans-serif">
+        <line x1="92" y1="132" x2="228" y2="132" stroke="#0a5b54" stroke-width="2"/>
+        <text x="160" y="152" font-weight="700" font-size="15.5">t/a QUICKSERVE</text>
+        <text x="160" y="171" font-weight="700" font-size="15.5">CASHLOAN</text>
+        <text x="160" y="192" font-weight="600" font-size="12.5">Reg. ${escapeHtml(BUSINESS.cc)}</text>
+        <line x1="92" y1="204" x2="228" y2="204" stroke="#0a5b54" stroke-width="2"/>
+      </g>
+    </g>
+  </svg>`;
+}
+
+// A stable, human-readable letter reference per loan (QS-PUL-YYYY-NNNN), stored
+// on the loan so re-issuing the same letter keeps the same number.
+function paidUpLetterRef(loan) {
+  if (loan.paidUpRef) return loan.paidUpRef;
+  const year = dateFromISO(todayISO()).getFullYear();
+  const seq = (Number(state.settings.paidUpLetterSeq) || 0) + 1;
+  state.settings.paidUpLetterSeq = seq;
+  loan.paidUpRef = `QS-PUL-${year}-${String(seq).padStart(4, "0")}`;
+  saveState();
+  return loan.paidUpRef;
+}
+
+function loanReference(loan) {
+  return loan.ref || `QSL-${String(loan.id).replace(/[^a-z0-9]/gi, "").slice(-6).toUpperCase()}`;
+}
+
+function paidUpLetterHtml(loan) {
+  const client = getClient(loan.clientId);
+  const terms = loanTerms(loan);
+  const analysis = analyzeLoan(loan);
+  const payments = paymentsForLoan(loan.id);
+  const finalPayment = payments.length ? payments[payments.length - 1] : null;
+  const settled = finalPayment ? finalPayment.date : loan.dueDate;
+  const ref = paidUpLetterRef(loan);
+  const today = todayISO();
+  const e = escapeHtml;
+  const sig = state.settings.signatureDataUrl;
+
+  const row = (k, v) => `<tr><td class="k">${e(k)}</td><td>${v}</td></tr>`;
+
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paid-up letter — ${e(client ? client.name : "Client")}</title>
+  <style>
+    @page { size: A4; margin: 16mm 16mm 14mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Georgia, "Times New Roman", serif; color: #222; font-size: 11.2pt; line-height: 1.5; margin: 0; background: #f4f4f4; }
+    .sheet { background: #fff; max-width: 190mm; margin: 12px auto; padding: 14mm 15mm; box-shadow: 0 2px 14px rgba(0,0,0,.14); }
+    .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #9a9a9a; padding-bottom: 8px; gap: 12px; }
+    .head .biz { text-align: right; font-size: 8pt; color: #555; line-height: 1.5; }
+    .head .biz strong { color: #1a1a1a; font-size: 8.6pt; }
+    h1 { text-align: center; font-size: 15pt; letter-spacing: .3px; margin: 16px 0 4px; text-transform: uppercase; }
+    .whom { font-weight: 700; margin: 14px 0 8px; }
+    table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 10.4pt; }
+    td { border: 0.8px solid #cfcfcf; padding: 5px 8px; vertical-align: top; }
+    td.k { width: 42%; color: #333; }
+    h2 { font-size: 11.5pt; margin: 16px 0 6px; border-bottom: 1px solid #bbb; padding-bottom: 3px; }
+    p { margin: 0 0 7px; }
+    .big { background: #f3f3f3; font-weight: 700; }
+    .sign { margin-top: 20px; display: flex; align-items: flex-end; gap: 26px; flex-wrap: wrap; }
+    .sign .who { min-width: 220px; }
+    .sig-img { height: 54px; display: block; margin: 0 0 -6px 4px; }
+    .sig-line { width: 220px; border-bottom: 1px solid #555; height: 44px; }
+    .muted { color: #666; font-size: 9.4pt; }
+    .foot { margin-top: 14px; font-style: italic; color: #444; font-size: 9.6pt; }
+    .bar { position: sticky; top: 0; background: #06302e; color: #fff; padding: 10px 14px; display: flex; gap: 10px; align-items: center; justify-content: center; }
+    .bar button { font: inherit; font-size: 13px; background: #12b84f; color: #06302e; font-weight: 700; border: 0; border-radius: 8px; padding: 9px 18px; cursor: pointer; }
+    .bar span { font-family: system-ui, sans-serif; font-size: 12px; opacity: .85; }
+    @media print { body { background: #fff; } .bar { display: none; } .sheet { box-shadow: none; margin: 0; max-width: none; padding: 0; } }
+  </style></head><body>
+  <div class="bar"><button onclick="window.print()">Print / Save as PDF</button><span>Print, then choose “Save as PDF”.</span></div>
+  <div class="sheet">
+    <div class="head">
+      <div>${LETTERHEAD_LOGO}</div>
+      <div class="biz">
+        <div><strong>${e(BUSINESS.legalName)}</strong> · Reg. No. ${e(BUSINESS.cc)}</div>
+        <div>${e(BUSINESS.addressLine)} · ${e(BUSINESS.postal)}</div>
+        <div>Cell ${e(BUSINESS.cell)} · WhatsApp ${e(BUSINESS.whatsapp)} · ${e(BUSINESS.email)}</div>
+      </div>
+    </div>
+
+    <h1>Paid-up letter and confirmation of settlement</h1>
+    <p class="whom">TO WHOM IT MAY CONCERN</p>
+
+    <table>
+      ${row("Letter reference", e(ref))}
+      ${row("Date of issue", e(formatDate(today)))}
+      ${row("Issued at", e(BUSINESS.town) + ", Namibia")}
+      ${row("Issued by", e(BUSINESS.officer) + ", " + e(BUSINESS.officerCapacity))}
+    </table>
+
+    <h2>1. What this letter confirms</h2>
+    <p>This letter confirms that <strong>${e(client ? client.name : "the client named below")}</strong> has repaid, in full, the loan granted by ${e(BUSINESS.legalName)} trading as ${e(BUSINESS.tradingAs)}, and that the account is closed. Everything stated here is taken directly from our loan records as at the date of issue.</p>
+
+    <h2>2. The client this letter is about</h2>
+    <table>
+      ${row("Full name", e(client ? client.name : ""))}
+      ${row("Namibian identity number", e(client && client.nationalId ? client.nationalId : "—"))}
+      ${row("Client reference", e(client && client.ref ? client.ref : "—"))}
+    </table>
+
+    <h2>3. The loan</h2>
+    <table>
+      ${row("Loan reference", e(loanReference(loan)))}
+      ${row("Date the money was paid out", e(formatDate(loan.issueDate)))}
+      ${row("Principal advanced", money(terms.principal))}
+      ${row("Total amount that was payable", money(terms.totalDue))}
+      ${row("Total amount actually paid", money(analysis.paid))}
+      ${row("Date of the final payment", e(formatDate(settled)))}
+    </table>
+
+    <h2>4. Settlement in full</h2>
+    <table>
+      ${row("Balance now outstanding", `<strong>${money(0)}</strong>`)}
+    </table>
+    <p>No principal, no interest, no service fee, no default interest, no collection charge and no other amount of any kind remains payable by the client to ${e(BUSINESS.tradingAs)} on this loan. The account is <strong>closed with effect from ${e(formatDate(settled))}</strong>.</p>
+
+    <h2>5. No security or collateral is held</h2>
+    <p>${e(BUSINESS.tradingAs)} does not take any collateral or security for its loans, and did not take any for this loan. We do not hold this client's bank card, PIN, or any original identity document — this is prohibited by the Microlending Act 7 of 2018.</p>
+
+    <h2>6. How to verify this letter</h2>
+    <p>Any person given this letter may verify it by contacting ${e(BUSINESS.tradingAs)} on ${e(BUSINESS.whatsapp)} and quoting the letter reference above. A genuine letter carries the reference number, a signature, and the stamp below.</p>
+
+    <div class="sign">
+      <div class="who">
+        <div>${sig ? `<img class="sig-img" src="${sig}" alt="Signature"/>` : `<div class="sig-line"></div>`}</div>
+        <div style="border-top:1px solid #555;padding-top:4px">
+          <strong>${e(BUSINESS.officer)}</strong><br>
+          <span class="muted">${e(BUSINESS.officerCapacity)} · ${e(BUSINESS.legalName)}</span><br>
+          <span class="muted">Date: ${e(formatDate(today))} · ${e(BUSINESS.town)}</span>
+        </div>
+      </div>
+      <div>${businessStampSvg()}</div>
+    </div>
+    <p class="foot">This letter is not valid unless it is signed and stamped.</p>
+  </div>
+  </body></html>`;
+}
+
+function openPaidUpLetter(loanId) {
+  const loan = getLoan(loanId);
+  if (!loan) return;
+  if (analyzeLoan(loan).outstanding > 0.009) {
+    toast("This loan is not fully settled, so a paid-up letter cannot be issued yet.");
+    return;
+  }
+  if (!state.settings.signatureDataUrl && !confirm("You have not added your signature yet (Reports > Signature). Issue the letter with a blank signature line to sign by hand?")) {
+    return;
+  }
+  const html = paidUpLetterHtml(loan);
+  const client = getClient(loan.clientId);
+  const name = (client ? client.name : "client").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  const win = window.open("", "_blank");
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+  } else {
+    downloadFile(`paid-up-letter-${name}.html`, html, "text/html");
+    toast("Pop-up blocked — the letter was downloaded. Open it and print to PDF.");
+  }
+}
+
+// Signature is stored only on this device and printed on issued letters.
+function openSignatureSetup() {
+  const sig = state.settings.signatureDataUrl;
+  openPanel("Signature", `
+    <div class="statement">
+      <p class="form-hint">Upload a photo or scan of your signature (PNG or JPG, dark ink on white paper works best). It is stored <strong>only on this device</strong>, never uploaded, and is printed on the paid-up letters you issue.</p>
+      ${sig ? `<div style="margin:14px 0;padding:14px;background:#fff;border:1px solid #ddd;border-radius:10px;text-align:center"><img src="${sig}" alt="Your signature" style="max-height:90px;max-width:100%"/></div>` : `<p class="form-hint">No signature saved yet.</p>`}
+      <div class="sheet-actions">
+        <label class="icon-text-btn primary" style="cursor:pointer">
+          <span class="btn-icon">${iconSvg("upload")}</span><span>${sig ? "Replace" : "Upload"}</span>
+          <input type="file" id="sigFileInput" accept="image/*" hidden />
+        </label>
+        ${sig ? `<button class="icon-text-btn" type="button" id="sigRemoveBtn"><span class="btn-icon">${iconSvg("trash")}</span><span>Remove</span></button>` : ""}
+      </div>
+    </div>
+  `);
+  qs("#sigFileInput")?.addEventListener("change", (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (file.size > 2_000_000) { toast("That image is too large. Use one under 2 MB."); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.settings.signatureDataUrl = String(reader.result);
+      saveState();
+      toast("Signature saved to this device.");
+      openSignatureSetup();
+    };
+    reader.readAsDataURL(file);
+  });
+  qs("#sigRemoveBtn")?.addEventListener("click", () => {
+    delete state.settings.signatureDataUrl;
+    saveState();
+    toast("Signature removed.");
+    openSignatureSetup();
+  });
+}
+
 function openClientForm(client = null) {
   const isEdit = Boolean(client);
   openSheet(isEdit ? "Edit client" : "New client", `
     <div class="form-grid">
       <label class="wide"><span>Name</span><input name="name" required value="${escapeHtml(client?.name || "")}" autocomplete="name" placeholder="Full name" /></label>
-      <label><span>Phone</span><input name="phone" value="${escapeHtml(client?.phone || "")}" inputmode="tel" autocomplete="tel" placeholder="Optional" /></label>
-      <label><span>ID or passport</span><input name="nationalId" value="${escapeHtml(client?.nationalId || "")}" placeholder="Optional" /></label>
+      <label><span>Phone</span><input name="phone" required value="${escapeHtml(client?.phone || "")}" inputmode="tel" autocomplete="tel" placeholder="e.g. 081 123 4567" /></label>
+      <label><span>ID or passport</span><input name="nationalId" required value="${escapeHtml(client?.nationalId || "")}" placeholder="ID or passport no." /></label>
     </div>
     <p class="form-section-label">Details</p>
     <div class="form-grid">
@@ -2156,10 +2688,26 @@ function openClientForm(client = null) {
       <label class="wide"><span>Notes</span><textarea name="notes" placeholder="Anything worth remembering">${escapeHtml(client?.notes || "")}</textarea></label>
     </div>
   `, isEdit ? "Save client" : "Add client", (form) => {
+    const name = cleanText(form.get("name"));
+    const phone = cleanText(form.get("phone"));
+    const nationalId = cleanText(form.get("nationalId"));
+    if (!name) {
+      toast("Enter the client's name.");
+      return false;
+    }
+    if (phone.replace(/\D/g, "").length < 8) {
+      toast("Enter a valid phone number — it's required for a compliant loan.");
+      return false;
+    }
+    if (nationalId.replace(/\s/g, "").length < 6) {
+      toast("Enter the client's ID or passport number — it's required.");
+      return false;
+    }
+
     const record = {
-      name: cleanText(form.get("name")),
-      phone: cleanText(form.get("phone")),
-      nationalId: cleanText(form.get("nationalId")),
+      name,
+      phone,
+      nationalId,
       employer: cleanText(form.get("employer")),
       address: cleanText(form.get("address")),
       nextOfKin: cleanText(form.get("nextOfKin")),
@@ -2170,7 +2718,7 @@ function openClientForm(client = null) {
       Object.assign(client, record);
       toast("Client updated.");
     } else {
-      state.clients.push({ id: uid("client"), createdAt: new Date().toISOString(), ...record });
+      state.clients.push({ id: uid("client"), ref: nextClientRef(), createdAt: new Date().toISOString(), ...record });
       toast("Client added.");
     }
     saveState();
@@ -2344,18 +2892,46 @@ function openLoanForm(loan = null, forcedClientId = "") {
     </div>
   `, isEdit ? "Save loan" : "Create loan", (form) => {
     const principal = roundMoney(form.get("principal"));
+    const interestRate = roundMoney(form.get("interestRate"));
+    const serviceFee = roundMoney(form.get("serviceFee"));
+    const issueDate = form.get("issueDate");
+    const dueDate = form.get("dueDate");
     if (principal <= 0) {
       toast("Enter the amount given.");
+      return false;
+    }
+    if (!(interestRate >= 0) || interestRate > 100) {
+      toast("Interest rate must be between 0 and 100%.");
+      return false;
+    }
+    if (!(serviceFee >= 0)) {
+      toast("Service fee can't be negative.");
+      return false;
+    }
+    if (!issueDate || !dueDate) {
+      toast("Set both the issue and due dates.");
+      return false;
+    }
+    if (issueDate > todayISO()) {
+      toast("Issue date can't be in the future.");
+      return false;
+    }
+    if (dueDate <= issueDate) {
+      toast("Due date must be after the issue date.");
+      return false;
+    }
+    if (principal * (interestRate / 100) + serviceFee > principal * 0.3 + 0.001) {
+      toast("Interest + fees are above the 30% NAMFISA cap for this loan.");
       return false;
     }
 
     const record = {
       clientId: form.get("clientId"),
       principal,
-      interestRate: roundMoney(form.get("interestRate")),
-      serviceFee: roundMoney(form.get("serviceFee")),
-      issueDate: form.get("issueDate"),
-      dueDate: form.get("dueDate"),
+      interestRate,
+      serviceFee,
+      issueDate,
+      dueDate,
       purpose: cleanText(form.get("purpose"))
     };
 
@@ -2365,6 +2941,7 @@ function openLoanForm(loan = null, forcedClientId = "") {
     } else {
       state.loans.push({
         id: uid("loan"),
+        ref: nextLoanRef(),
         createdAt: new Date().toISOString(),
         status: "active",
         ...record
@@ -2609,7 +3186,7 @@ function openStatement(client) {
       <div class="statement-head">
         <div class="item-title">
           <strong>${escapeHtml(client.name)}</strong>
-          <p class="item-meta">${escapeHtml(client.phone || "No phone")}${client.nationalId ? ` · ID ${escapeHtml(client.nationalId)}` : ""}</p>
+          <p class="item-meta">${client.ref ? `${escapeHtml(client.ref)} · ` : ""}${escapeHtml(client.phone || "No phone")}${client.nationalId ? ` · ID ${escapeHtml(client.nationalId)}` : ""}</p>
         </div>
         <p class="item-meta">${formatDate(todayISO())}</p>
       </div>
@@ -3243,6 +3820,36 @@ function renderBackupBanner() {
   `;
 }
 
+// Warn when one borrower carries too much of the book — a single default there
+// would hurt disproportionately. Purely derived from live loan data.
+function renderRiskBanner() {
+  const host = qs("#riskBanner");
+  if (!host) return;
+  host.innerHTML = "";
+  const open = allAnalyses().filter((row) => row.status === "active" || row.status === "overdue");
+  const total = roundMoney(open.reduce((sum, row) => sum + row.outstanding, 0));
+  if (total < 5000) return; // book too small for concentration to matter
+  const byClient = new Map();
+  open.forEach((row) => {
+    byClient.set(row.loan.clientId, roundMoney((byClient.get(row.loan.clientId) || 0) + row.outstanding));
+  });
+  let topId = null;
+  let topAmt = 0;
+  byClient.forEach((amt, id) => { if (amt > topAmt) { topAmt = amt; topId = id; } });
+  const share = total > 0 ? topAmt / total : 0;
+  if (share < 0.25) return;
+  const level = share >= 0.4 ? "danger" : "warn";
+  host.innerHTML = `
+    <div class="backup-banner ${level}">
+      <span class="backup-banner-icon">${iconSvg("alert")}</span>
+      <div class="backup-banner-text">
+        <strong>Single-borrower risk</strong>
+        <p>${escapeHtml(getClientName(topId))} owes ${money(topAmt)} — ${Math.round(share * 100)}% of everything out on loan. One default here would sting.</p>
+      </div>
+    </div>
+  `;
+}
+
 function restoreData(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -3354,6 +3961,7 @@ function handleAction(action, id) {
   if (action === "backup-now") backupData();
   if (action === "rollover-loan") openRolloverForm(id);
   if (action === "remind-loan") openReminder(id);
+  if (action === "paid-up-letter") openPaidUpLetter(id);
 }
 
 function handleDashboardAction(action) {
@@ -3795,6 +4403,7 @@ function bindEvents() {
   });
   qs("#backupEncryptedBtn").addEventListener("click", backupDataEncrypted);
   qs("#exportLoanbookBtn").addEventListener("click", exportLoanbook);
+  qs("#signatureBtn")?.addEventListener("click", openSignatureSetup);
   qs("#exportPaymentsBtn").addEventListener("click", exportPayments);
   qs("#backupBtn").addEventListener("click", backupData);
   qs("#restoreBtn").addEventListener("click", () => {
@@ -3809,6 +4418,7 @@ function bindEvents() {
   qs("#addCapitalInBtn")?.addEventListener("click", () => openCapitalForm("in"));
   qs("#addCapitalOutBtn")?.addEventListener("click", () => openCapitalForm("out"));
   qs("#viewStatementBtn")?.addEventListener("click", openCashStatement);
+  qs("#reconcileBtn")?.addEventListener("click", openReconcileForm);
 
   qs("#themeToggleBtn")?.addEventListener("click", toggleTheme);
   qsa("[data-theme-option]").forEach((button) => {

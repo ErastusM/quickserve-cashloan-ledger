@@ -27,7 +27,7 @@
         } catch (e) {}
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=29" />
+    <link rel="stylesheet" href="./styles.css?v=32" />
   </head>
   <body>
     <div class="app-shell">
@@ -55,6 +55,8 @@
           </div>
 
           <div id="backupBanner"></div>
+
+          <div id="riskBanner"></div>
 
           <div class="float-grid" id="floatGrid"></div>
 
@@ -187,6 +189,12 @@
             </div>
             <div class="report-grid" id="cashFlowGrid"></div>
             <div id="cashTrail"></div>
+            <div class="action-row">
+              <button class="icon-text-btn tinted" id="reconcileBtn" type="button">
+                <span class="btn-icon" data-icon="check"></span>
+                <span>Reconcile cash</span>
+              </button>
+            </div>
           </section>
 
           <section class="surface">
@@ -311,6 +319,26 @@
 
           <section class="surface">
             <div class="section-head">
+              <h3>Cloud sync</h3>
+            </div>
+            <div id="cloudSyncBody"><p class="item-meta">Loading…</p></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Paid-up letters</h3>
+            </div>
+            <p class="item-meta">Issue a settlement letter from any fully-paid loan — open the <strong>Loans</strong> tab and tap <strong>Paid-up letter</strong> on a paid loan. Add your signature here first; it stays on this device.</p>
+            <div class="action-row">
+              <button class="icon-text-btn" id="signatureBtn" type="button">
+                <span class="btn-icon" data-icon="edit"></span>
+                <span>Signature</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
               <h3>Security</h3>
             </div>
             <p class="item-meta" id="pinStatusText">PIN lock is off.</p>
@@ -379,7 +407,8 @@
       </div>
     </div>
 
-    <script src="./import-data.js?v=29"></script>
-    <script src="./app.js?v=29"></script>
+    <script src="./import-data.js?v=32"></script>
+    <script src="./app.js?v=32"></script>
+    <script src="./cloud.js?v=32"></script>
   </body>
 </html>

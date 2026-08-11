@@ -4,3 +4,9 @@ Thumbs.db
 node_modules/
 .env
 .env.*
+
+# Sensitive — never commit to a public repo. The owner's signature is a
+# forgeable personal mark; keep it on the device only.
+assets/signature.png
+assets/stamp.png
+assets/stamp.svg

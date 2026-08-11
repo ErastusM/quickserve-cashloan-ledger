@@ -10,7 +10,7 @@ The app runs entirely in a phone browser and stores all data **on that device on
 
 - Dashboard: outstanding, overdue, due this month, money collected, revenue, net profit, and active clients at a glance. Every figure is tappable and opens the matching filtered view.
 - Cash float: cash on hand, out on loan, and total funds, backed by a running bank-style ledger of every movement.
-- Client management: names, phone numbers, ID numbers, employer, address, next of kin, and notes.
+- Client management: a stable reference number (QS-0001, QS-0002, …) plus names, phone numbers, ID numbers, employer, address, next of kin, and notes. References are searchable and never renumber when a client is deleted.
 - Loan tracking: amount, interest rate, service fee, issue date, due date, payment status, and write-off status.
 - **Rollover:** extend an unpaid loan — push the due date out and charge another interest cycle — without creating a second loan or faking a cash movement.
 - **Reminders:** one tap on an open loan builds a message with the balance and due date, ready to send over WhatsApp or SMS, or to copy.
@@ -61,6 +61,17 @@ If cash on hand looks lower than the capital you put in, the difference is usual
 Reports replays every cash movement in date order and reports the lowest point your float ever reached.
 
 You cannot lend money you do not have, so if the running balance ever goes **negative**, cash went into the business around that date which was never recorded. The check names the date and the shortfall. If the closing balance still matches the cash you actually hold, then an equal amount also left unrecorded — typically owner withdrawals. Totals can look right while the history is wrong, and this is what surfaces that.
+
+## Reconcile Cash
+
+**Reports > Cash flow > Reconcile cash**: count everything the float lives in — cash box, bank, e-wallet — enter the total, and the app compares it against cash on hand. A gap is by definition a recording error, and the report hunts the usual suspects for you:
+
+- **Movements of exactly the gap** — a duplicate of one of these, or one entered in error, explains the whole difference in one shot.
+- **Possible double entries** — same kind, same amount, same name, within days of each other.
+- **Loans paid beyond what was due** — a real overpayment, or a payment logged against the wrong loan.
+- **Payments with no loan** — counted in cash but invisible on loan screens; usually left behind by an old backup.
+
+The date and result of the last reconciliation are remembered, so the next gap can be bounded: if it matched on the 12th and is off on the 27th, the error happened in between. Reconcile regularly and the window stays small.
 
 ## Staying Up To Date
 
