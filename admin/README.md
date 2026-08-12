@@ -13,8 +13,18 @@ screen:
 - **Clients / Loans / Payments** — searchable, filterable registers. Click any
   row to open a full drill-down: a client's whole borrowing history and KYC, or a
   loan's terms, schedule and payments.
+- **Add clients and loans** — *New client* / *New loan* buttons (and *New loan
+  for this client* inside a client's drawer) write straight to the shared cloud
+  ledger, with the same validation the phone app enforces (required phone + ID,
+  the 30% cost-of-credit cap). Writes are rev-guarded, so a change made on the
+  phone at the same moment is merged rather than overwritten, and new entries
+  sync back to the phone app.
 - **Reports** — monthly cashflow (advanced vs collected, net flow) and borrower
   concentration, with a *Print statement* button that renders a clean document.
+- **Projections** — a cash-flow outlook that mirrors the app's model: recovery,
+  re-lend rate, monthly costs and horizon are adjustable, with a working-capital
+  vs cash chart and a month-by-month table so you can see where the book is
+  heading.
 - **Applications** — the intake inbox, read through the Worker's owner token.
 - **Settings** — the registered entity, lending parameters, and the live status
   of the cloud ledger and intake service.
