@@ -214,6 +214,53 @@ td.r,th.r{text-align:right}
 .conn.off .led{background:var(--muted)} .conn.off{color:var(--muted)}
 .conn.on{color:var(--good)}
 
+/* ---------- forms / modal ---------- */
+.modal-scrim{position:fixed; inset:0; background:rgba(10,20,15,.5); opacity:0; visibility:hidden; transition:opacity .16s; z-index:70; display:grid; place-items:center; padding:20px}
+.modal-scrim.open{opacity:1; visibility:visible}
+.modal{width:100%; max-width:470px; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:0 24px 70px rgba(0,0,0,.4); transform:translateY(8px); transition:transform .16s; display:flex; flex-direction:column; max-height:92vh}
+.modal-scrim.open .modal{transform:none}
+.modal-head{display:flex; align-items:center; gap:12px; padding:15px 20px; border-bottom:1px solid var(--line)}
+.modal-head h3{font-size:15px; font-weight:600}
+.modal-head .x{margin-left:auto; width:30px; height:30px; border-radius:6px; border:1px solid var(--line); background:var(--surface); display:grid; place-items:center; color:var(--muted)}
+.modal-head .x:hover{background:var(--surface-2); color:var(--ink)}
+.modal-body{padding:16px 20px; overflow-y:auto}
+.modal-foot{display:flex; gap:10px; justify-content:flex-end; padding:13px 20px; border-top:1px solid var(--line)}
+.field{margin-bottom:12px}
+.field.row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.field label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:600; margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%; font:inherit; font-size:14px; background:var(--surface); border:1px solid var(--line); border-radius:7px; padding:9px 11px; color:var(--ink)}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+.field input.num{font-family:var(--mono)}
+.field textarea{resize:vertical; min-height:58px}
+.formerr{color:var(--bad); font-size:12.5px; min-height:17px; margin-top:2px}
+.btn[disabled]{opacity:.6; cursor:default}
+
+/* ---------- toast ---------- */
+.toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(12px); background:var(--letterhead); color:var(--lh-ink); padding:11px 18px; border-radius:8px; font-size:13px; font-weight:500; box-shadow:0 14px 44px rgba(0,0,0,.4); opacity:0; visibility:hidden; transition:all .18s; z-index:90; border-left:3px solid var(--accent); max-width:88vw}
+.toast.show{opacity:1; visibility:visible; transform:translateX(-50%)}
+.toast.err{border-left-color:var(--bad)}
+
+/* ---------- projections ---------- */
+.assump{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px}
+@media(max-width:760px){ .assump{grid-template-columns:repeat(2,1fr)} }
+.assump .a{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:11px 14px; box-shadow:var(--shadow)}
+.assump .a label{display:block; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin-bottom:5px}
+.assump .a .inp{display:flex; align-items:center; gap:6px}
+.assump .a input{width:100%; font-family:var(--mono); font-size:17px; font-weight:600; background:none; border:none; color:var(--ink); outline:none; padding:0; -moz-appearance:textfield}
+.assump .a input::-webkit-outer-spin-button,.assump .a input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+.assump .a .u{color:var(--muted); font-family:var(--mono); font-size:13px}
+.projsum{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px}
+@media(max-width:760px){ .projsum{grid-template-columns:repeat(2,1fr)} }
+.tile{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow)}
+.tile .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600}
+.tile .v{font-size:22px; font-weight:600; margin-top:5px; letter-spacing:-.01em}
+.tile .d{font-size:11.5px; color:var(--muted); margin-top:2px}
+.tile.accent .v{color:var(--accent)} .tile.good .v{color:var(--good)}
+.chartwrap{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px; margin-bottom:16px}
+.chartwrap svg{width:100%; height:auto; display:block}
+.legend{display:flex; gap:16px; margin-top:10px; font-size:12px; color:var(--muted)}
+.legend b{color:var(--ink-2); font-weight:600}
+
 /* ---------- responsive ---------- */
 @media(max-width:820px){
   .shell{grid-template-columns:1fr}
@@ -275,6 +322,7 @@ td.r,th.r{text-align:right}
       <button class="navitem" data-route="payments"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h4"/></svg>Payments</button>
       <div class="sect">Analysis</div>
       <button class="navitem" data-route="reports"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-3"/></svg>Reports</button>
+      <button class="navitem" data-route="projections"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M6 15l4-5 3 3 5-7"/></svg>Projections</button>
       <div class="spacer"></div>
       <button class="navitem" data-route="settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Settings</button>
     </nav>
@@ -296,6 +344,15 @@ td.r,th.r{text-align:right}
     <div class="drawer-head" id="drawerHead"></div>
     <div class="drawer-body" id="drawerBody"></div>
   </aside>
+
+  <div class="modal-scrim" id="modalScrim">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head"><h3 id="modalTitle"></h3><button class="x" id="modalX"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot"><button class="btn ghost sm" id="modalCancel">Cancel</button><button class="btn sm" id="modalSave">Save</button></div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
 </div>
 
 <script>
@@ -327,6 +384,11 @@ td.r,th.r{text-align:right}
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c];}); }
   function client(id){ return state.clients.find(function(x){return x.id===id;}) || null; }
   function clientName(id){ var c=client(id); return c?c.name:"—"; }
+  function uid(prefix){ return prefix+"_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8); }
+  function cleanText(v){ return String(v==null?"":v).trim(); }
+  function pad2(n){ return String(n).padStart(2,"0"); }
+  function addDays(iso,days){ var d=new Date(iso+"T00:00:00"); d.setDate(d.getDate()+days); return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+  function addMonths(mk,off){ var p=String(mk).split("-"); var d=new Date(Number(p[0]),Number(p[1])-1+off,1); return d.getFullYear()+"-"+pad2(d.getMonth()+1); }
 
   // ---- analysis engine (mirrors the phone app's money maths) ----
   function analyse(){
@@ -356,7 +418,8 @@ td.r,th.r{text-align:right}
     var open=rows.filter(function(r){return r.status==="active"||r.status==="overdue";});
     var outOnLoan=open.reduce(function(s,r){return s+r.principalOutstanding;},0);
     var receivable=open.reduce(function(s,r){return s+r.outstanding;},0);
-    var cash=capIn-capOut+collected-advanced;
+    var expensesTotal=(state.expenses||[]).reduce(function(s,e){return s+num(e.amount);},0);
+    var cash=capIn-capOut+collected-advanced-expensesTotal;
     var mo=monthKey(todayISO());
     var collectedMo=(state.payments||[]).filter(function(p){return monthKey(p.date)===mo;}).reduce(function(s,p){return s+num(p.amount);},0);
     var advancedMo=(state.loans||[]).filter(function(l){return monthKey(l.issueDate)===mo;}).reduce(function(s,l){return s+num(l.principal);},0);
@@ -398,6 +461,64 @@ td.r,th.r{text-align:right}
     return Object.keys(m).sort().reverse().map(function(k){ var b=m[k]; b.net=b.collected-b.advanced; return b; });
   }
 
+  // ---- projection engine (mirrors the phone app's cash-flow model) ----
+  function averageLoanRate(){
+    var rs=(state.loans||[]).map(function(l){return num(l.interestRate);}).filter(function(r){return r>0;});
+    if(!rs.length) return 30;
+    return num(rs.reduce(function(s,r){return s+r;},0)/rs.length);
+  }
+  // What the current book is due to bring in, by month. Arrears are pulled to
+  // the current month rather than left buried in a past-due month.
+  function scheduledCollections(){
+    var nowKey=monthKey(todayISO()), map={};
+    rows.forEach(function(r){
+      if(r.status==="paid"||r.status==="written-off") return;
+      if(r.outstanding<=0) return;
+      var dueKey=monthKey(r.loan.dueDate);
+      var key=dueKey<nowKey?nowKey:dueKey;
+      map[key]=num((map[key]||0)+r.outstanding);
+    });
+    return map;
+  }
+  function projectionCfg(over){
+    var s=(state.settings&&state.settings.projection)||{};
+    function pick(x,f){ var n=Number(x); return (isFinite(n)&&x!==""&&x!=null)?n:f; }
+    function clampP(x){ var n=Number(x); if(!isFinite(n)) return 0; return Math.min(100,Math.max(0,num(n))); }
+    over=over||{};
+    return {
+      recoveryRate: clampP(over.recoveryRate!=null?over.recoveryRate:pick(s.recoveryRate,85)),
+      redeployRate: clampP(over.redeployRate!=null?over.redeployRate:pick(s.redeployRate,85)),
+      monthlyCosts: Math.max(0,num(over.monthlyCosts!=null?over.monthlyCosts:pick(s.monthlyCosts,0))),
+      months: Math.min(24,Math.max(1,Math.round(over.months!=null?over.months:pick(s.months,6))))
+    };
+  }
+  function projectionRows(cfg){
+    var scheduled=scheduledCollections();
+    var ratePercent=averageLoanRate(), rate=ratePercent/100;
+    var recovery=cfg.recoveryRate/100, redeploy=cfg.redeployRate/100;
+    var start=monthKey(todayISO());
+    var startCash=totals().cash;
+    var cash=startCash;
+    var bookLeft=num(Object.keys(scheduled).reduce(function(s,k){return s+scheduled[k];},0));
+    var lentAwaiting=0, out=[];
+    for(var i=0;i<cfg.months;i++){
+      var month=addMonths(start,i);
+      var dueAmt=num(scheduled[month]||0);
+      var fromBook=num(dueAmt*recovery);
+      var fromNew=num(lentAwaiting*(1+rate)*recovery);
+      var opening=cash;
+      var inflow=num(fromBook+fromNew);
+      var available=num(opening+inflow);
+      var lend=num(Math.max(0,available)*redeploy);
+      var closing=num(available-lend-cfg.monthlyCosts);
+      bookLeft=num(Math.max(0,bookLeft-dueAmt));
+      var working=num(closing+lend+bookLeft);
+      out.push({month:month, inflow:inflow, lend:lend, costs:cfg.monthlyCosts, closing:closing, working:working, profit:num(lentAwaiting*rate*recovery)});
+      cash=closing; lentAwaiting=lend;
+    }
+    return {rows:out, cfg:cfg, ratePercent:ratePercent, startCash:startCash};
+  }
+
   // ---- Supabase auth + ledger ----
   function session(){ try{ return JSON.parse(localStorage.getItem(SESSION_KEY)||"null"); }catch(e){ return null; } }
   function setSession(s){ try{ localStorage.setItem(SESSION_KEY, JSON.stringify(s)); }catch(e){} }
@@ -417,9 +538,42 @@ td.r,th.r{text-align:right}
   function pullLedger(){
     return token().then(function(t){
       if(!t) return {auth:false};
-      return apiSB("/rest/v1/ledger?id=eq.main&select=data",{headers:{Authorization:"Bearer "+t}})
+      return apiSB("/rest/v1/ledger?id=eq.main&select=data,rev",{headers:{Authorization:"Bearer "+t}})
         .then(function(r){ if(!r.ok) return {error:"read "+r.status}; return r.json().then(function(a){ return {row:a[0]||null}; }); });
     });
+  }
+  var ledgerRev = 0;
+  function patchLedger(data, expectedRev){
+    return token().then(function(t){
+      if(!t) return {auth:false};
+      var body=JSON.stringify({ data:data, rev:expectedRev+1, updated_at:new Date().toISOString(), updated_by:(session()||{}).email||"" });
+      return apiSB("/rest/v1/ledger?id=eq.main&rev=eq."+expectedRev,{method:"PATCH",headers:{Authorization:"Bearer "+t,Prefer:"return=representation"},body:body})
+        .then(function(r){ if(!r.ok) return {error:"write "+r.status}; return r.json().then(function(a){ if(!a||!a.length) return {conflict:true}; return {row:a[0]}; }); });
+    });
+  }
+  // Pull the LATEST ledger, apply the change to it, push with a rev guard.
+  // Retries on conflict so a change made on the phone is merged, never clobbered.
+  function saveLedger(mutate){
+    function attempt(n){
+      return pullLedger().then(function(res){
+        if(res.auth===false) return {auth:false};
+        if(res.error) return {error:res.error};
+        if(!res.row) return {error:"no ledger"};
+        var fresh=JSON.parse(JSON.stringify(res.row.data||{}));
+        ["clients","loans","payments","capital","expenses"].forEach(function(k){ if(!Array.isArray(fresh[k])) fresh[k]=[]; });
+        mutate(fresh);
+        fresh.updatedAt=new Date().toISOString();
+        return patchLedger(fresh, res.row.rev||0).then(function(w){
+          if(w.auth===false) return {auth:false};
+          if(w.conflict){ return n<3 ? attempt(n+1) : {error:"busy"}; }
+          if(w.error) return {error:w.error};
+          state=Object.assign({clients:[],loans:[],payments:[],expenses:[],capital:[],settings:{},updatedAt:""}, w.row.data);
+          ledgerRev=w.row.rev; analyse();
+          return {ok:true};
+        });
+      });
+    }
+    return attempt(0);
   }
   function ownerToken(){ return localStorage.getItem(OWNER_KEY)||""; }
   function loadApps(){
@@ -430,7 +584,7 @@ td.r,th.r{text-align:right}
   }
 
   // ---- routing ----
-  var TITLES={dashboard:"Dashboard",applications:"Applications",clients:"Clients",loans:"Loans",payments:"Payments",reports:"Reports",settings:"Settings"};
+  var TITLES={dashboard:"Dashboard",applications:"Applications",clients:"Clients",loans:"Loans",payments:"Payments",reports:"Reports",projections:"Projections",settings:"Settings"};
   function go(r){
     route=r; if(location.hash!=="#"+r) location.hash=r;
     Array.prototype.forEach.call(document.querySelectorAll(".navitem"),function(b){ b.classList.toggle("active", b.dataset.route===r); });
@@ -448,6 +602,7 @@ td.r,th.r{text-align:right}
     if(route==="payments") return renderPayments(c);
     if(route==="applications") return renderApplications(c);
     if(route==="reports") return renderReports(c);
+    if(route==="projections") return renderProjections(c);
     if(route==="settings") return renderSettings(c);
   }
   function setSub(t){ $("pageSub").textContent=t||""; }
@@ -517,6 +672,7 @@ td.r,th.r{text-align:right}
   function lrowMuted(k,v){ return '<div class="lrow"><span class="lk" style="color:var(--muted)">'+esc(k)+'</span><span class="lv" style="color:var(--muted)">'+v+'</span></div>'; }
   function mrow(k,v){ return '<div class="mrow"><span class="mk">'+esc(k)+'</span><span class="mv">'+v+'</span></div>'; }
   function stat(k,v,d){ return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div><div class="d">'+esc(d)+'</div></div>'; }
+  function tile(k,v,d,cls){ return '<div class="tile '+(cls||"")+'"><div class="k">'+esc(k)+'</div><div class="v num">'+esc(v)+'</div><div class="d">'+esc(d)+'</div></div>'; }
 
   // ---- clients ----
   function renderClients(c){
@@ -532,12 +688,13 @@ td.r,th.r{text-align:right}
         +'<td class="r num">'+ag.openCount+'</td>'
         +'<td class="r num">'+(ag.outstanding>0?money(ag.outstanding):"—")+'</td></tr>';
     }).join("");
-    c.innerHTML=searchbar("clientQ","Search name, phone, ID, employer…")
+    c.innerHTML=searchbar("clientQ","Search name, phone, ID, employer…",'<button class="btn sm" id="newClientBtn">+ New client</button>')
       + '<div class="panel"><div class="ph"><h3>Clients</h3><span class="n">'+list.length+'</span></div>'
       + '<div class="table-scroll"><table><thead><tr><th>Client</th><th>National ID</th><th>Employer</th><th class="r">Open</th><th class="r">Outstanding</th></tr></thead><tbody>'
       + (body||'<tr><td colspan="5" class="empty">No clients match.</td></tr>') + '</tbody></table></div></div>';
     wireSearch("clientQ");
     wireRows(c,"client",openClient);
+    var ncb=$("newClientBtn"); if(ncb) ncb.addEventListener("click",function(){ openClientForm(); });
   }
 
   // ---- loans ----
@@ -560,13 +717,14 @@ td.r,th.r{text-align:right}
     var segs=[["open","Open"],["active","Active"],["overdue","Overdue"],["paid","Settled"],["all","All"]];
     c.innerHTML='<div class="toolbar"><div class="seg">'
       + segs.map(function(s){return '<button data-lf="'+s[0]+'" class="'+(f===s[0]?"on":"")+'">'+s[1]+'</button>';}).join("")
-      + '</div><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="q_loanQ" placeholder="Search loans…" value="'+esc(ui.loanQ)+'"></div></div>'
+      + '</div><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="q_loanQ" placeholder="Search loans…" value="'+esc(ui.loanQ)+'"></div><button class="btn sm" id="newLoanBtn">+ New loan</button></div>'
       + '<div class="panel"><div class="ph"><h3>Loans</h3><span class="n">'+list.length+'</span></div>'
       + '<div class="table-scroll"><table><thead><tr><th>Client</th><th class="r">Principal</th><th>Issued</th><th>Due</th><th class="r">Outstanding</th><th>Status</th></tr></thead><tbody>'
       + (body||'<tr><td colspan="6" class="empty">No loans in this view.</td></tr>') + '</tbody></table></div></div>';
     Array.prototype.forEach.call(c.querySelectorAll("[data-lf]"),function(b){ b.addEventListener("click",function(){ ui.loanFilter=b.dataset.lf; render(); }); });
     wireSearch("loanQ");
     wireRows(c,"loan",openLoan);
+    var nlb=$("newLoanBtn"); if(nlb) nlb.addEventListener("click",function(){ openLoanForm(""); });
   }
 
   // ---- payments ----
@@ -710,7 +868,8 @@ td.r,th.r{text-align:right}
     drawerHead("Client","" + (cl.name||"—"));
     var phone=String(cl.phone||"").trim();
     var idv = phone.replace(/[^\d+]/g,"");
-    var h='<div class="dsect">Financial summary</div>'
+    var h='<button class="btn sm block" id="drawerNewLoan" style="margin:4px 0 2px">+ New loan for '+esc((cl.name||"this client").split(" ")[0])+'</button>'
+      + '<div class="dsect">Financial summary</div>'
       + frow("Total borrowed", money(ag.borrowed), "num")
       + frow("Total repaid", money(ag.repaid), "num")
       + frow("Outstanding", money(ag.outstanding), "num")
@@ -736,6 +895,7 @@ td.r,th.r{text-align:right}
         + '</tbody></table>' + (ag.payments.length>20?'<p style="font-size:11.5px;color:var(--muted);margin-top:6px">Showing latest 20 of '+ag.payments.length+'.</p>':'');
     } else h+='<p style="font-size:12.5px;color:var(--muted)">No payments recorded.</p>';
     $("drawerBody").innerHTML=h; $("drawerBody").scrollTop=0;
+    var dnl=$("drawerNewLoan"); if(dnl) dnl.addEventListener("click",function(){ openLoanForm(id); });
     openDrawer();
   }
 
@@ -775,10 +935,147 @@ td.r,th.r{text-align:right}
     openDrawer();
   }
 
+  // ---- toast ----
+  var toastTimer=null;
+  function toast(msg,kind){ var t=$("toast"); if(!t) return; t.textContent=msg; t.className="toast show"+(kind==="err"?" err":""); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.className="toast"+(kind==="err"?" err":""); },2800); }
+
+  // ---- modal + entry forms ----
+  var modalOnSave=null;
+  function openModal(title,bodyHtml,saveLabel,onSave){
+    $("modalTitle").textContent=title; $("modalBody").innerHTML=bodyHtml; $("modalSave").textContent=saveLabel||"Save";
+    $("modalSave").disabled=false; modalOnSave=onSave; $("modalScrim").classList.add("open");
+    var f=$("modalBody").querySelector("input,select,textarea"); if(f) setTimeout(function(){ try{f.focus();}catch(e){} },40);
+  }
+  function closeModal(){ $("modalScrim").classList.remove("open"); modalOnSave=null; }
+  function fval(id){ var e=$(id); return e?e.value:""; }
+  function ferr(msg){ var e=$("f_err"); if(e) e.textContent=msg||""; }
+  function commit(mutate, okMsg){
+    var btn=$("modalSave"), old=btn.textContent; btn.disabled=true; btn.textContent="Saving…"; ferr("");
+    saveLedger(mutate).then(function(res){
+      btn.disabled=false; btn.textContent=old;
+      if(res.auth===false){ closeModal(); signOut(); return; }
+      if(res.error){ ferr(res.error==="busy" ? "Someone changed the book just now — please try again." : (res.error==="no ledger" ? "Cloud ledger not found — open the phone app once to create it." : "Couldn't save ("+esc(res.error)+"). Check your connection.")); return; }
+      closeModal(); toast(okMsg); render();
+    });
+  }
+  function openClientForm(){
+    var body=''
+      +'<div class="field"><label>Full name</label><input id="f_name" autocomplete="off" placeholder="Client name"></div>'
+      +'<div class="field row"><div><label>Phone</label><input id="f_phone" inputmode="tel" placeholder="081 123 4567"></div><div><label>ID / passport</label><input id="f_id" placeholder="ID or passport no."></div></div>'
+      +'<div class="field row"><div><label>Employer</label><input id="f_emp" placeholder="Optional"></div><div><label>Next of kin</label><input id="f_kin" placeholder="Optional"></div></div>'
+      +'<div class="field"><label>Address</label><input id="f_addr" placeholder="Optional"></div>'
+      +'<div class="field"><label>Notes</label><textarea id="f_notes" placeholder="Anything worth remembering"></textarea></div>'
+      +'<div class="formerr" id="f_err"></div>';
+    openModal("New client", body, "Add client", function(){
+      var name=cleanText(fval("f_name")), phone=cleanText(fval("f_phone")), nid=cleanText(fval("f_id"));
+      if(!name){ ferr("Enter the client's name."); return; }
+      if(phone.replace(/\D/g,"").length<8){ ferr("Enter a valid phone number — it's required for a compliant loan."); return; }
+      if(nid.replace(/\s/g,"").length<6){ ferr("Enter the client's ID or passport number — it's required."); return; }
+      var rec={ name:name, phone:phone, nationalId:nid, employer:cleanText(fval("f_emp")), address:cleanText(fval("f_addr")), nextOfKin:cleanText(fval("f_kin")), notes:cleanText(fval("f_notes")) };
+      commit(function(data){ data.clients.push(Object.assign({ id:uid("client"), createdAt:new Date().toISOString() }, rec)); }, "Client added.");
+    });
+  }
+  function clientOptionsHtml(sel){
+    return state.clients.slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"");})
+      .map(function(c){ return '<option value="'+esc(c.id)+'"'+(c.id===sel?" selected":"")+'>'+esc(c.name||"—")+'</option>'; }).join("");
+  }
+  function openLoanForm(prefillId){
+    closeDrawer();
+    if(!state.clients.length){ toast("Add a client first.","err"); openClientForm(); return; }
+    var today=todayISO(), due=addDays(today,30), sel=prefillId||state.clients[0].id;
+    var body=''
+      +'<div class="field"><label>Client</label><select id="f_client">'+clientOptionsHtml(sel)+'</select></div>'
+      +'<div class="field row"><div><label>Amount given (N$)</label><input id="f_principal" class="num" type="number" min="0" step="0.01" placeholder="0.00"></div><div><label>Interest rate (%)</label><input id="f_rate" class="num" type="number" min="0" step="0.01" value="30"></div></div>'
+      +'<div class="field row"><div><label>Service fee (N$)</label><input id="f_fee" class="num" type="number" min="0" step="0.01" value="0"></div><div><label>Purpose</label><input id="f_purpose" placeholder="Optional"></div></div>'
+      +'<div class="field row"><div><label>Issue date</label><input id="f_issue" type="date" value="'+today+'"></div><div><label>Due date</label><input id="f_due" type="date" value="'+due+'"></div></div>'
+      +'<div class="formerr" id="f_err"></div>';
+    openModal("New loan", body, "Create loan", function(){
+      var clientId=fval("f_client");
+      var principal=num(fval("f_principal")), rate=num(fval("f_rate")), fee=num(fval("f_fee"));
+      var issue=fval("f_issue"), dueD=fval("f_due");
+      if(!clientId){ ferr("Choose a client."); return; }
+      if(!(principal>0)){ ferr("Enter the amount given."); return; }
+      if(!(rate>=0)||rate>100){ ferr("Interest rate must be between 0 and 100%."); return; }
+      if(!(fee>=0)){ ferr("Service fee can't be negative."); return; }
+      if(!issue||!dueD){ ferr("Set both the issue and due dates."); return; }
+      if(issue>todayISO()){ ferr("Issue date can't be in the future."); return; }
+      if(dueD<=issue){ ferr("Due date must be after the issue date."); return; }
+      if(principal*(rate/100)+fee > principal*0.3+0.001){ ferr("Interest + fees are above the 30% cost-of-credit cap for this loan."); return; }
+      var rec={ clientId:clientId, principal:principal, interestRate:rate, serviceFee:fee, issueDate:issue, dueDate:dueD, purpose:cleanText(fval("f_purpose")) };
+      commit(function(data){ data.loans.push(Object.assign({ id:uid("loan"), createdAt:new Date().toISOString(), status:"active" }, rec)); }, "Loan created.");
+    });
+  }
+
+  // ---- projections view ----
+  var projOver={};
+  function renderProjections(c){
+    var cfg=projectionCfg(projOver), pr=projectionRows(cfg);
+    setSub("Cash-flow outlook · "+cfg.months+" months");
+    var last=pr.rows[pr.rows.length-1]||{closing:pr.startCash,working:pr.startCash};
+    var totalProfit=pr.rows.reduce(function(s,r){return s+r.profit;},0);
+    var h='<div class="assump">'
+      + aBox("Recovery rate","recoveryRate",cfg.recoveryRate,"%")
+      + aBox("Re-lend rate","redeployRate",cfg.redeployRate,"%")
+      + aBox("Monthly costs","monthlyCosts",cfg.monthlyCosts,"N$")
+      + aBox("Horizon","months",cfg.months,"mo")
+      + '</div>';
+    h+='<div class="projsum">'
+      + tile("Starting cash", money0(pr.startCash), "on hand today")
+      + tile("Cash in "+cfg.months+" mo", money0(last.closing), "projected float","accent")
+      + tile("Working capital", money0(last.working), "cash + book value","good")
+      + tile("Profit over "+cfg.months+" mo", money0(totalProfit), "interest earned")
+      + '</div>';
+    h+='<div class="chartwrap">'+projChart(pr)+'<div class="legend"><span><span class="dot" style="background:var(--accent)"></span><b>Working capital</b></span><span><span class="dot" style="background:var(--steel)"></span><b>Cash on hand</b></span></div></div>';
+    var body=pr.rows.map(function(r){
+      return '<tr><td class="num">'+fmtMonth(r.month)+'</td>'
+        +'<td class="r num">'+money0(r.inflow)+'</td>'
+        +'<td class="r num">'+money0(r.lend)+'</td>'
+        +'<td class="r num">'+(r.costs>0?money0(r.costs):"—")+'</td>'
+        +'<td class="r num">'+money0(r.closing)+'</td>'
+        +'<td class="r num">'+money0(r.working)+'</td>'
+        +'<td class="r num" style="color:var(--good)">'+money0(r.profit)+'</td></tr>';
+    }).join("");
+    h+='<div class="panel"><div class="ph"><h3>Month by month</h3><span class="n">avg rate '+pr.ratePercent+'%</span></div>'
+      + '<div class="table-scroll"><table><thead><tr><th>Month</th><th class="r">Expected in</th><th class="r">Re-lent</th><th class="r">Costs</th><th class="r">Cash (end)</th><th class="r">Working capital</th><th class="r">Profit</th></tr></thead><tbody>'
+      + body + '</tbody></table></div></div>';
+    h+='<p style="font-size:12px;color:var(--muted);margin-top:12px;max-width:760px">Assumes <b>'+cfg.recoveryRate+'%</b> of what’s due is collected, <b>'+cfg.redeployRate+'%</b> of available cash is re-lent each month at the book’s average <b>'+pr.ratePercent+'%</b> rate, less <b>'+money0(cfg.monthlyCosts)+'</b> monthly running costs. Adjust the figures above to model other scenarios; defaults come from the app’s saved settings.</p>';
+    c.innerHTML=h;
+    Array.prototype.forEach.call(c.querySelectorAll("[data-assump]"),function(inp){
+      inp.addEventListener("input",function(){
+        var k=inp.getAttribute("data-assump"); projOver[k]=inp.value;
+        var pos=inp.selectionStart; renderProjections(c);
+        var n=c.querySelector('[data-assump="'+k+'"]'); if(n){ n.focus(); try{n.setSelectionRange(pos,pos);}catch(e){} }
+      });
+    });
+  }
+  function aBox(label,key,val,unit){
+    return '<div class="a"><label>'+esc(label)+'</label><div class="inp">'+(unit==="N$"?'<span class="u">N$</span>':'')
+      +'<input data-assump="'+key+'" type="number" step="'+(unit==="%"?"1":(unit==="mo"?"1":"100"))+'" min="0" value="'+esc(val)+'">'
+      +(unit!=="N$"?'<span class="u">'+esc(unit)+'</span>':'')+'</div></div>';
+  }
+  function projChart(pr){
+    var W=680,H=210,pad=30, rows=pr.rows; if(!rows.length) return '';
+    var n=rows.length;
+    var maxV=Math.max.apply(null,[1].concat(rows.map(function(r){return Math.max(r.working,r.closing);})));
+    var minV=Math.min.apply(null,[0].concat(rows.map(function(r){return Math.min(r.working,r.closing);})));
+    function X(i){ return pad + (n<=1?(W-pad*2)/2:(i/(n-1))*(W-pad*2)); }
+    function Y(v){ return H-pad - ((v-minV)/((maxV-minV)||1))*(H-pad*2); }
+    function path(key){ return rows.map(function(r,i){return (i?"L":"M")+X(i).toFixed(1)+" "+Y(r[key]).toFixed(1);}).join(" "); }
+    var grid=''; for(var g=0;g<=2;g++){ var vy=(pad+((H-pad*2)/2)*g).toFixed(1); grid+='<line x1="'+pad+'" y1="'+vy+'" x2="'+(W-pad)+'" y2="'+vy+'" stroke="var(--line-2)" stroke-width="1"/>'; }
+    var step=Math.max(1,Math.ceil(n/6));
+    var labels=rows.map(function(r,i){ return (i%step===0||i===n-1)?'<text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="var(--mono)">'+esc(fmtMonth(r.month).split(" ")[0])+'</text>':''; }).join("");
+    var dots=rows.map(function(r,i){ return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(r.working).toFixed(1)+'" r="2.6" fill="var(--accent)"/>'; }).join("");
+    return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Projected working capital and cash">'
+      + grid
+      + '<path d="'+path("working")+'" fill="none" stroke="var(--accent)" stroke-width="2.5"/>'
+      + '<path d="'+path("closing")+'" fill="none" stroke="var(--steel)" stroke-width="2" stroke-dasharray="4 3"/>'
+      + dots + labels + '</svg>';
+  }
+
   // ---- small helpers ----
   function pillCls(s){ return s==="written-off"?"writtenoff":s; }
   function pillTxt(s){ return s==="written-off"?"written off":(s==="paid"?"settled":s); }
-  function searchbar(key,ph){ return '<div class="toolbar"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="q_'+key+'" placeholder="'+esc(ph)+'" value="'+esc(ui[key])+'"></div></div>'; }
+  function searchbar(key,ph,action){ return '<div class="toolbar"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="q_'+key+'" placeholder="'+esc(ph)+'" value="'+esc(ui[key])+'"></div>'+(action||'')+'</div>'; }
   function wireSearch(key){ var el=$("q_"+key); if(!el) return; el.addEventListener("input",function(){ ui[key]=el.value; var pos=el.selectionStart; render(); var n=$("q_"+key); if(n){ n.focus(); try{n.setSelectionRange(pos,pos);}catch(e){} } }); }
   function wireRows(c,attr,fn){ Array.prototype.forEach.call(c.querySelectorAll("[data-"+attr+"]"),function(tr){ tr.addEventListener("click",function(){ fn(tr.getAttribute("data-"+attr)); }); }); }
 
@@ -791,6 +1088,7 @@ td.r,th.r{text-align:right}
       if(res.error){ $("content").innerHTML='<div class="empty">Could not load the ledger ('+esc(res.error)+'). Try Refresh.</div>'; return; }
       var data=(res.row&&res.row.data)||{clients:[],loans:[],payments:[],capital:[],settings:{}};
       state=Object.assign({clients:[],loans:[],payments:[],expenses:[],capital:[],settings:{},updatedAt:""},data);
+      ledgerRev=(res.row&&res.row.rev)||0;
       analyse();
       var r=(location.hash||"#dashboard").replace("#",""); if(!TITLES[r]) r="dashboard";
       go(r);
@@ -811,13 +1109,17 @@ td.r,th.r{text-align:right}
   $("printBtn").addEventListener("click",function(){ window.print(); });
   $("menuBtn").addEventListener("click",function(){ $("rail").classList.toggle("open"); });
   $("drawerScrim").addEventListener("click",closeDrawer);
-  document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeDrawer(); });
+  $("modalX").addEventListener("click",closeModal);
+  $("modalCancel").addEventListener("click",closeModal);
+  $("modalScrim").addEventListener("click",function(e){ if(e.target===$("modalScrim")) closeModal(); });
+  $("modalSave").addEventListener("click",function(){ if(modalOnSave) modalOnSave(); });
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape"){ closeModal(); closeDrawer(); } });
   Array.prototype.forEach.call(document.querySelectorAll(".navitem"),function(b){ b.addEventListener("click",function(){ go(b.dataset.route); }); });
   window.addEventListener("hashchange",function(){ var r=(location.hash||"").replace("#",""); if(TITLES[r]&&r!==route) go(r); });
 
   if((session()||{}).access_token) showApp(); else $("email").focus();
 
-  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals };
+  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;} };
 })();
 </script>
 </body>
