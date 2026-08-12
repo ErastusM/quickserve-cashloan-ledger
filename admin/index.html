@@ -257,7 +257,12 @@ td.r,th.r{text-align:right}
 .tile .d{font-size:11.5px; color:var(--muted); margin-top:2px}
 .tile.accent .v{color:var(--accent)} .tile.good .v{color:var(--good)}
 .chartwrap{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px; margin-bottom:16px}
-.chartwrap svg{width:100%; height:auto; display:block}
+.chartbox{position:relative}
+.chartwrap svg{width:100%; height:auto; display:block; aspect-ratio:680/220; touch-action:none}
+.ptip{position:absolute; top:8px; display:none; background:var(--letterhead); color:var(--lh-ink); font-size:11.5px; padding:7px 10px; border-radius:7px; box-shadow:0 10px 30px rgba(0,0,0,.32); pointer-events:none; white-space:nowrap; z-index:3}
+.ptip b{display:block; font-family:var(--mono); font-size:11px; margin-bottom:4px; letter-spacing:.02em}
+.ptip span{display:flex; align-items:center; gap:6px; font-family:var(--mono); line-height:1.55}
+.ptip i{width:8px; height:8px; border-radius:2px; display:inline-block; flex:none}
 .legend{display:flex; gap:16px; margin-top:10px; font-size:12px; color:var(--muted)}
 .legend b{color:var(--ink-2); font-weight:600}
 
@@ -1025,7 +1030,10 @@ td.r,th.r{text-align:right}
       + tile("Working capital", money0(last.working), "cash + book value","good")
       + tile("Profit over "+cfg.months+" mo", money0(totalProfit), "interest earned")
       + '</div>';
-    h+='<div class="chartwrap">'+projChart(pr)+'<div class="legend"><span><span class="dot" style="background:var(--accent)"></span><b>Working capital</b></span><span><span class="dot" style="background:var(--steel)"></span><b>Cash on hand</b></span></div></div>';
+    var COL=projColors();
+    var chart=buildChart(pr, COL);
+    h+='<div class="chartwrap"><div class="chartbox">'+chart.svg+'<div class="ptip" id="ptip"></div></div>'
+      + '<div class="legend"><span><span class="dot" style="background:'+COL.accent+'"></span><b>Working capital</b></span><span><span class="dot" style="background:'+COL.steel+'"></span><b>Cash on hand</b></span></div></div>';
     var body=pr.rows.map(function(r){
       return '<tr><td class="num">'+fmtMonth(r.month)+'</td>'
         +'<td class="r num">'+money0(r.inflow)+'</td>'
@@ -1047,29 +1055,75 @@ td.r,th.r{text-align:right}
         var n=c.querySelector('[data-assump="'+k+'"]'); if(n){ n.focus(); try{n.setSelectionRange(pos,pos);}catch(e){} }
       });
     });
+    wireChartHover(c, pr, chart, COL);
+  }
+  function wireChartHover(c, pr, geo, COL){
+    var svgEl=c.querySelector(".chartbox svg"); if(!svgEl||!geo.xs.length) return;
+    var box=svgEl.parentNode, tip=c.querySelector("#ptip");
+    var guide=svgEl.querySelector("#pgGuide"), dotW=svgEl.querySelector("#pgDotW"), dotC=svgEl.querySelector("#pgDotC");
+    function at(clientX){
+      var rect=svgEl.getBoundingClientRect(); if(!rect.width) return;
+      var relX=(clientX-rect.left)/rect.width; relX=Math.max(0,Math.min(1,relX));
+      var i=Math.round(relX*(geo.xs.length-1)); i=Math.max(0,Math.min(geo.xs.length-1,i));
+      var gx=geo.xs[i], r=pr.rows[i];
+      guide.setAttribute("x1",gx); guide.setAttribute("x2",gx); guide.setAttribute("opacity","0.4");
+      dotW.setAttribute("cx",gx); dotW.setAttribute("cy",geo.yW[i]); dotW.setAttribute("opacity","1");
+      dotC.setAttribute("cx",gx); dotC.setAttribute("cy",geo.yC[i]); dotC.setAttribute("opacity","1");
+      tip.innerHTML='<b>'+esc(fmtMonth(r.month))+'</b><span><i style="background:'+COL.accent+'"></i>Working '+money0(r.working)+'</span><span><i style="background:'+COL.steel+'"></i>Cash '+money0(r.closing)+'</span>';
+      tip.style.display="block";
+      var sx=(gx/geo.W)*rect.width;
+      tip.style.left=Math.max(4,Math.min(box.clientWidth-tip.offsetWidth-4, sx-tip.offsetWidth/2))+"px";
+    }
+    function hide(){ tip.style.display="none"; if(guide)guide.setAttribute("opacity","0"); if(dotW)dotW.setAttribute("opacity","0"); if(dotC)dotC.setAttribute("opacity","0"); }
+    box.addEventListener("mousemove",function(e){ at(e.clientX); });
+    box.addEventListener("mouseleave",hide);
+    box.addEventListener("touchstart",function(e){ if(e.touches[0]) at(e.touches[0].clientX); },{passive:true});
+    box.addEventListener("touchmove",function(e){ if(e.touches[0]) at(e.touches[0].clientX); },{passive:true});
   }
   function aBox(label,key,val,unit){
     return '<div class="a"><label>'+esc(label)+'</label><div class="inp">'+(unit==="N$"?'<span class="u">N$</span>':'')
       +'<input data-assump="'+key+'" type="number" step="'+(unit==="%"?"1":(unit==="mo"?"1":"100"))+'" min="0" value="'+esc(val)+'">'
       +(unit!=="N$"?'<span class="u">'+esc(unit)+'</span>':'')+'</div></div>';
   }
-  function projChart(pr){
-    var W=680,H=210,pad=30, rows=pr.rows; if(!rows.length) return '';
-    var n=rows.length;
-    var maxV=Math.max.apply(null,[1].concat(rows.map(function(r){return Math.max(r.working,r.closing);})));
-    var minV=Math.min.apply(null,[0].concat(rows.map(function(r){return Math.min(r.working,r.closing);})));
-    function X(i){ return pad + (n<=1?(W-pad*2)/2:(i/(n-1))*(W-pad*2)); }
-    function Y(v){ return H-pad - ((v-minV)/((maxV-minV)||1))*(H-pad*2); }
-    function path(key){ return rows.map(function(r,i){return (i?"L":"M")+X(i).toFixed(1)+" "+Y(r[key]).toFixed(1);}).join(" "); }
-    var grid=''; for(var g=0;g<=2;g++){ var vy=(pad+((H-pad*2)/2)*g).toFixed(1); grid+='<line x1="'+pad+'" y1="'+vy+'" x2="'+(W-pad)+'" y2="'+vy+'" stroke="var(--line-2)" stroke-width="1"/>'; }
+  // Resolve theme tokens to concrete colours. SVG presentation attributes do not
+  // reliably substitute CSS var(), so the chart must be handed real values.
+  function projColors(){
+    var cs=getComputedStyle(document.documentElement);
+    function g(name,fb){ var v=(cs.getPropertyValue(name)||"").trim(); return v||fb; }
+    return { accent:g("--accent","#0c4a30"), steel:g("--steel","#38566a"), line:g("--line-2","#e8ebe8"),
+      muted:g("--muted","#69756f"), surface:g("--surface","#ffffff"), ink:g("--ink","#12201b") };
+  }
+  function buildChart(pr, COL){
+    var W=680,H=220,pad=34, rows=pr.rows, n=rows.length;
+    if(!n) return { svg:'', xs:[], yW:[], yC:[], W:W };
+    var hi=[], lo=[];
+    rows.forEach(function(r){ hi.push(Math.max(r.working,r.closing)); lo.push(Math.min(r.working,r.closing,0)); });
+    var maxV=Math.max.apply(null,hi.concat([1])), minV=Math.min.apply(null,lo.concat([0]));
+    if(maxV===minV) maxV=minV+1;
+    var xs=[],yW=[],yC=[];
+    for(var i=0;i<n;i++){
+      xs.push(pad + (n<=1?(W-pad*2)/2:(i/(n-1))*(W-pad*2)));
+      yW.push(H-pad-((rows[i].working-minV)/(maxV-minV))*(H-pad*2));
+      yC.push(H-pad-((rows[i].closing-minV)/(maxV-minV))*(H-pad*2));
+    }
+    function line(ys){ return ys.map(function(y,i){return (i?"L":"M")+xs[i].toFixed(1)+" "+y.toFixed(1);}).join(" "); }
+    var area='M'+xs[0].toFixed(1)+' '+(H-pad)+' '+xs.map(function(x,i){return "L"+x.toFixed(1)+" "+yW[i].toFixed(1);}).join(" ")+' L'+xs[n-1].toFixed(1)+' '+(H-pad)+' Z';
+    var grid=''; for(var g=0;g<=2;g++){ var gy=(pad+((H-pad*2)/2)*g).toFixed(1); grid+='<line x1="'+pad+'" y1="'+gy+'" x2="'+(W-pad)+'" y2="'+gy+'" stroke="'+COL.line+'" stroke-width="1"/>'; }
     var step=Math.max(1,Math.ceil(n/6));
-    var labels=rows.map(function(r,i){ return (i%step===0||i===n-1)?'<text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="var(--mono)">'+esc(fmtMonth(r.month).split(" ")[0])+'</text>':''; }).join("");
-    var dots=rows.map(function(r,i){ return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(r.working).toFixed(1)+'" r="2.6" fill="var(--accent)"/>'; }).join("");
-    return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Projected working capital and cash">'
+    var labels=rows.map(function(r,i){ return (i%step===0||i===n-1)?'<text x="'+xs[i].toFixed(1)+'" y="'+(H-9)+'" text-anchor="middle" font-size="10" fill="'+COL.muted+'" font-family="monospace">'+esc(fmtMonth(r.month).split(" ")[0])+'</text>':''; }).join("");
+    var dots=xs.map(function(x,i){ return '<circle cx="'+x.toFixed(1)+'" cy="'+yW[i].toFixed(1)+'" r="2.6" fill="'+COL.accent+'"/>'; }).join("");
+    var svg='<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Projected working capital and cash on hand by month">'
+      + '<defs><linearGradient id="pgFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+COL.accent+'" stop-opacity="0.15"/><stop offset="1" stop-color="'+COL.accent+'" stop-opacity="0"/></linearGradient></defs>'
       + grid
-      + '<path d="'+path("working")+'" fill="none" stroke="var(--accent)" stroke-width="2.5"/>'
-      + '<path d="'+path("closing")+'" fill="none" stroke="var(--steel)" stroke-width="2" stroke-dasharray="4 3"/>'
-      + dots + labels + '</svg>';
+      + '<path d="'+area+'" fill="url(#pgFill)" stroke="none"/>'
+      + '<path d="'+line(yC)+'" fill="none" stroke="'+COL.steel+'" stroke-width="2" stroke-dasharray="5 3" stroke-linejoin="round"/>'
+      + '<path d="'+line(yW)+'" fill="none" stroke="'+COL.accent+'" stroke-width="2.5" stroke-linejoin="round"/>'
+      + dots + labels
+      + '<line id="pgGuide" x1="0" y1="'+pad+'" x2="0" y2="'+(H-pad)+'" stroke="'+COL.ink+'" stroke-width="1" opacity="0"/>'
+      + '<circle id="pgDotC" r="4" fill="'+COL.steel+'" stroke="'+COL.surface+'" stroke-width="1.5" opacity="0"/>'
+      + '<circle id="pgDotW" r="4.5" fill="'+COL.accent+'" stroke="'+COL.surface+'" stroke-width="1.5" opacity="0"/>'
+      + '</svg>';
+    return { svg:svg, xs:xs, yW:yW, yC:yC, W:W };
   }
 
   // ---- small helpers ----
