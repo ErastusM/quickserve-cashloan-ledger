@@ -200,6 +200,12 @@ td.r,th.r{text-align:right}
 .dtable th:last-child,.dtable td:last-child{padding-right:0}
 .calllink{color:var(--accent); font-family:var(--mono); text-decoration:none}
 .calllink:hover{text-decoration:underline}
+.drawer-actions{display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 4px}
+.drawer-actions .btn{flex:1 1 auto; text-align:center}
+.btn.ghost.danger{color:var(--bad); border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.btn.ghost.danger:hover{background:var(--bad-soft); border-color:var(--bad)}
+.pdel{border:none; background:none; color:var(--faint); cursor:pointer; font-size:15px; line-height:1; padding:0 0 0 8px}
+.pdel:hover{color:var(--bad)}
 
 /* ---------- reports ---------- */
 .repbar{height:6px; background:var(--inset); border-radius:999px; overflow:hidden; min-width:70px}
@@ -729,7 +735,7 @@ td.r,th.r{text-align:right}
     Array.prototype.forEach.call(c.querySelectorAll("[data-lf]"),function(b){ b.addEventListener("click",function(){ ui.loanFilter=b.dataset.lf; render(); }); });
     wireSearch("loanQ");
     wireRows(c,"loan",openLoan);
-    var nlb=$("newLoanBtn"); if(nlb) nlb.addEventListener("click",function(){ openLoanForm(""); });
+    var nlb=$("newLoanBtn"); if(nlb) nlb.addEventListener("click",function(){ openLoanForm(null,""); });
   }
 
   // ---- payments ----
@@ -745,12 +751,13 @@ td.r,th.r{text-align:right}
         +'<td class="num">'+fmtDate(x.p.date)+'</td>'
         +'<td class="r num">'+money(x.p.amount)+'</td></tr>';
     }).join("");
-    c.innerHTML=searchbar("payQ","Search payments…")
+    c.innerHTML=searchbar("payQ","Search payments…",'<button class="btn sm" id="newPayBtn">+ Record payment</button>')
       + '<div class="panel"><div class="ph"><h3>Payments received</h3><span class="n">'+money(total)+'</span></div>'
       + '<div class="table-scroll"><table><thead><tr><th>Client</th><th>Date</th><th class="r">Amount</th></tr></thead><tbody>'
       + (body||'<tr><td colspan="3" class="empty">No payments.</td></tr>') + '</tbody></table></div></div>';
     wireSearch("payQ");
     wireRows(c,"loan",openLoan);
+    var npb=$("newPayBtn"); if(npb) npb.addEventListener("click",function(){ openPaymentForm(""); });
   }
 
   // ---- applications ----
@@ -873,7 +880,11 @@ td.r,th.r{text-align:right}
     drawerHead("Client","" + (cl.name||"—"));
     var phone=String(cl.phone||"").trim();
     var idv = phone.replace(/[^\d+]/g,"");
-    var h='<button class="btn sm block" id="drawerNewLoan" style="margin:4px 0 2px">+ New loan for '+esc((cl.name||"this client").split(" ")[0])+'</button>'
+    var h='<div class="drawer-actions">'
+      + '<button class="btn sm" id="dcEdit">Edit</button>'
+      + '<button class="btn ghost sm" id="dcNewLoan">New loan</button>'
+      + '<button class="btn ghost sm danger" id="dcDelete">Delete</button>'
+      + '</div>'
       + '<div class="dsect">Financial summary</div>'
       + frow("Total borrowed", money(ag.borrowed), "num")
       + frow("Total repaid", money(ag.repaid), "num")
@@ -900,7 +911,9 @@ td.r,th.r{text-align:right}
         + '</tbody></table>' + (ag.payments.length>20?'<p style="font-size:11.5px;color:var(--muted);margin-top:6px">Showing latest 20 of '+ag.payments.length+'.</p>':'');
     } else h+='<p style="font-size:12.5px;color:var(--muted)">No payments recorded.</p>';
     $("drawerBody").innerHTML=h; $("drawerBody").scrollTop=0;
-    var dnl=$("drawerNewLoan"); if(dnl) dnl.addEventListener("click",function(){ openLoanForm(id); });
+    $("dcEdit").addEventListener("click",function(){ openClientForm(cl); });
+    $("dcNewLoan").addEventListener("click",function(){ openLoanForm(null, id); });
+    $("dcDelete").addEventListener("click",function(){ deleteClient(id); });
     openDrawer();
   }
 
@@ -911,7 +924,13 @@ td.r,th.r{text-align:right}
     drawerHead("Loan · "+pillTxt(r.status), clientName(l.clientId));
     var days=daysUntil(l.dueDate);
     var termNote = r.status==="paid" ? "settled" : (days<0 ? (-days)+" days overdue" : days+" days remaining");
-    var h='<div class="dsect">Terms</div>'
+    var isOpen=(r.status==="active"||r.status==="overdue");
+    var h='<div class="drawer-actions">'
+      + (isOpen?'<button class="btn sm" id="dlPay">Record payment</button>':'')
+      + '<button class="btn ghost sm" id="dlEdit">Edit</button>'
+      + '<button class="btn ghost sm danger" id="dlDelete">Delete</button>'
+      + '</div>'
+      + '<div class="dsect">Terms</div>'
       + frow("Principal", money(l.principal), "num")
       + frow("Interest rate", (num(l.interestRate))+"%", "num")
       + frow("Service fee", money(l.serviceFee), "num")
@@ -932,10 +951,14 @@ td.r,th.r{text-align:right}
     h+='<div class="dsect">Payments ('+pays.length+')</div>';
     if(pays.length){
       h+='<table class="dtable"><thead><tr><th>Date</th><th>Method</th><th class="r">Amount</th></tr></thead><tbody>'
-        + pays.map(function(p){ return '<tr><td class="num">'+fmtDate(p.date)+'</td><td>'+esc(p.method||"—")+'</td><td class="r num">'+money(p.amount)+'</td></tr>'; }).join("")
+        + pays.map(function(p){ return '<tr><td class="num">'+fmtDate(p.date)+'</td><td>'+esc(p.method||"—")+'</td><td class="r num">'+money(p.amount)+'<button class="pdel" data-pdel="'+esc(p.id)+'" title="Delete payment">×</button></td></tr>'; }).join("")
         + '</tbody></table>';
     } else h+='<p style="font-size:12.5px;color:var(--muted)">No payments recorded against this loan.</p>';
     $("drawerBody").innerHTML=h; $("drawerBody").scrollTop=0;
+    if(isOpen){ var dp=$("dlPay"); if(dp) dp.addEventListener("click",function(){ openPaymentForm(id); }); }
+    $("dlEdit").addEventListener("click",function(){ openLoanForm(l); });
+    $("dlDelete").addEventListener("click",function(){ deleteLoan(id); });
+    Array.prototype.forEach.call($("drawerBody").querySelectorAll("[data-pdel]"),function(b){ b.addEventListener("click",function(){ deletePayment(b.getAttribute("data-pdel"), id); }); });
     var tc=$("toClient"); if(tc) tc.addEventListener("click",function(e){ e.preventDefault(); openClient(l.clientId); });
     openDrawer();
   }
@@ -963,51 +986,108 @@ td.r,th.r{text-align:right}
       closeModal(); toast(okMsg); render();
     });
   }
-  function openClientForm(){
+  function openClientForm(cl){
+    closeDrawer();
+    var e=cl||{};
     var body=''
-      +'<div class="field"><label>Full name</label><input id="f_name" autocomplete="off" placeholder="Client name"></div>'
-      +'<div class="field row"><div><label>Phone</label><input id="f_phone" inputmode="tel" placeholder="081 123 4567"></div><div><label>ID / passport</label><input id="f_id" placeholder="ID or passport no."></div></div>'
-      +'<div class="field row"><div><label>Employer</label><input id="f_emp" placeholder="Optional"></div><div><label>Next of kin</label><input id="f_kin" placeholder="Optional"></div></div>'
-      +'<div class="field"><label>Address</label><input id="f_addr" placeholder="Optional"></div>'
-      +'<div class="field"><label>Notes</label><textarea id="f_notes" placeholder="Anything worth remembering"></textarea></div>'
+      +'<div class="field"><label>Full name</label><input id="f_name" autocomplete="off" value="'+esc(e.name||"")+'" placeholder="Client name"></div>'
+      +'<div class="field row"><div><label>Phone</label><input id="f_phone" inputmode="tel" value="'+esc(e.phone||"")+'" placeholder="081 123 4567"></div><div><label>ID / passport</label><input id="f_id" value="'+esc(e.nationalId||"")+'" placeholder="ID or passport no."></div></div>'
+      +'<div class="field row"><div><label>Employer</label><input id="f_emp" value="'+esc(e.employer||"")+'" placeholder="Optional"></div><div><label>Next of kin</label><input id="f_kin" value="'+esc(e.nextOfKin||"")+'" placeholder="Optional"></div></div>'
+      +'<div class="field"><label>Address</label><input id="f_addr" value="'+esc(e.address||"")+'" placeholder="Optional"></div>'
+      +'<div class="field"><label>Notes</label><textarea id="f_notes" placeholder="Anything worth remembering">'+esc(e.notes||"")+'</textarea></div>'
       +'<div class="formerr" id="f_err"></div>';
-    openModal("New client", body, "Add client", function(){
+    openModal(cl?"Edit client":"New client", body, cl?"Save changes":"Add client", function(){
       var name=cleanText(fval("f_name")), phone=cleanText(fval("f_phone")), nid=cleanText(fval("f_id"));
       if(!name){ ferr("Enter the client's name."); return; }
       if(phone.replace(/\D/g,"").length<8){ ferr("Enter a valid phone number — it's required for a compliant loan."); return; }
       if(nid.replace(/\s/g,"").length<6){ ferr("Enter the client's ID or passport number — it's required."); return; }
       var rec={ name:name, phone:phone, nationalId:nid, employer:cleanText(fval("f_emp")), address:cleanText(fval("f_addr")), nextOfKin:cleanText(fval("f_kin")), notes:cleanText(fval("f_notes")) };
-      commit(function(data){ data.clients.push(Object.assign({ id:uid("client"), createdAt:new Date().toISOString() }, rec)); }, "Client added.");
+      if(cl) commit(function(data){ var c=data.clients.find(function(x){return x.id===cl.id;}); if(c) Object.assign(c, rec); }, "Client updated.");
+      else commit(function(data){ data.clients.push(Object.assign({ id:uid("client"), createdAt:new Date().toISOString() }, rec)); }, "Client added.");
     });
   }
   function clientOptionsHtml(sel){
     return state.clients.slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"");})
       .map(function(c){ return '<option value="'+esc(c.id)+'"'+(c.id===sel?" selected":"")+'>'+esc(c.name||"—")+'</option>'; }).join("");
   }
-  function openLoanForm(prefillId){
+  function openLoanForm(loan, prefillClientId){
     closeDrawer();
     if(!state.clients.length){ toast("Add a client first.","err"); openClientForm(); return; }
-    var today=todayISO(), due=addDays(today,30), sel=prefillId||state.clients[0].id;
+    var e=loan||{};
+    var issue=e.issueDate||todayISO();
+    var due=e.dueDate||addDays(issue,30);
+    var sel=e.clientId||prefillClientId||state.clients[0].id;
+    var rateV=(e.interestRate!=null?e.interestRate:30), feeV=(e.serviceFee!=null?e.serviceFee:0);
     var body=''
       +'<div class="field"><label>Client</label><select id="f_client">'+clientOptionsHtml(sel)+'</select></div>'
-      +'<div class="field row"><div><label>Amount given (N$)</label><input id="f_principal" class="num" type="number" min="0" step="0.01" placeholder="0.00"></div><div><label>Interest rate (%)</label><input id="f_rate" class="num" type="number" min="0" step="0.01" value="30"></div></div>'
-      +'<div class="field row"><div><label>Service fee (N$)</label><input id="f_fee" class="num" type="number" min="0" step="0.01" value="0"></div><div><label>Purpose</label><input id="f_purpose" placeholder="Optional"></div></div>'
-      +'<div class="field row"><div><label>Issue date</label><input id="f_issue" type="date" value="'+today+'"></div><div><label>Due date</label><input id="f_due" type="date" value="'+due+'"></div></div>'
+      +'<div class="field row"><div><label>Amount given (N$)</label><input id="f_principal" class="num" type="number" min="0" step="0.01" value="'+esc(e.principal!=null?e.principal:"")+'" placeholder="0.00"></div><div><label>Interest rate (%)</label><input id="f_rate" class="num" type="number" min="0" step="0.01" value="'+esc(rateV)+'"></div></div>'
+      +'<div class="field row"><div><label>Service fee (N$)</label><input id="f_fee" class="num" type="number" min="0" step="0.01" value="'+esc(feeV)+'"></div><div><label>Purpose</label><input id="f_purpose" value="'+esc(e.purpose||"")+'" placeholder="Optional"></div></div>'
+      +'<div class="field row"><div><label>Issue date</label><input id="f_issue" type="date" value="'+esc(issue)+'"></div><div><label>Due date</label><input id="f_due" type="date" value="'+esc(due)+'"></div></div>'
       +'<div class="formerr" id="f_err"></div>';
-    openModal("New loan", body, "Create loan", function(){
+    openModal(loan?"Edit loan":"New loan", body, loan?"Save changes":"Create loan", function(){
       var clientId=fval("f_client");
       var principal=num(fval("f_principal")), rate=num(fval("f_rate")), fee=num(fval("f_fee"));
-      var issue=fval("f_issue"), dueD=fval("f_due");
+      var issue2=fval("f_issue"), dueD=fval("f_due");
       if(!clientId){ ferr("Choose a client."); return; }
       if(!(principal>0)){ ferr("Enter the amount given."); return; }
       if(!(rate>=0)||rate>100){ ferr("Interest rate must be between 0 and 100%."); return; }
       if(!(fee>=0)){ ferr("Service fee can't be negative."); return; }
-      if(!issue||!dueD){ ferr("Set both the issue and due dates."); return; }
-      if(issue>todayISO()){ ferr("Issue date can't be in the future."); return; }
-      if(dueD<=issue){ ferr("Due date must be after the issue date."); return; }
+      if(!issue2||!dueD){ ferr("Set both the issue and due dates."); return; }
+      if(issue2>todayISO()){ ferr("Issue date can't be in the future."); return; }
+      if(dueD<=issue2){ ferr("Due date must be after the issue date."); return; }
       if(principal*(rate/100)+fee > principal*0.3+0.001){ ferr("Interest + fees are above the 30% cost-of-credit cap for this loan."); return; }
-      var rec={ clientId:clientId, principal:principal, interestRate:rate, serviceFee:fee, issueDate:issue, dueDate:dueD, purpose:cleanText(fval("f_purpose")) };
-      commit(function(data){ data.loans.push(Object.assign({ id:uid("loan"), createdAt:new Date().toISOString(), status:"active" }, rec)); }, "Loan created.");
+      var rec={ clientId:clientId, principal:principal, interestRate:rate, serviceFee:fee, issueDate:issue2, dueDate:dueD, purpose:cleanText(fval("f_purpose")) };
+      if(loan) commit(function(data){ var l=data.loans.find(function(x){return x.id===loan.id;}); if(l) Object.assign(l, rec); }, "Loan updated.");
+      else commit(function(data){ data.loans.push(Object.assign({ id:uid("loan"), createdAt:new Date().toISOString(), status:"active" }, rec)); }, "Loan created.");
+    });
+  }
+  function openPaymentForm(forcedLoanId){
+    var open=rows.filter(function(r){return r.status==="active"||r.status==="overdue";}).sort(function(a,b){return String(a.loan.dueDate).localeCompare(String(b.loan.dueDate));});
+    if(!open.length){ toast("No active loans to collect.","err"); return; }
+    closeDrawer();
+    var sel=forcedLoanId||open[0].loan.id;
+    var opts=open.map(function(r){ return '<option value="'+esc(r.loan.id)+'"'+(r.loan.id===sel?" selected":"")+'>'+esc(clientName(r.loan.clientId))+' · '+money(r.outstanding)+' due</option>'; }).join("");
+    var body=''
+      +'<div class="field"><label>Loan</label><select id="f_loan">'+opts+'</select></div>'
+      +'<div class="field row"><div><label>Amount paid (N$)</label><input id="f_amount" class="num" type="number" min="0" step="0.01" placeholder="0.00"></div><div><label>Date</label><input id="f_date" type="date" value="'+todayISO()+'"></div></div>'
+      +'<div class="field row"><div><label>Method</label><select id="f_method"><option>Cash</option><option>Bank transfer</option><option>E-wallet</option><option>Other</option></select></div><div><label>Reference</label><input id="f_ref" placeholder="Optional"></div></div>'
+      +'<div class="field"><label>Notes</label><textarea id="f_pnotes" placeholder="Optional"></textarea></div>'
+      +'<div class="formerr" id="f_err"></div>';
+    openModal("Record payment", body, "Save payment", function(){
+      var loanId=fval("f_loan"), amount=num(fval("f_amount"));
+      var r=rows.find(function(x){return x.loan.id===loanId;});
+      if(!r||!(amount>0)){ ferr("Select a loan and enter an amount."); return; }
+      if(amount>r.outstanding+0.01 && !confirm("This payment ("+money(amount)+") is more than the outstanding "+money(r.outstanding)+". Save it anyway?")){ return; }
+      var rec={ id:uid("payment"), loanId:loanId, amount:amount, date:fval("f_date"), method:fval("f_method"), reference:cleanText(fval("f_ref")), notes:cleanText(fval("f_pnotes")), createdAt:new Date().toISOString() };
+      commit(function(data){ data.payments.push(rec); }, "Payment recorded.");
+    });
+  }
+  // deletes run outside the modal (triggered from a drawer), so they show a toast
+  function runDelete(mutate, okMsg){
+    toast("Saving…");
+    saveLedger(mutate).then(function(res){
+      if(res.auth===false){ signOut(); return; }
+      if(res.error){ toast(res.error==="busy"?"Someone changed the book just now — try again.":"Couldn't save ("+esc(res.error)+").","err"); return; }
+      closeDrawer(); toast(okMsg); render();
+    });
+  }
+  function deleteClient(id){
+    var cl=client(id); if(!cl) return;
+    if(state.loans.some(function(l){return l.clientId===id;})){ toast("Delete this client's loans first.","err"); return; }
+    if(!confirm("Delete "+(cl.name||"this client")+"? This cannot be undone.")) return;
+    runDelete(function(data){ data.clients=data.clients.filter(function(c){return c.id!==id;}); }, "Client deleted.");
+  }
+  function deleteLoan(id){
+    if(!confirm("Delete this loan and its payments? This cannot be undone.")) return;
+    runDelete(function(data){ data.loans=data.loans.filter(function(l){return l.id!==id;}); data.payments=(data.payments||[]).filter(function(p){return p.loanId!==id;}); }, "Loan deleted.");
+  }
+  function deletePayment(id, reopenLoanId){
+    if(!confirm("Delete this payment? This cannot be undone.")) return;
+    toast("Saving…");
+    saveLedger(function(data){ data.payments=(data.payments||[]).filter(function(p){return p.id!==id;}); }).then(function(res){
+      if(res.auth===false){ signOut(); return; }
+      if(res.error){ toast(res.error==="busy"?"Someone changed the book just now — try again.":"Couldn't save ("+esc(res.error)+").","err"); return; }
+      toast("Payment deleted."); render(); if(reopenLoanId) openLoan(reopenLoanId);
     });
   }
 
@@ -1173,7 +1253,7 @@ td.r,th.r{text-align:right}
 
   if((session()||{}).access_token) showApp(); else $("email").focus();
 
-  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;} };
+  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});} };
 })();
 </script>
 </body>

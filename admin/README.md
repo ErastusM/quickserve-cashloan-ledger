@@ -13,12 +13,17 @@ screen:
 - **Clients / Loans / Payments** — searchable, filterable registers. Click any
   row to open a full drill-down: a client's whole borrowing history and KYC, or a
   loan's terms, schedule and payments.
-- **Add clients and loans** — *New client* / *New loan* buttons (and *New loan
-  for this client* inside a client's drawer) write straight to the shared cloud
-  ledger, with the same validation the phone app enforces (required phone + ID,
-  the 30% cost-of-credit cap). Writes are rev-guarded, so a change made on the
-  phone at the same moment is merged rather than overwritten, and new entries
-  sync back to the phone app.
+- **Full CRUD on the loan book** — create, edit and delete clients and loans,
+  and record or delete payments, all writing straight to the shared cloud
+  ledger:
+  - *New client* / *New loan* buttons and, inside each drawer, *Edit* and
+    *Delete*; a loan drawer also has *Record payment*, and each payment can be
+    removed.
+  - Same validation the phone app enforces: required phone + ID, the 30%
+    cost-of-credit cap, sane dates. Deleting a client is blocked while it still
+    has loans; deleting a loan also removes its payments.
+  - Every write is **rev-guarded** — a change made on the phone at the same
+    moment is merged, never overwritten — and syncs back to the phone app.
 - **Reports** — monthly cashflow (advanced vs collected, net flow) and borrower
   concentration, with a *Print statement* button that renders a clean document.
 - **Projections** — a cash-flow outlook that mirrors the app's model: recovery,
