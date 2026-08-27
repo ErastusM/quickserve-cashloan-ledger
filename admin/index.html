@@ -863,7 +863,48 @@ td.r,th.r{text-align:right}
         + frowRaw("Inbox", connOwner)
         + '<div class="lrow"><span class="lk" style="color:var(--faint);font-size:11.5px">Public apply form feeds the Applications tab.</span></div>'
         + '</div></div>'
-      + '</div>';
+      + '</div>'
+      + '<div class="card" style="margin-top:16px"><div class="ch"><h3>Export &amp; backup</h3><span class="asat">'+state.clients.length+' clients · '+state.loans.length+' loans · '+state.payments.length+' payments</span></div>'
+        + '<div style="padding:14px 18px">'
+        + '<p style="color:var(--muted);font-size:12.5px;margin:0 0 12px;max-width:640px">Download the live loan book. The JSON is a complete backup in the same format as the phone app, so it can be re-imported there. Keep a copy off-device regularly.</p>'
+        + '<div class="drawer-actions" style="max-width:620px">'
+        + '<button class="btn sm" id="expJson">Download backup (.json)</button>'
+        + '<button class="btn ghost sm" id="expClients">Clients (.csv)</button>'
+        + '<button class="btn ghost sm" id="expLoans">Loans (.csv)</button>'
+        + '<button class="btn ghost sm" id="expPay">Payments (.csv)</button>'
+        + '</div></div></div>';
+    $("expJson").addEventListener("click",exportBackup);
+    $("expClients").addEventListener("click",exportClientsCSV);
+    $("expLoans").addEventListener("click",exportLoansCSV);
+    $("expPay").addEventListener("click",exportPaymentsCSV);
+  }
+  function downloadFile(name, text, type){
+    try{
+      var blob=new Blob([text],{type:type||"text/plain;charset=utf-8"});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement("a"); a.href=url; a.download=name; a.style.display="none";
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ try{document.body.removeChild(a);}catch(e){} URL.revokeObjectURL(url); },1500);
+      return true;
+    }catch(e){ toast("Couldn't start the download on this browser.","err"); return false; }
+  }
+  function exportBackup(){
+    var payload={ exportedAt:new Date().toISOString(), app:"Quickserve Cashloan Ledger", data:state };
+    if(downloadFile("quickserve-backup-"+todayISO()+".json", JSON.stringify(payload,null,2), "application/json")) toast("Backup downloaded.");
+  }
+  function csvCell(v){ v=String(v==null?"":v); return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+  function toCSV(headers, rowsArr){ return [headers.map(csvCell).join(",")].concat(rowsArr.map(function(r){return r.map(csvCell).join(",");})).join("\r\n"); }
+  function exportClientsCSV(){
+    var body=state.clients.map(function(c){ var ag=clientAgg(c.id); return [c.name,c.phone,c.nationalId,c.employer,c.address,c.nextOfKin,ag.openCount,num(ag.borrowed),num(ag.repaid),num(ag.outstanding)]; });
+    if(downloadFile("quickserve-clients-"+todayISO()+".csv", toCSV(["Name","Phone","National ID","Employer","Address","Next of kin","Open loans","Total borrowed","Total repaid","Outstanding"], body),"text/csv")) toast("Clients CSV downloaded.");
+  }
+  function exportLoansCSV(){
+    var body=rows.map(function(r){ var l=r.loan; return [clientName(l.clientId),num(l.principal),num(l.interestRate),num(l.serviceFee),num(r.rev),num(r.totalDue),l.issueDate,l.dueDate,pillTxt(r.status),num(r.paid),num(r.outstanding),l.purpose||""]; });
+    if(downloadFile("quickserve-loans-"+todayISO()+".csv", toCSV(["Client","Principal","Interest %","Service fee","Interest+fees","Total repayable","Issued","Due","Status","Paid","Outstanding","Purpose"], body),"text/csv")) toast("Loans CSV downloaded.");
+  }
+  function exportPaymentsCSV(){
+    var body=(state.payments||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}).map(function(p){ var loan=(state.loans||[]).find(function(l){return l.id===p.loanId;}); return [p.date, loan?clientName(loan.clientId):"—", num(p.amount), p.method||"", p.reference||""]; });
+    if(downloadFile("quickserve-payments-"+todayISO()+".csv", toCSV(["Date","Client","Amount","Method","Reference"], body),"text/csv")) toast("Payments CSV downloaded.");
   }
   function frowS(k,v){ return '<div class="lrow"><span class="lk">'+esc(k)+'</span><span class="lv" style="font-family:var(--sans);font-size:13px;text-align:right">'+esc(v)+'</span></div>'; }
   function frowRaw(k,v){ return '<div class="lrow"><span class="lk">'+esc(k)+'</span><span>'+v+'</span></div>'; }
@@ -1253,7 +1294,7 @@ td.r,th.r{text-align:right}
 
   if((session()||{}).access_token) showApp(); else $("email").focus();
 
-  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});} };
+  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});} };
 })();
 </script>
 </body>

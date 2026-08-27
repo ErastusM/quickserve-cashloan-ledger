@@ -31,8 +31,10 @@ screen:
   vs cash chart and a month-by-month table so you can see where the book is
   heading.
 - **Applications** — the intake inbox, read through the Worker's owner token.
-- **Settings** — the registered entity, lending parameters, and the live status
-  of the cloud ledger and intake service.
+- **Settings** — the registered entity, lending parameters, the live status of
+  the cloud ledger and intake service, and **Export & backup**: download the
+  live book as a JSON backup (same format as the phone app, so it re-imports
+  there) or as clients / loans / payments CSVs.
 
 Nothing lives in this file but code: every figure is pulled live from Supabase at
 sign-in.
