@@ -24,6 +24,9 @@ screen:
     has loans; deleting a loan also removes its payments.
   - Every write is **rev-guarded** — a change made on the phone at the same
     moment is merged, never overwritten — and syncs back to the phone app.
+- **Expenses** — record, edit and delete business expenses (category, amount,
+  date, note), with this-month / monthly-average / total tiles. Expenses net
+  off cash on hand and set the default *monthly costs* in Projections.
 - **Reports** — monthly cashflow (advanced vs collected, net flow) and borrower
   concentration, with a *Print statement* button that renders a clean document.
 - **Projections** — a cash-flow outlook that mirrors the app's model: recovery,
