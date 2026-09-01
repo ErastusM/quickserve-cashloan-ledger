@@ -1,4 +1,4 @@
-const CACHE_NAME = "quickserve-cashloan-v33";
+const CACHE_NAME = "quickserve-cashloan-v34";
 // Build number, derived so it cannot drift from CACHE_NAME. The page asks for
 // this to tell "genuinely stale" from "already running the new build".
 const BUILD = CACHE_NAME.replace(/\D+/g, "");
@@ -54,6 +54,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (url.origin !== self.location.origin) return;
+
+  // The admin console (/admin/) is online-only and ships updates often. Never
+  // let this offline cache intercept it, or a new build gets stuck behind a
+  // stale copy — the browser fetches it straight from the network instead.
+  if (url.pathname.indexOf("/admin/") !== -1) return;
 
   event.respondWith(networkFirst(request));
 });
