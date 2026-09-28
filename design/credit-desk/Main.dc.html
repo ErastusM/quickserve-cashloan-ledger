@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Credit queue</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#12201b;background:#e8ebe8;font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:#0c4a30}a:hover{color:#0a3d28}
+*{box-sizing:border-box}
+h1,h2,h3,h4,p{margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#5f6b65;font-weight:600}
+.nav{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:7px;color:#3c4a45;font-weight:500;font-size:13px;text-decoration:none;border-left:2.5px solid transparent}
+.nav:hover{background:#f5f7f5;color:#12201b}
+.nav.on{background:#eef3ee;color:#12201b;font-weight:600;border-left-color:#0c4a30}
+.nav svg{width:17px;height:17px;flex:none}
+.sect{font-size:10px;text-transform:uppercase;letter-spacing:.11em;color:#6f7b75;font-weight:600;padding:14px 12px 6px}
+.badge{margin-left:auto;font-family:"IBM Plex Mono",monospace;background:#0c4a30;color:#fff;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:999px}
+.panel{background:#fff;border:1px solid #dadfdb;border-radius:8px;box-shadow:0 1px 2px rgba(18,32,27,.05);overflow:hidden}
+.ph{display:flex;align-items:baseline;gap:10px;padding:12px 18px;border-bottom:1px solid #dadfdb}
+.ph h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.pill{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid currentColor;display:inline-block;white-space:nowrap;line-height:1.5}
+.good{color:#0d6b43}.warn{color:#8a6410}.bad{color:#9d2f22}.steel{color:#38566a}.acc{color:#0c4a30}.muted{color:#69756f}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #0c4a30;background:#0c4a30;color:#fff;border-radius:7px;padding:9px 16px;font:inherit;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none;min-height:40px;white-space:nowrap}
+.btn:hover{background:#0a3d28;color:#fff}
+.btn.ghost{background:#fff;border-color:#c9d1cc;color:#12201b}
+.btn.ghost:hover{background:#f5f7f5;color:#12201b}
+.btn.sm{min-height:32px;padding:5px 12px;font-size:12.5px}
+.seg{display:flex;gap:2px;background:#fff;border:1px solid #dadfdb;border-radius:7px;padding:3px}
+.seg button{border:none;background:none;color:#5f6b65;font:inherit;font-weight:600;font-size:12px;padding:7px 12px;border-radius:5px;cursor:pointer;display:flex;gap:7px;align-items:center;min-height:32px}
+.seg button:hover{color:#12201b}
+.seg button.on{background:#0c4a30;color:#fff}
+.seg button .c{font-family:"IBM Plex Mono",monospace;font-size:11px;opacity:.8}
+.roles{display:flex;gap:2px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:3px}
+.roles button{border:none;background:none;color:#a9b8ae;font:inherit;font-weight:600;font-size:12px;padding:6px 12px;border-radius:5px;cursor:pointer;min-height:32px}
+.roles button:hover{color:#eef3ef}
+.roles button.on{background:#eef3ef;color:#0a1c14}
+.gh{display:grid;grid-template-columns:118px minmax(0,1.5fr) 96px minmax(0,1.35fr) minmax(0,1.5fr) 118px 84px 150px 108px;gap:14px;padding:10px 18px;border-bottom:1px solid #dadfdb;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#5f6b65;font-weight:600}
+.gr{display:grid;grid-template-columns:118px minmax(0,1.5fr) 96px minmax(0,1.35fr) minmax(0,1.5fr) 118px 84px 150px 108px;gap:14px;padding:11px 18px;border-bottom:1px solid #eef1ee;align-items:center}
+.gr:hover{background:#f8faf8}
+.gr:last-child{border-bottom:none}
+.r{text-align:right}
+.search{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #c9d1cc;border-radius:7px;padding:0 12px;width:300px;height:40px}
+.search input{border:none;outline:none;font:inherit;font-size:13.5px;width:100%;background:none;color:#12201b}
+.search svg{width:15px;height:15px;color:#5f6b65;flex:none}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1100px; display: flex; flex-direction: column; background: #e8ebe8; overflow: hidden">
+
+  <header style="display: flex; align-items: center; gap: 13px; padding: 11px 22px; background: #0a1c14; color: #eef3ef; border-bottom: 3px solid #0c4a30; flex: none">
+    <div style="width: 34px; height: 34px; border-radius: 7px; background: #0c4a30; color: #ffffff; display: grid; place-items: center; font-weight: 700; font-size: 18px">Q</div>
+    <div style="display: flex; flex-direction: column; line-height: 1.25">
+      <span style="font-size: 13.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase">QuickServe Cashloan</span>
+      <span class="mono" style="font-size: 11px; color: #83978b">Credit desk · CC/2026/01904</span>
+    </div>
+    <div style="flex-grow: 1"></div>
+    <span style="font-size: 11px; color: #83978b; text-transform: uppercase; letter-spacing: .08em; font-weight: 600">Viewing as</span>
+    <div class="roles">
+      <button type="button" class="{{analystBtn}}" onClick="{{asAnalyst}}">Credit analyst</button>
+      <button type="button" class="{{ownerBtn}}" onClick="{{asOwner}}">Owner</button>
+    </div>
+    <div style="width: 1px; height: 30px; background: rgba(255,255,255,.12); margin: 0 6px"></div>
+    <div style="text-align: right; line-height: 1.35">
+      <div style="font-size: 12px; font-weight: 500">{{who.name}}</div>
+      <div style="font-size: 11.5px; color: #83978b">{{who.role}}</div>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-grow: 1; min-height: 0">
+
+    <nav style="width: 214px; flex: none; background: #ffffff; border-right: 1px solid #dadfdb; padding: 14px 10px; display: flex; flex-direction: column; gap: 1px">
+      <sc-if value="{{isAnalyst}}" hint-placeholder-val="{{ true }}">
+        <div class="sect">Credit</div>
+        <a class="nav on" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path></svg>Credit queue<span class="badge">{{openCount}}</span></a>
+        <div class="sect">Account</div>
+        <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>My account</a>
+        <div style="flex-grow: 1"></div>
+        <div style="margin: 0 4px; padding: 12px; border: 1px dashed #c9d1cc; border-radius: 8px; font-size: 11.5px; color: #5f6b65; display: flex; gap: 9px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 16px; height: 16px; flex: none; margin-top: 1px" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+          <span>Loan book, cash, revenue and reports are owner-only. The database refuses them to this login.</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{isOwner}}" hint-placeholder-val="{{ false }}">
+        <div class="sect">Overview</div>
+        <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"></rect><rect x="13" y="4" width="7" height="7" rx="1"></rect><rect x="4" y="13" width="7" height="7" rx="1"></rect><rect x="13" y="13" width="7" height="7" rx="1"></rect></svg>Dashboard</a>
+        <div class="sect">Credit</div>
+        <a class="nav on" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path></svg>Credit queue<span class="badge">{{openCount}}</span></a>
+        <a class="nav" href="Approval.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Approvals<span class="badge">{{awaitingCount}}</span></a>
+        <a class="nav" href="Disburse.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>Ready to disburse<span class="badge">{{approvedCount}}</span></a>
+        <div class="sect">Loan book</div>
+        <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M3 21a6 6 0 0 1 12 0"></path><path d="M16 11a4 4 0 0 0 0-6"></path></svg>Clients</a>
+        <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18"></path></svg>Loans</a>
+        <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"></path><path d="M9 8h6M9 12h4"></path></svg>Payments</a>
+        <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>Expenses</a>
+        <div class="sect">Analysis</div>
+        <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-3"></path></svg>Reports</a>
+        <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 3v18h18"></path><path d="M6 15l4-5 3 3 5-7"></path></svg>Projections</a>
+        <div class="sect">Control</div>
+        <a class="nav" href="Team.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"></path></svg>Team &amp; access</a>
+        <a class="nav" href="Audit.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Audit trail</a>
+        <div style="flex-grow: 1"></div>
+        <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path></svg>Settings</a>
+      </sc-if>
+    </nav>
+
+    <main style="flex-grow: 1; min-width: 0; padding: 22px 28px 28px; display: flex; flex-direction: column; gap: 16px">
+
+      <div style="display: flex; align-items: center; gap: 14px">
+        <div style="display: flex; align-items: baseline; gap: 12px">
+          <h1 style="font-size: 19px; font-weight: 600; letter-spacing: -.02em">Credit queue</h1>
+          <span class="mono" style="font-size: 12px; color: #5f6b65">Mon 28 Sep 2026 · {{openCount}} open · {{shownCount}} shown</span>
+        </div>
+        <div style="flex-grow: 1"></div>
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+          <input type="search" placeholder="Search name, ID number or reference" aria-label="Search applications" value="{{q}}" onChange="{{setQ}}">
+        </label>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: #ffffff; border: 1px solid #dadfdb; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 2px rgba(18,32,27,.05)">
+        <sc-for list="{{stats}}" as="s" hint-placeholder-count="4">
+          <div style="padding: 14px 16px; border-right: 1px solid #dadfdb">
+            <div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: #5f6b65; font-weight: 600">{{s.k}}</div>
+            <div class="mono {{s.cls}}" style="font-size: 24px; font-weight: 600; margin-top: 4px; letter-spacing: -.01em">{{s.v}}</div>
+            <div style="font-size: 11.5px; color: #5f6b65; margin-top: 2px">{{s.d}}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div class="seg" role="tablist" aria-label="Queue">
+          <sc-for list="{{tabs}}" as="t" hint-placeholder-count="7">
+            <button type="button" role="tab" class="{{t.cls}}" onClick="{{t.pick}}">{{t.label}} <span class="c">{{t.count}}</span></button>
+          </sc-for>
+        </div>
+        <div style="flex-grow: 1"></div>
+        <span style="font-size: 12px; color: #5f6b65">{{roleHint}}</span>
+      </div>
+
+      <div class="panel">
+        <div class="gh">
+          <span>Reference</span><span>Applicant</span><span class="r">Amount</span><span>Employer · net income</span><span>Checks</span><span>Assigned</span><span>Waiting</span><span>Status</span><span class="r">Action</span>
+        </div>
+        <sc-for list="{{rows}}" as="a" hint-placeholder-count="9">
+          <div class="gr">
+            <a class="mono" href="ApplicationFile.dc.html" style="font-size: 12.5px; font-weight: 600; text-decoration: none">{{a.ref}}</a>
+            <div style="min-width: 0">
+              <a href="ApplicationFile.dc.html" style="color: #12201b; font-weight: 600; text-decoration: none">{{a.name}}</a>
+              <div class="mono" style="font-size: 11.5px; color: #5f6b65">ID {{a.idno}}</div>
+            </div>
+            <div class="mono r" style="font-size: 13.5px; font-weight: 500">{{a.amount}}</div>
+            <div style="min-width: 0">
+              <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{a.employer}}</div>
+              <div class="mono" style="font-size: 11.5px; color: #5f6b65">{{a.income}}</div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 5px">
+              <sc-for list="{{a.flags}}" as="f" hint-placeholder-count="1">
+                <span class="pill {{f.c}}">{{f.t}}</span>
+              </sc-for>
+            </div>
+            <div style="font-size: 12.5px; color: #3c4a45">{{a.assignee}}</div>
+            <div class="mono {{a.waitCls}}" style="font-size: 12px">{{a.wait}}</div>
+            <div><span class="pill {{a.statusCls}}">{{a.statusLabel}}</span><div style="font-size: 11.5px; color: #5f6b65; margin-top: 3px">{{a.sub}}</div></div>
+            <div class="r">
+              <sc-if value="{{a.canPick}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn sm" onClick="{{a.pick}}">Pick up</button></sc-if>
+              <sc-if value="{{a.canDecide}}" hint-placeholder-val="{{ false }}"><a class="btn sm" href="Approval.dc.html">Decide</a></sc-if>
+              <sc-if value="{{a.canDisburse}}" hint-placeholder-val="{{ false }}"><a class="btn sm" href="Disburse.dc.html">Pay out</a></sc-if>
+              <sc-if value="{{a.canOpen}}" hint-placeholder-val="{{ true }}"><a class="btn ghost sm" href="ApplicationFile.dc.html">Open</a></sc-if>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{noRows}}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 40px 20px; text-align: center; color: #5f6b65">Nothing in this tab.</div>
+        </sc-if>
+      </div>
+
+      <div style="display: flex; gap: 18px; font-size: 11.5px; color: #5f6b65">
+        <span><span class="pill steel">New client</span> never borrowed from us</span>
+        <span><span class="pill good">Returning</span> matched to a client by ID number</span>
+        <span><span class="pill bad">Duplicate ID</span> another open application uses this ID</span>
+        <span><span class="pill bad">Hard fail</span> a rule that can't be overridden</span>
+        <span>Waiting time turns amber after 24 h</span>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { role: 'analyst', tab: 'open', q: '', claimed: {} };
+  }
+  renderVals() {
+    var self = this;
+    var role = this.state.role;
+    var isAnalyst = role === 'analyst';
+    var STATUS = {
+      'new': { label: 'New', cls: 'steel' },
+      in_review: { label: 'In review', cls: 'acc' },
+      info: { label: 'Waiting on applicant', cls: 'warn' },
+      awaiting: { label: 'Awaiting approval', cls: 'warn' },
+      approved: { label: 'Ready to disburse', cls: 'good' },
+      disbursed: { label: 'Disbursed', cls: 'good' },
+      declined: { label: 'Declined', cls: 'bad' },
+      archived: { label: 'Archived', cls: 'muted' }
+    };
+    var base = [
+      { ref: 'QSA-7K2M9P', name: 'Selma Nangolo', idno: '890312 00457', amount: '4,000', employer: 'Rössing Uranium', income: 'N$18,400 / month', flags: [{ t: 'Returning', c: 'good' }], assignee: 'Tuyeni S.', waitH: 2, status: 'in_review', sub: 'Worksheet saved 09:48' },
+      { ref: 'QSA-R4TX2B', name: 'Johannes Amutenya', idno: '930705 01183', amount: '2,500', employer: 'Woermann Brock, Swakopmund', income: 'N$7,900 / month', flags: [{ t: 'New client', c: 'steel' }], assignee: '—', waitH: 26, status: 'new', sub: 'Submitted Sun 07:12' },
+      { ref: 'QSA-H8WQ3N', name: 'Maria Nghipondoka', idno: '850221 00932', amount: '6,000', employer: 'Ministry of Education', income: 'N$21,300 / month', flags: [{ t: 'Duplicate ID', c: 'bad' }], assignee: '—', waitH: 5, status: 'new', sub: '2nd application this month' },
+      { ref: 'QSA-C2LM7D', name: 'Petrus Shilongo', idno: '910918 00761', amount: '3,000', employer: 'Swakop Uranium', income: 'N$15,600 / month', flags: [{ t: 'Returning', c: 'good' }, { t: '1 late', c: 'warn' }], assignee: '—', waitH: 1, status: 'new', sub: 'Submitted 08:05' },
+      { ref: 'QSA-9PF4KE', name: 'Ndapewa Iipinge', idno: '950430 00218', amount: '1,500', employer: 'Shoprite, Swakopmund', income: 'N$5,200 / month', flags: [{ t: 'Hard fail', c: 'bad' }], assignee: 'Tuyeni S.', waitH: 20, status: 'in_review', sub: 'Disposable income below zero' },
+      { ref: 'QSA-M3ZV8H', name: 'Frans Kandjii', idno: '880102 00644', amount: '5,000', employer: 'NamPower', income: 'N$19,800 / month', flags: [{ t: 'New client', c: 'steel' }], assignee: 'Tuyeni S.', waitH: 50, status: 'info', sub: 'Asked for a clearer payslip' },
+      { ref: 'QSA-W6NB2T', name: 'Hilma Kapofi', idno: '900611 00395', amount: '3,500', employer: 'Municipality of Walvis Bay', income: 'N$16,100 / month', flags: [{ t: 'Returning', c: 'good' }], assignee: 'Tuyeni S.', waitH: 5, status: 'awaiting', sub: 'Recommends: approve' },
+      { ref: 'QSA-D5KT9R', name: 'Gerson Haufiku', idno: '870815 00589', amount: '8,000', employer: 'Namdeb', income: 'N$28,900 / month', flags: [{ t: 'Above limit', c: 'warn' }, { t: '2 red flags', c: 'warn' }], assignee: 'Tuyeni S.', waitH: 3, status: 'awaiting', sub: 'Motivates N$5,250 above the limit' },
+      { ref: 'QSA-X7QJ4M', name: 'Loide Nakale', idno: '920327 00812', amount: '2,000', employer: 'Namibia Breweries', income: 'N$11,200 / month', flags: [{ t: 'Returning', c: 'good' }], assignee: 'Tuyeni S.', waitH: 1, status: 'approved', sub: 'Approved 10:30 by Erastus' },
+      { ref: 'QSA-B3NW6Y', name: 'Tomas Hamutenya', idno: '860504 00126', amount: '3,000', employer: 'Pupkewitz, Swakopmund', income: 'N$12,700 / month', flags: [], assignee: 'Tuyeni S.', waitH: -1, closed: '25 Sep', status: 'disbursed', sub: 'Booked as QSL-0057' },
+      { ref: 'QSA-K9RD2F', name: 'Anna Shipanga', idno: '970119 00347', amount: '4,500', employer: 'Self-employed trader', income: 'N$6,000 / month', flags: [], assignee: 'Tuyeni S.', waitH: -1, closed: '24 Sep', status: 'declined', sub: 'Could not afford repayment' },
+      { ref: 'QS-4GH8CT', name: 'David Nekongo', idno: '840730 00553', amount: '—', employer: 'Salt company, Walvis Bay', income: 'Income not stated', flags: [], assignee: '—', waitH: -1, closed: '02 Sep', status: 'archived', sub: 'Imported from old inbox' }
+    ];
+    var claimed = this.state.claimed;
+    var all = base.map(function (a) {
+      var st = claimed[a.ref] ? 'in_review' : a.status;
+      var r = Object.assign({}, a);
+      r.status = st;
+      if (claimed[a.ref]) { r.assignee = isAnalyst ? 'You' : 'Erastus M.'; r.sub = 'Picked up just now'; r.waitH = 0; }
+      r.statusLabel = STATUS[st].label;
+      r.statusCls = STATUS[st].cls;
+      r.wait = r.waitH < 0 ? r.closed : (r.waitH === 0 ? 'now' : (r.waitH >= 48 ? Math.floor(r.waitH / 24) + ' d' : r.waitH + ' h'));
+      r.waitCls = (r.waitH > 24 && (st === 'new' || st === 'awaiting' || st === 'info')) ? 'warn' : '';
+      r.canPick = st === 'new';
+      r.canDecide = !isAnalyst && st === 'awaiting';
+      r.canDisburse = !isAnalyst && st === 'approved';
+      r.canOpen = !r.canPick && !r.canDecide && !r.canDisburse;
+      r.pick = function () {
+        var c = Object.assign({}, self.state.claimed);
+        c[a.ref] = true;
+        self.setState({ claimed: c });
+      };
+      return r;
+    });
+    var OPEN = ['new', 'in_review', 'info', 'awaiting', 'approved'];
+    var CLOSED = ['disbursed', 'declined', 'archived'];
+    function inTab(r, key) {
+      if (key === 'open') return OPEN.indexOf(r.status) >= 0;
+      if (key === 'closed') return CLOSED.indexOf(r.status) >= 0;
+      return r.status === key;
+    }
+    var tabDefs = [
+      ['open', 'All open'], ['new', 'New'], ['in_review', 'In review'], ['info', 'Waiting on applicant'],
+      ['awaiting', 'Awaiting approval'], ['approved', 'Ready to disburse'], ['closed', 'Closed']
+    ];
+    var tab = this.state.tab;
+    var tabs = tabDefs.map(function (d) {
+      return {
+        label: d[1],
+        count: all.filter(function (r) { return inTab(r, d[0]); }).length,
+        cls: d[0] === tab ? 'on' : '',
+        pick: function () { self.setState({ tab: d[0] }); }
+      };
+    });
+    var q = this.state.q.trim().toLowerCase();
+    var rows = all.filter(function (r) {
+      if (!inTab(r, tab)) return false;
+      if (!q) return true;
+      return (r.name + ' ' + r.ref + ' ' + r.idno.replace(/\s/g, '') + ' ' + r.idno).toLowerCase().indexOf(q) >= 0;
+    });
+    function count(st) { return all.filter(function (r) { return r.status === st; }).length; }
+    var openCount = all.filter(function (r) { return OPEN.indexOf(r.status) >= 0; }).length;
+    var mine = all.filter(function (r) { return r.status === 'in_review' && (r.assignee === 'Tuyeni S.' || r.assignee === 'You'); }).length;
+    var stats = isAnalyst ? [
+      { k: 'Waiting to be picked up', v: String(count('new')), d: 'Oldest 26 h — target is 24 h', cls: 'warn' },
+      { k: 'My files in review', v: String(mine), d: 'Worksheets in progress', cls: 'acc' },
+      { k: 'Waiting on applicant', v: String(count('info')), d: 'Asked for more documents', cls: '' },
+      { k: 'With the owner', v: String(count('awaiting')), d: 'Sent for final approval', cls: '' }
+    ] : [
+      { k: 'Awaiting your approval', v: String(count('awaiting')), d: 'Oldest waiting 5 h', cls: 'acc' },
+      { k: 'Ready to disburse', v: String(count('approved')), d: 'Approved — cash not paid out yet', cls: 'good' },
+      { k: 'New, not picked up', v: String(count('new')), d: 'Oldest 26 h — past the 24 h target', cls: 'warn' },
+      { k: 'Decided in September', v: '14', d: '9 approved · 5 declined', cls: '' }
+    ];
+    return {
+      isAnalyst: isAnalyst,
+      isOwner: !isAnalyst,
+      analystBtn: isAnalyst ? 'on' : '',
+      ownerBtn: isAnalyst ? '' : 'on',
+      asAnalyst: function () { self.setState({ role: 'analyst' }); },
+      asOwner: function () { self.setState({ role: 'owner' }); },
+      who: isAnalyst ? { name: 'Tuyeni Shikongo', role: 'Credit analyst' } : { name: 'Erastus Matheus', role: 'Owner · final approver' },
+      roleHint: isAnalyst ? 'You verify and recommend. Only the owner approves and pays out.' : 'You approve, decline and pay out. Everything is recorded in the audit trail.',
+      openCount: String(openCount),
+      awaitingCount: String(count('awaiting')),
+      approvedCount: String(count('approved')),
+      shownCount: String(rows.length),
+      stats: stats,
+      tabs: tabs,
+      rows: rows,
+      noRows: rows.length === 0,
+      q: this.state.q,
+      setQ: function (e) { self.setState({ q: e.target.value }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

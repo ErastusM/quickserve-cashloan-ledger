@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ready to disburse</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#12201b;background:#e8ebe8;font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:#0c4a30}a:hover{color:#0a3d28}
+*{box-sizing:border-box}
+h1,h2,h3,h4,p{margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+.nav{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:7px;color:#3c4a45;font-weight:500;font-size:13px;text-decoration:none;border-left:2.5px solid transparent}
+.nav:hover{background:#f5f7f5;color:#12201b}
+.nav.on{background:#eef3ee;color:#12201b;font-weight:600;border-left-color:#0c4a30}
+.nav svg{width:17px;height:17px;flex:none}
+.sect{font-size:10px;text-transform:uppercase;letter-spacing:.11em;color:#6f7b75;font-weight:600;padding:14px 12px 6px}
+.badge{margin-left:auto;font-family:"IBM Plex Mono",monospace;background:#0c4a30;color:#fff;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:999px}
+.panel{background:#fff;border:1px solid #dadfdb;border-radius:8px;box-shadow:0 1px 2px rgba(18,32,27,.05);overflow:hidden}
+.ph{display:flex;align-items:baseline;gap:10px;padding:12px 18px;border-bottom:1px solid #dadfdb}
+.ph h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.ph .n{font-family:"IBM Plex Mono",monospace;color:#5f6b65;font-size:12px}
+.pill{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid currentColor;display:inline-block;white-space:nowrap;line-height:1.5}
+.good{color:#0d6b43}.warn{color:#8a6410}.bad{color:#9d2f22}.steel{color:#38566a}.acc{color:#0c4a30}.muted{color:#5f6b65}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #0c4a30;background:#0c4a30;color:#fff;border-radius:7px;padding:9px 16px;font:inherit;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none;min-height:40px;white-space:nowrap}
+.btn:hover{background:#0a3d28;color:#fff}
+.btn.ghost{background:#fff;border-color:#c9d1cc;color:#12201b}
+.btn.ghost:hover{background:#f5f7f5;color:#12201b}
+.btn.sm{min-height:32px;padding:5px 12px;font-size:12.5px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.gh{display:grid;grid-template-columns:minmax(0,1.4fr) 100px 110px minmax(0,1fr) 96px;gap:12px;padding:10px 18px;border-bottom:1px solid #dadfdb;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#5f6b65;font-weight:600}
+.gr{display:grid;grid-template-columns:minmax(0,1.4fr) 100px 110px minmax(0,1fr) 96px;gap:12px;padding:12px 18px;border-bottom:1px solid #eef1ee;align-items:center}
+.gr.sel{background:#f3f8f4;box-shadow:inset 3px 0 0 #0c4a30}
+.r{text-align:right}
+.term{padding:11px 14px;border-right:1px solid #eef1ee}
+.term .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#5f6b65;font-weight:600}
+.term .v{font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:600;margin-top:2px}
+.lab{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#5f6b65;font-weight:600;margin-bottom:5px}
+input.f,select{font:inherit;font-size:13.5px;background:#fff;border:1px solid #c9d1cc;border-radius:7px;padding:9px 11px;color:#12201b;width:100%;min-height:40px}
+input.f:focus,select:focus{outline:none;border-color:#0c4a30;box-shadow:0 0 0 3px #e7efe9}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid #dadfdb;border-radius:7px;cursor:pointer;font-size:13px}
+.opt.on{border-color:#0c4a30;background:#f3f8f4}
+.opt input{width:18px;height:18px;margin:1px 0 0;accent-color:#0c4a30;flex:none}
+.cb{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #eef1ee;cursor:pointer;font-size:12.5px;line-height:1.4}
+.cb input{width:18px;height:18px;margin:1px 0 0;accent-color:#0c4a30;flex:none}
+.sec{padding:14px 18px;border-bottom:1px solid #dadfdb;display:flex;flex-direction:column;gap:10px}
+.sec h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:#3c4a45}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1260px; display: flex; flex-direction: column; background: #e8ebe8; overflow: hidden">
+
+  <header style="display: flex; align-items: center; gap: 13px; padding: 11px 22px; background: #0a1c14; color: #eef3ef; border-bottom: 3px solid #0c4a30; flex: none">
+    <div style="width: 34px; height: 34px; border-radius: 7px; background: #0c4a30; color: #ffffff; display: grid; place-items: center; font-weight: 700; font-size: 18px">Q</div>
+    <div style="display: flex; flex-direction: column; line-height: 1.25">
+      <span style="font-size: 13.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase">QuickServe Cashloan</span>
+      <span class="mono" style="font-size: 11px; color: #83978b">Credit desk · CC/2026/01904</span>
+    </div>
+    <div style="flex-grow: 1"></div>
+    <div style="text-align: right; line-height: 1.35">
+      <div style="font-size: 12px; font-weight: 500">Erastus Matheus</div>
+      <div style="font-size: 11.5px; color: #83978b">Owner · final approver</div>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-grow: 1; min-height: 0">
+    <nav style="width: 214px; flex: none; background: #ffffff; border-right: 1px solid #dadfdb; padding: 14px 10px; display: flex; flex-direction: column; gap: 1px">
+      <div class="sect">Overview</div>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"></rect><rect x="13" y="4" width="7" height="7" rx="1"></rect><rect x="4" y="13" width="7" height="7" rx="1"></rect><rect x="13" y="13" width="7" height="7" rx="1"></rect></svg>Dashboard</a>
+      <div class="sect">Credit</div>
+      <a class="nav" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path></svg>Credit queue<span class="badge">9</span></a>
+      <a class="nav" href="Approval.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Approvals<span class="badge">2</span></a>
+      <a class="nav on" href="Disburse.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>Ready to disburse<span class="badge">{{waitingCount}}</span></a>
+      <div class="sect">Loan book</div>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M3 21a6 6 0 0 1 12 0"></path><path d="M16 11a4 4 0 0 0 0-6"></path></svg>Clients</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18"></path></svg>Loans</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"></path><path d="M9 8h6M9 12h4"></path></svg>Payments</a>
+      <div class="sect">Control</div>
+      <a class="nav" href="Team.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"></path></svg>Team &amp; access</a>
+      <a class="nav" href="Audit.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Audit trail</a>
+    </nav>
+
+    <main style="flex-grow: 1; min-width: 0; padding: 22px 28px 28px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: baseline; gap: 12px">
+        <h1 style="font-size: 19px; font-weight: 600; letter-spacing: -.02em">Ready to disburse</h1>
+        <span class="mono" style="font-size: 12px; color: #5f6b65">{{waitingCount}} approved · {{toPay}} still to pay out</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr) 560px; gap: 16px; align-items: start">
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <section class="panel">
+            <div class="gh"><span>Applicant</span><span class="r">Principal</span><span class="r">Repay</span><span>Approved</span><span class="r"></span></div>
+            <sc-for list="{{list}}" as="l" hint-placeholder-count="2">
+              <div class="{{l.cls}}">
+                <div><div style="font-weight: 600">{{l.name}}</div><div class="mono" style="font-size: 11.5px; color: #5f6b65">{{l.ref}} · {{l.clientNote}}</div></div>
+                <div class="mono r">{{l.p}}</div>
+                <div class="mono r">{{l.repay}}</div>
+                <div style="font-size: 12.5px">{{l.approved}}</div>
+                <div class="r">
+                  <sc-if value="{{l.isBooked}}" hint-placeholder-val="{{ false }}"><span class="pill good">{{l.bookedAs}}</span></sc-if>
+                  <sc-if value="{{l.canSelect}}" hint-placeholder-val="{{ true }}"><button type="button" class="btn ghost sm" onClick="{{l.pick}}">{{l.pickLabel}}</button></sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>What happens when you book</h3></div>
+            <div style="padding: 12px 18px 16px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; line-height: 1.55; color: #24312c">
+              <div style="display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px"><span class="mono acc" style="font-weight: 600">1</span><span>The client is found in your ledger by ID number, or created if new — no retyping.</span></div>
+              <div style="display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px"><span class="mono acc" style="font-weight: 600">2</span><span>The loan is added with the next QSL number and exactly the approved terms. It shows up in the phone app on its next sync.</span></div>
+              <div style="display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px"><span class="mono acc" style="font-weight: 600">3</span><span>Both happen together or not at all. If the phone app saved something at the same moment, nothing is lost — the booking waits its turn.</span></div>
+              <div style="display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px"><span class="mono acc" style="font-weight: 600">4</span><span>The payout, the checklist and who did it go into the audit trail. A booked application can't be booked twice.</span></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="ph"><h3>Pay out &amp; book</h3><span class="n">{{c.ref}}</span></div>
+
+          <sc-if value="{{notBooked}}" hint-placeholder-val="{{ true }}">
+            <div class="sec">
+              <div style="display: flex; align-items: baseline; gap: 10px"><span style="font-size: 17px; font-weight: 600">{{c.name}}</span><span class="mono" style="font-size: 12px; color: #5f6b65">approved by you {{c.approvedAt}}</span></div>
+              <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid #dadfdb; border-radius: 8px; overflow: hidden">
+                <div class="term"><div class="k">Principal</div><div class="v">{{c.p}}</div></div>
+                <div class="term"><div class="k">Interest 30%</div><div class="v">{{c.interest}}</div></div>
+                <div class="term"><div class="k">Fee</div><div class="v">N$0</div></div>
+                <div class="term" style="border-right: none"><div class="k">Repay</div><div class="v">{{c.repay}}</div></div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+                <div><label class="lab" for="iss">Issue date (cash paid)</label><input id="iss" class="f mono" type="date" value="{{issue}}" onChange="{{setIssue}}"></div>
+                <div><label class="lab" for="due">Due date</label><input id="due" class="f mono" type="date" value="{{due}}" onChange="{{setDue}}"></div>
+              </div>
+              <div class="mono {{termCls}}" style="font-size: 12px">{{termNote}}</div>
+            </div>
+
+            <div class="sec">
+              <h4>Client in the ledger</h4>
+              <label class="{{existingCls}}"><input type="radio" name="cl" checked="{{useExisting}}" onChange="{{pickExisting}}"><span><b>Add to existing client {{c.clientRef}}</b><small style="display: block; color: #5f6b65; font-size: 11.5px">{{c.name}} · matched on ID {{c.idno}} · {{c.clientNote}}</small></span></label>
+              <label class="{{newCls}}"><input type="radio" name="cl" checked="{{useNew}}" onChange="{{pickNew}}"><span><b>Create a new client instead</b><small style="display: block; color: #5f6b65; font-size: 11.5px">Only if the match is wrong — gets the next QS number</small></span></label>
+              <div style="border: 1px solid #dadfdb; border-radius: 8px; background: #f5f7f5; padding: 11px 13px; font-size: 12.5px; line-height: 1.6">
+                <div class="mono" style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #5f6b65; margin-bottom: 4px">Will be booked as</div>
+                <div><b class="mono">{{loanRef}}</b> for client <b class="mono">{{clientRef}}</b> — {{c.p}} at 30%, fee N$0, issued {{issueText}}, due {{dueText}} · purpose “{{c.purpose}}” · from application {{c.ref}}</div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h4>Payout</h4>
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+                <div><label class="lab" for="m">Method</label>
+                  <select id="m" value="{{method}}" onChange="{{setMethod}}">
+                    <option value="">Choose…</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Bank transfer">Bank transfer</option>
+                    <option value="E-wallet">E-wallet</option>
+                  </select></div>
+                <div><label class="lab" for="rf">Reference {{refHint}}</label><input id="rf" class="f mono" value="{{ref}}" onChange="{{setRef}}" placeholder="e.g. FNB 28-09 #4471"></div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div style="display: flex; align-items: baseline"><h4>Before the money leaves</h4><div style="flex-grow: 1"></div><span class="mono {{checkCls}}" style="font-size: 12px">{{checkCount}} of 10</span></div>
+              <div>
+                <sc-for list="{{checks}}" as="k" hint-placeholder-count="10">
+                  <label class="cb"><input type="checkbox" checked="{{k.on}}" onChange="{{k.toggle}}"><span><span class="mono" style="font-size: 11px; color: #5f6b65; font-weight: 600; margin-right: 6px">{{k.code}}</span>{{k.label}}</span></label>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 8px">
+              <button type="button" class="btn" disabled="{{cantBook}}" onClick="{{book}}">Book {{loanRef}} &amp; record payout</button>
+              <div style="font-size: 12px; color: #5f6b65">{{bookHint}}</div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{isBooked}}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 26px 22px; display: flex; flex-direction: column; gap: 14px">
+              <div style="width: 48px; height: 48px; border-radius: 999px; background: #e6f0ea; display: grid; place-items: center">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0d6b43" stroke-width="2.6" style="width: 26px; height: 26px" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+              </div>
+              <div style="font-size: 20px; font-weight: 600">Booked as <span class="mono">{{loanRef}}</span></div>
+              <div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eef1ee"><span class="muted">Client</span><span class="mono">{{clientRef}} · {{c.name}}</span></div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eef1ee"><span class="muted">Loan</span><span class="mono">{{c.p}} · repay {{c.repay}} by {{dueText}}</span></div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eef1ee"><span class="muted">Paid out</span><span class="mono">{{method}} {{ref}} · {{issueText}}</span></div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eef1ee"><span class="muted">Ledger</span><span class="mono">version 1,284 → 1,285</span></div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0"><span class="muted">Phone app</span><span>shows it on the next sync</span></div>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <a class="btn" href="#">Send confirmation on WhatsApp</a>
+                <button type="button" class="btn ghost">Print loan summary</button>
+                <button type="button" class="btn ghost" onClick="{{next}}">{{nextLabel}}</button>
+              </div>
+            </div>
+          </sc-if>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1260}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      sel: 'selma',
+      f: {
+        selma: { issue: '2026-09-28', due: '2026-10-28', method: '', ref: '', newClient: false, checks: {} },
+        loide: { issue: '2026-09-28', due: '2026-10-25', method: '', ref: '', newClient: false, checks: {} }
+      },
+      booked: {}
+    };
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state;
+    function fmt(x) { var a = Math.round(Math.abs(x) * 100) / 100; return 'N$' + a.toLocaleString('en-US', { minimumFractionDigits: (a % 1) ? 2 : 0, maximumFractionDigits: 2 }); }
+    var CASES = {
+      selma: { key: 'selma', ref: 'QSA-7K2M9P', name: 'Selma Nangolo', idno: '89031200457', P: 4000, clientRef: 'QS-0019', clientNote: '3 previous loans', approvedAt: 'today 10:30', purpose: 'School fees' },
+      loide: { key: 'loide', ref: 'QSA-X7QJ4M', name: 'Loide Nakale', idno: '92032700812', P: 2000, clientRef: 'QS-0024', clientNote: '1 previous loan', approvedAt: 'today 10:12', purpose: 'Rent deposit' }
+    };
+    var order = ['selma', 'loide'];
+    var nextLoan = 58 + Object.keys(s.booked).length;
+    var c0 = CASES[s.sel];
+    var f = s.f[s.sel];
+    var isBooked = !!s.booked[s.sel];
+    function upd(patch) {
+      var all = Object.assign({}, self.state.f);
+      all[self.state.sel] = Object.assign({}, all[self.state.sel], patch);
+      self.setState({ f: all });
+    }
+    function d(str) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str || ''); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }
+    function human(ms) { if (!isFinite(ms)) return '—'; var x = new Date(ms); return x.getUTCDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][x.getUTCMonth()] + ' ' + x.getUTCFullYear(); }
+    var iss = d(f.issue), due = d(f.due), today = Date.UTC(2026, 8, 28);
+    var days = Math.round((due - iss) / 86400000);
+    var cap = isFinite(iss) ? (function () { var x = new Date(iss); return Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 5, x.getUTCDate()); })() : NaN;
+    var termOk = isFinite(days) && days > 0 && due <= cap && iss <= today;
+    var termNote = !isFinite(days) ? 'Enter both dates.' : (iss > today ? 'The issue date can\'t be in the future.' : (days <= 0 ? 'The due date must be after the issue date.' : (due > cap ? 'The term is longer than 5 months — not allowed.' : 'Term ' + days + ' days · within 5 months ✓ · charges 30% of principal ✓')));
+    var CHECKS = [
+      ['13.1', 'Signed, complete application form on file'],
+      ['13.2', 'Signed consent to a credit-bureau enquiry on file'],
+      ['13.3', 'Credit-bureau report on file (or N/A under policy)'],
+      ['13.4', 'Affordability worksheet completed and approved'],
+      ['13.5', 'Copies of ID, payslip and 3 bank statements on file; originals returned'],
+      ['13.6', 'Pre-agreement statement and quotation issued and signed'],
+      ['13.7', 'Loan agreement complete — no blanks — signed by both parties'],
+      ['13.8', 'Revenue stamp on the original agreement'],
+      ['13.9', 'Free copy of the signed agreement given to the borrower'],
+      ['13.10', 'Terms above match the signed agreement exactly']
+    ];
+    var checks = CHECKS.map(function (k) {
+      return {
+        code: k[0], label: k[1], on: !!f.checks[k[0]],
+        toggle: function () { var ch = Object.assign({}, self.state.f[self.state.sel].checks); ch[k[0]] = !ch[k[0]]; upd({ checks: ch }); }
+      };
+    });
+    var checkCount = checks.filter(function (k) { return k.on; }).length;
+    var refNeeded = f.method && f.method !== 'Cash';
+    var refOk = !refNeeded || f.ref.trim().length >= 3;
+    var cantBook = !(checkCount === 10 && f.method && refOk && termOk);
+    var bookHint = checkCount < 10 ? 'Tick all 10 items — the button stays locked until the file is complete.' : (!f.method ? 'Choose how the cash was paid out.' : (!refOk ? 'Add the transfer reference.' : (!termOk ? 'Fix the dates.' : 'Books the loan and records the payout in one step.')));
+    var loanRef = isBooked ? s.booked[s.sel] : 'QSL-00' + nextLoan;
+    var clientRef = f.newClient ? 'QS-0036' : c0.clientRef;
+    var list = order.map(function (k) {
+      var x = CASES[k];
+      var b = !!s.booked[k];
+      return {
+        name: x.name, ref: x.ref, clientNote: 'client ' + x.clientRef,
+        p: fmt(x.P), repay: fmt(x.P * 1.3), approved: x.approvedAt + ' by you',
+        cls: 'gr' + (k === s.sel ? ' sel' : ''),
+        isBooked: b, bookedAs: b ? 'Booked ' + s.booked[k] : '',
+        canSelect: !b && k !== s.sel, pickLabel: 'Pay out',
+        pick: function () { self.setState({ sel: k }); }
+      };
+    });
+    var waiting = order.filter(function (k) { return !s.booked[k]; });
+    var toPay = waiting.reduce(function (t, k) { return t + CASES[k].P; }, 0);
+    var nextKey = waiting[0];
+    return {
+      waitingCount: String(waiting.length),
+      toPay: fmt(toPay),
+      list: list,
+      c: { ref: c0.ref, name: c0.name, idno: c0.idno, p: fmt(c0.P), interest: fmt(c0.P * 0.3), repay: fmt(c0.P * 1.3), clientRef: c0.clientRef, clientNote: c0.clientNote, approvedAt: c0.approvedAt, purpose: c0.purpose },
+      notBooked: !isBooked, isBooked: isBooked,
+      issue: f.issue, due: f.due,
+      setIssue: function (e) { upd({ issue: e.target.value }); },
+      setDue: function (e) { upd({ due: e.target.value }); },
+      termNote: termNote, termCls: termOk ? 'good' : 'bad',
+      issueText: human(iss), dueText: human(due),
+      useExisting: !f.newClient, useNew: f.newClient,
+      existingCls: 'opt' + (!f.newClient ? ' on' : ''), newCls: 'opt' + (f.newClient ? ' on' : ''),
+      pickExisting: function () { upd({ newClient: false }); },
+      pickNew: function () { upd({ newClient: true }); },
+      loanRef: loanRef, clientRef: clientRef,
+      method: f.method, setMethod: function (e) { upd({ method: e.target.value }); },
+      ref: f.ref, setRef: function (e) { upd({ ref: e.target.value }); },
+      refHint: refNeeded ? '(required)' : '(optional for cash)',
+      checks: checks, checkCount: String(checkCount), checkCls: checkCount === 10 ? 'good' : 'muted',
+      cantBook: cantBook, bookHint: bookHint,
+      book: function () { var b = Object.assign({}, self.state.booked); b[self.state.sel] = loanRef; self.setState({ booked: b }); },
+      nextLabel: nextKey ? 'Next: ' + CASES[nextKey].name : 'Back to the queue',
+      next: function () { if (nextKey) self.setState({ sel: nextKey }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

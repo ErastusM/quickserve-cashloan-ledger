@@ -3,6 +3,10 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Pull requests run the tests only (the deploy job is skipped for them), so a
+  # red suite shows on the PR before anything is merged.
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,13 +15,20 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # PR runs get their own group so they never cancel a deploy from main.
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.ref) || 'pages' }}
   cancel-in-progress: true
 
 jobs:
-  # Money maths gate the deploy: a wrong balance is worse than a late release.
+  # Every suite gates the deploy: a wrong balance, a leaky database policy or a
+  # broken console is worse than a late release. Each test step runs even when
+  # an earlier one failed (one run shows every failure), but any failure stops
+  # the deploy. How to run them locally: tests/README.md.
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,13 +36,59 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Money maths tests
         run: node tests/money.test.js
 
+      # ubuntu-latest ships the PostgreSQL server binaries (not started); the
+      # harness runs its own throwaway cluster as the runner user.
+      - name: PostgreSQL server binaries
+        if: ${{ !cancelled() }}
+        run: |
+          if ! ls /usr/lib/postgresql/*/bin/initdb > /dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends postgresql
+          fi
+          ls -d /usr/lib/postgresql/*/bin
+
+      - name: Database tests (migrations on a throwaway PostgreSQL)
+        if: ${{ !cancelled() }}
+        run: node tests/sql/run.js
+
+      - name: Parity tests (SQL, app.js and the console's maths)
+        if: ${{ !cancelled() }}
+        run: node tests/parity.test.js
+
+      - name: Intake Worker tests
+        if: ${{ !cancelled() }}
+        run: node --test tests/worker/
+
+      # Playwright is installed outside the repository, so nothing lands in the
+      # checkout (and the deploy job uploads its own clean checkout anyway).
+      - name: Install Playwright and Chromium
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/playwright"
+          cd "$RUNNER_TEMP/playwright"
+          npm init -y > /dev/null
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+          echo "NODE_PATH=$RUNNER_TEMP/playwright/node_modules" >> "$GITHUB_ENV"
+
+      - name: Browser tests (apply form, admin console)
+        if: ${{ !cancelled() }}
+        run: |
+          status=0
+          for f in tests/ui/*.test.js; do
+            echo "── $f"
+            node "$f" || status=1
+          done
+          exit $status
+
   deploy:
     needs: test
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages

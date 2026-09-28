@@ -3,183 +3,1062 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0a5f38" />
+  <meta name="theme-color" content="#0a1c14" />
   <meta name="robots" content="noindex" />
+  <!-- connect-src must name the Worker in ENDPOINT below; change both together.
+       form-action 'none': the form is only ever sent by the script, never as a
+       plain browser submit (which would put ID and bank numbers in a URL). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src https://quickserve-intake.quickservefinance.workers.dev; form-action 'none'; base-uri 'none'; object-src 'none'" />
   <title>QuickServe Cashloan — Apply</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="./favicon-32.png" sizes="32x32" type="image/png" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <style>
+    /* "Statement" look, as the admin console. System fonts only: IBM Plex is
+       used when the phone has it, nothing is downloaded. */
     :root{
-      --paper:#f4f6f1;--card:#fff;--ink:#15201a;--muted:#566258;--line:#dce2d6;
-      --accent:#0a5f38;--accent-ink:#0a5f38;--field:#fbfcfa;--danger:#b3341f;
-      --shadow:0 1px 2px rgba(21,32,26,.05),0 10px 30px rgba(21,32,26,.07);
+      color-scheme:light dark;
+      --paper:#e8ebe8;--surface:#fff;--surface-2:#f5f7f5;
+      --ink:#12201b;--ink-2:#24312c;--ink-3:#3c4a45;--muted:#5f6b65;
+      --line:#dadfdb;--field-line:#b9c3bd;
+      --accent:#0c4a30;--accent-2:#0a3d28;--accent-soft:#e7efe9;--accent-line:#c5d8cc;--on-accent:#fff;
+      --letterhead:#0a1c14;--lh-ink:#eef3ef;--lh-2:#83978b;--lh-3:#b9c8bf;
+      --good:#0d6b43;--good-soft:#f3f8f4;--good-tint:#e6f0ea;
+      --warn:#8a6410;--warn-soft:#f2ecd8;--warn-line:#e3d3a4;--warn-ink:#5c430a;
+      --bad:#9d2f22;--bad-soft:#f6e6e2;
+      --ring:rgba(12,74,48,.45);
+      --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
     }
     @media (prefers-color-scheme:dark){:root{
-      --paper:#0d1310;--card:#161e19;--ink:#e9ece7;--muted:#9aa89e;--line:#2a342d;
-      --accent:#4cc085;--accent-ink:#6bd39c;--field:#101711;--danger:#ef7a63;
-      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.4);
+      --paper:#0a100d;--surface:#111815;--surface-2:#0e1512;
+      --ink:#e7ece9;--ink-2:#d0d8d4;--ink-3:#a8b2ad;--muted:#8e9993;
+      --line:#212a26;--field-line:#3a4640;
+      --accent:#3fb082;--accent-2:#55c091;--accent-soft:#122720;--accent-line:#1f3a2e;--on-accent:#06140d;
+      --letterhead:#07110c;--lh-ink:#e7ece9;--lh-2:#7b857f;--lh-3:#a8b2ad;
+      --good:#4bbd83;--good-soft:#10201a;--good-tint:#12251c;
+      --warn:#d4a54c;--warn-soft:#241c0f;--warn-line:#4a3a17;--warn-ink:#e3c47f;
+      --bad:#ef8a78;--bad-soft:#2a1411;
+      --ring:rgba(85,192,145,.55);
     }}
     *{box-sizing:border-box;}
-    body{margin:0;background:var(--paper);color:var(--ink);
-      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5;font-size:16px;-webkit-font-smoothing:antialiased;}
-    .wrap{max-width:520px;margin:0 auto;padding:22px 18px 60px;}
-    .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
-    .logo{width:34px;height:34px;border-radius:9px;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:800;font-size:17px;font-family:Georgia,serif;}
-    .brand b{font-size:18px;letter-spacing:-.01em;}
-    .brand b span{color:var(--muted);font-weight:600;}
-    h1{font-family:Georgia,"Times New Roman",serif;font-size:25px;margin:14px 0 4px;letter-spacing:-.01em;}
-    .sub{color:var(--muted);font-size:14px;margin:0 0 8px;}
-    .disclaimer{background:color-mix(in srgb,var(--accent) 9%,transparent);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--muted);margin:14px 0 20px;}
-    form{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 18px;box-shadow:var(--shadow);}
-    .sec{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-ink);font-weight:700;margin:20px 0 10px;}
-    .sec:first-child{margin-top:0;}
-    .sec small{display:block;text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted);font-size:12px;margin-top:3px;}
-    label{display:block;margin-bottom:14px;}
-    label .lab{display:block;font-size:13px;font-weight:600;margin-bottom:5px;}
-    label .req{color:var(--accent-ink);}
-    label .opt{color:var(--muted);font-weight:500;}
-    input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--field);
-      border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;transition:border-color .15s;}
-    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
-    .amt{position:relative;}
-    .amt span{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;pointer-events:none;}
-    .amt input{padding-left:38px;}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-    input[type=file]{padding:9px 11px;font-size:13.5px;color:var(--muted);}
-    input[type=file]::file-selector-button{font:inherit;font-size:13px;font-weight:600;color:#fff;background:var(--accent);border:none;border-radius:8px;padding:8px 12px;margin-right:10px;cursor:pointer;}
-    .consent{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--muted);margin:12px 0 4px;}
-    .consent input{width:20px;height:20px;flex:0 0 auto;margin-top:1px;accent-color:var(--accent);}
-    .err{color:var(--danger);font-size:12px;margin-top:5px;display:none;}
-    label.invalid input,label.invalid select,label.invalid textarea{border-color:var(--danger);}
-    label.invalid .err{display:block;}
-    button{width:100%;margin-top:18px;background:var(--accent);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;}
-    button:disabled{opacity:.6;cursor:default;}
-    .foot{text-align:center;color:var(--muted);font-size:11.5px;margin-top:16px;}
-    .done{display:none;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:34px 22px;text-align:center;box-shadow:var(--shadow);}
-    .done.show{display:block;}
-    .tick{width:60px;height:60px;border-radius:50%;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);display:grid;place-items:center;margin:0 auto 14px;font-size:30px;}
-    .done h2{margin:0 0 6px;font-family:Georgia,serif;}
-    .done p{color:var(--muted);font-size:14px;margin:0 auto;max-width:36ch;}
-    .ref{margin-top:14px;font-size:12px;color:var(--muted);}
-    .ref b{color:var(--ink);font-variant-numeric:tabular-nums;}
+    [hidden]{display:none!important;}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+    h1,h2,p{margin:0;}
+    a{color:var(--accent);}
+    .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+    .vh{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;}
+    /* Honeypot: off-screen (not display:none, which bots skip). */
+    .hp{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;}
+
+    /* letterhead */
+    .lh{background:var(--letterhead);color:var(--lh-ink);border-bottom:3px solid var(--accent);padding:16px 16px 20px;}
+    .lh-in{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px;}
+    .brand{display:flex;align-items:center;gap:11px;}
+    .mark{width:34px;height:34px;border-radius:7px;background:#0c4a30;color:#fff;display:grid;place-items:center;font-weight:700;font-size:18px;flex:none;}
+    .org b{display:block;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;line-height:1.25;}
+    .org span{display:block;font-size:11.5px;color:var(--lh-2);line-height:1.25;}
+    .lh h1{font-size:24px;font-weight:600;letter-spacing:-.02em;}
+    .lh p{font-size:14px;color:var(--lh-3);margin-top:4px;}
+
+    .wrap{max-width:560px;margin:0 auto;padding:16px 16px 48px;}
+    form,.done{display:flex;flex-direction:column;gap:12px;}
+    .ready{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:10px;padding:14px 16px;font-size:14px;}
+    .ready div{margin-top:6px;line-height:1.7;}
+
+    /* cards and fields */
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px;}
+    .card h2{font-size:15px;font-weight:600;display:flex;gap:10px;align-items:center;}
+    .n{width:24px;height:24px;border-radius:999px;background:var(--accent);color:var(--on-accent);font-size:12px;display:grid;place-items:center;font-family:var(--mono);flex:none;}
+    .fl{display:flex;flex-direction:column;gap:5px;min-width:0;border:0;margin:0;padding:0;}
+    .fl > label:not(.cb),.lb{font-size:13px;font-weight:600;color:var(--ink-2);padding:0;}
+    .opt{font-weight:400;color:var(--muted);}
+    .hint,.note{font-size:12.5px;color:var(--muted);}
+    .note.good{color:var(--good);} .note.warn{color:var(--warn);}
+    .f,select{font:inherit;font-size:16px;background:var(--surface);border:1px solid var(--field-line);border-radius:8px;padding:11px 12px;color:var(--ink);width:100%;min-height:48px;}
+    .f.mono{font-family:var(--mono);}
+    .f:focus,select:focus{outline:2px solid transparent;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring);}
+    .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start;}
+    .err{font-size:13px;color:var(--bad);font-weight:500;}
+    .err:empty{display:none;}
+    .fl.invalid .f,.fl.invalid select{border-color:var(--bad);border-width:2px;padding:10px 11px;}
+    .estimate{padding:10px 12px;border-radius:8px;background:var(--surface-2);font-size:13.5px;}
+
+    /* yes / no — real radios, drawn as two buttons */
+    .yn{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+    .yn label{display:grid;place-items:center;font-size:15px;font-weight:600;border:1px solid var(--field-line);background:var(--surface);color:var(--ink-2);border-radius:8px;min-height:46px;cursor:pointer;user-select:none;}
+    .yn input:checked + label{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
+    .yn input:focus-visible + label{outline:3px solid var(--ring);outline-offset:2px;}
+    .fl.invalid .yn label{border-color:var(--bad);}
+
+    /* documents */
+    .doc{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;column-gap:12px;row-gap:6px;border:1px dashed var(--field-line);border-radius:8px;padding:12px;}
+    .doc.ok{border-style:solid;border-color:var(--good);background:var(--good-soft);}
+    .fl.invalid .doc{border-color:var(--bad);border-style:solid;}
+    .doc-ic{width:22px;height:22px;flex:none;color:var(--muted);}
+    .doc-ic svg{width:22px;height:22px;display:block;}
+    .doc .ic-ok,.doc.ok .ic-add{display:none;}
+    .doc.ok .ic-ok{display:block;color:var(--good);}
+    .doc-body{min-width:0;}
+    .doc-t{font-weight:600;}
+    .doc-m{font-size:12.5px;color:var(--muted);}
+    .flist{grid-column:2 / -1;list-style:none;margin:0;padding:0;border-top:1px solid var(--line);}
+    .flist:empty{display:none;}
+    .flist li{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);min-width:0;}
+    .flist .fn{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+    .flist .fs{flex:none;font-family:var(--mono);}
+    .rm{flex:none;margin-left:auto;font:inherit;font-size:13px;color:var(--bad);background:none;border:0;min-height:44px;min-width:44px;padding:0 2px;cursor:pointer;text-decoration:underline;}
+    .doc .pick{width:auto;}
+    .doc input[type=file]:focus-visible + .pick{outline:3px solid var(--ring);outline-offset:2px;}
+
+    /* consent */
+    .cb{display:flex;gap:12px;align-items:flex-start;font-size:14px;line-height:1.45;cursor:pointer;min-height:44px;}
+    .cb input{width:22px;height:22px;margin:1px 0 0;accent-color:var(--accent);flex:none;}
+    .cb input:focus-visible{outline:3px solid var(--ring);outline-offset:2px;}
+    .fl.invalid .cb span{color:var(--bad);}
+    .shield{display:flex;gap:10px;padding:12px;border-radius:8px;background:var(--warn-soft);border:1px solid var(--warn-line);font-size:13.5px;color:var(--warn-ink);}
+    .shield svg{width:20px;height:20px;flex:none;}
+
+    /* buttons, messages */
+    .btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);border-radius:9px;padding:13px 18px;font:inherit;font-weight:600;font-size:16px;cursor:pointer;text-decoration:none;min-height:52px;width:100%;}
+    .btn:hover{background:var(--accent-2);}
+    .btn:focus-visible{outline:3px solid var(--ring);outline-offset:2px;}
+    .btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--field-line);min-height:44px;font-size:14px;padding:8px 14px;}
+    .btn.ghost:hover{background:var(--surface-2);}
+    .btn[disabled]{opacity:.55;cursor:progress;}
+    .alert{border:1.5px solid var(--bad);background:var(--bad-soft);color:var(--ink);border-radius:10px;padding:12px 14px;font-size:14px;}
+    .alert:empty{display:none;}
+    .alert b{color:var(--bad);}
+    .alert p + p{margin-top:4px;}
+    .alert ul{margin:6px 0 0;padding-left:18px;}
+    .alert li{margin:2px 0;}
+    .alert a{color:var(--bad);}
+    .sending{font-size:13px;color:var(--muted);text-align:center;}
+    .sending:empty{display:none;}
+    .foot{display:flex;gap:8px;justify-content:center;align-items:flex-start;text-align:center;color:var(--muted);font-size:12.5px;}
+    .foot svg{width:14px;height:14px;flex:none;margin-top:3px;}
+
+    /* done */
+    .done-head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding-top:8px;}
+    .tick{width:56px;height:56px;border-radius:999px;background:var(--good-tint);color:var(--good);display:grid;place-items:center;}
+    .tick svg{width:30px;height:30px;}
+    .done h1{font-size:23px;font-weight:600;letter-spacing:-.02em;}
+    .done h1:focus{outline:none;}
+    .done-head p{font-size:14.5px;color:var(--ink-3);}
+    .refbox{background:var(--surface);border:1.5px solid var(--accent);border-radius:10px;padding:16px;text-align:center;}
+    .refbox .k{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;}
+    .refbox .v{font-family:var(--mono);font-size:30px;font-weight:600;letter-spacing:.04em;margin-top:4px;color:var(--accent);overflow-wrap:anywhere;}
+    .refbox .t{font-size:13px;color:var(--muted);margin-top:2px;}
+    .steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;}
+    .steps li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;align-items:start;font-size:14px;}
+    .steps .n{width:26px;height:26px;}
+    .again{text-align:center;font-size:14px;padding:12px;}
+    @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;}}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="brand"><span class="logo">Q</span><b>QuickServe<span>&nbsp;Cashloan</span></b></div>
-    <h1>Apply for a cash loan</h1>
-    <p class="sub">Takes a few minutes. Have your documents ready. We'll reply on WhatsApp.</p>
-    <div class="disclaimer">Submitting this form is a <b>request</b>, not an approved loan. We review each application and the amount is decided from your documents. All details are kept private and used only to assess your request.</div>
+  <header class="lh">
+    <div class="lh-in">
+      <div class="brand"><span class="mark" aria-hidden="true">Q</span><div class="org"><b>QuickServe Cashloan</b><span>Registered microlender · Swakopmund</span></div></div>
+      <div id="intro">
+        <h1>Apply for a cash loan</h1>
+        <p>Takes about 5 minutes. We reply within one working day.</p>
+      </div>
+    </div>
+  </header>
 
-    <form id="applyForm" novalidate>
-      <div class="sec">About you</div>
-      <label><span class="lab">Full name <span class="req">*</span></span><input name="fullName" autocomplete="name" required /><span class="err">Please enter your full name.</span></label>
-      <label><span class="lab">WhatsApp number <span class="req">*</span></span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="081 234 5678" required /><span class="err">Please enter a valid phone number.</span></label>
-      <label><span class="lab">National ID number <span class="req">*</span></span><input name="nationalId" inputmode="numeric" required /><span class="err">Please enter your ID number.</span></label>
-      <label><span class="lab">Home address <span class="opt">(optional)</span></span><input name="address" autocomplete="street-address" /></label>
-      <label><span class="lab">Employer / income source <span class="req">*</span></span><input name="employer" required /><span class="err">Please tell us how you earn an income.</span></label>
-      <label><span class="lab">Monthly income <span class="opt">(optional)</span></span><div class="amt"><span>N$</span><input name="income" type="number" min="0" inputmode="decimal" placeholder="0.00" /></div></label>
+  <main class="wrap">
+    <form id="applyForm" method="post" novalidate>
+      <div class="ready">
+        <b>Have these ready</b>
+        <div>Your Namibian ID · your latest payslip · your last 3 months of bank statements (photos or PDFs)</div>
+      </div>
 
-      <div class="sec">Next of kin</div>
-      <label><span class="lab">Full name <span class="req">*</span></span><input name="kinName" required /><span class="err">Please enter your next of kin's name.</span></label>
-      <label><span class="lab">Their phone number <span class="req">*</span></span><input name="kinPhone" type="tel" inputmode="tel" required /><span class="err">Please enter their phone number.</span></label>
+      <section class="card" aria-labelledby="h1-loan">
+        <h2 id="h1-loan"><span class="n" aria-hidden="true">1</span>The loan</h2>
+        <div class="fl">
+          <label for="amountRequested">How much do you need? (N$)</label>
+          <input id="amountRequested" name="amountRequested" class="f mono" inputmode="decimal" autocomplete="off" maxlength="14" />
+          <p class="err" id="amountRequested-err"></p>
+        </div>
+        <div class="fl">
+          <label for="repayDate">When will you pay it back?</label>
+          <input id="repayDate" name="repayDate" class="f" type="date" aria-describedby="repayDate-hint" />
+          <small class="hint" id="repayDate-hint">Usually your next pay day. At most 5 months away.</small>
+          <p class="err" id="repayDate-err"></p>
+        </div>
+        <div class="fl">
+          <label for="purpose">What is it for?</label>
+          <input id="purpose" name="purpose" class="f" maxlength="300" placeholder="e.g. school fees, transport, emergency" />
+          <p class="err" id="purpose-err"></p>
+        </div>
+        <p class="estimate" id="estimate" aria-live="polite">Enter an amount to see an estimate.</p>
+      </section>
 
-      <div class="sec">The loan</div>
-      <label><span class="lab">Purpose of funds <span class="req">*</span></span><input name="purpose" required placeholder="e.g. school fees, transport, emergency" /><span class="err">Please tell us what the loan is for.</span></label>
-      <label><span class="lab">When can you repay? <span class="req">*</span></span><input name="repayDate" type="date" required /><span class="err">Please choose a repayment date.</span></label>
+      <section class="card" aria-labelledby="h2-you">
+        <h2 id="h2-you"><span class="n" aria-hidden="true">2</span>About you</h2>
+        <div class="fl">
+          <label for="fullName">Full name, as on your ID</label>
+          <input id="fullName" name="fullName" class="f" autocomplete="name" maxlength="120" />
+          <p class="err" id="fullName-err"></p>
+        </div>
+        <div class="fl">
+          <label for="nationalId">Namibian ID number</label>
+          <input id="nationalId" name="nationalId" class="f mono" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="30" aria-describedby="nationalId-note" />
+          <small class="note" id="nationalId-note" aria-live="polite">Using a passport? That is fine — enter its number.</small>
+          <p class="err" id="nationalId-err"></p>
+        </div>
+        <div class="fl" id="dobWrap" hidden>
+          <label for="dateOfBirth">Date of birth <span class="opt">(optional)</span></label>
+          <input id="dateOfBirth" name="dateOfBirth" class="f" type="date" autocomplete="bday" aria-describedby="dateOfBirth-note" />
+          <small class="note" id="dateOfBirth-note" aria-live="polite">We read it from a Namibian ID. With a passport, please add it here.</small>
+          <p class="err" id="dateOfBirth-err"></p>
+        </div>
+        <div class="fl">
+          <label for="phone">WhatsApp number</label>
+          <input id="phone" name="phone" class="f mono" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" placeholder="081 234 5678" />
+          <p class="err" id="phone-err"></p>
+        </div>
+        <div class="fl">
+          <label for="email">Email <span class="opt">(optional)</span></label>
+          <input id="email" name="email" class="f" type="email" inputmode="email" autocomplete="email" maxlength="120" spellcheck="false" />
+          <p class="err" id="email-err"></p>
+        </div>
+        <div class="fl">
+          <label for="address">Home address</label>
+          <input id="address" name="address" class="f" autocomplete="street-address" maxlength="300" />
+          <p class="err" id="address-err"></p>
+        </div>
+        <div class="two">
+          <div class="fl">
+            <label for="town">Town</label>
+            <select id="town" name="town" autocomplete="address-level2">
+              <option value="">Choose…</option>
+              <option>Swakopmund</option><option>Walvis Bay</option><option>Arandis</option><option>Henties Bay</option><option value="Other">Other</option>
+            </select>
+            <p class="err" id="town-err"></p>
+          </div>
+          <div class="fl">
+            <label for="dependants">People you support</label>
+            <input id="dependants" name="dependants" class="f mono" inputmode="numeric" autocomplete="off" maxlength="2" aria-describedby="dependants-hint" />
+            <small class="hint" id="dependants-hint">0 if none.</small>
+            <p class="err" id="dependants-err"></p>
+          </div>
+        </div>
+        <div class="fl" id="townOtherWrap" hidden>
+          <label for="townOther">Which town?</label>
+          <input id="townOther" name="townOther" class="f" maxlength="80" />
+          <p class="err" id="townOther-err"></p>
+        </div>
+      </section>
 
-      <div class="sec">Documents <small>Clear photo or PDF of each, up to 10 MB.</small></div>
-      <label><span class="lab">ID copy <span class="req">*</span></span><input name="docId" type="file" accept="image/*,application/pdf" required /><span class="err">Please attach a copy of your ID.</span></label>
-      <label><span class="lab">Bank statement — last 3 months <span class="req">*</span></span><input name="docBank" type="file" accept="image/*,application/pdf" multiple required /><span class="err">Please attach your bank statement.</span></label>
-      <label><span class="lab">Latest payslip <span class="req">*</span></span><input name="docPayslip" type="file" accept="image/*,application/pdf" required /><span class="err">Please attach your latest payslip.</span></label>
+      <section class="card" aria-labelledby="h3-work">
+        <h2 id="h3-work"><span class="n" aria-hidden="true">3</span>Your work</h2>
+        <div class="fl">
+          <label for="employer">Employer</label>
+          <input id="employer" name="employer" class="f" autocomplete="organization" maxlength="120" />
+          <p class="err" id="employer-err"></p>
+        </div>
+        <div class="fl">
+          <label for="jobTitle">Job title</label>
+          <input id="jobTitle" name="jobTitle" class="f" autocomplete="organization-title" maxlength="80" />
+          <p class="err" id="jobTitle-err"></p>
+        </div>
+        <div class="two">
+          <div class="fl">
+            <label for="employmentType">Employment</label>
+            <select id="employmentType" name="employmentType">
+              <option value="">Choose…</option>
+              <option>Permanent</option><option>Contract</option><option>Self-employed</option><option>Other</option>
+            </select>
+            <p class="err" id="employmentType-err"></p>
+          </div>
+          <div class="fl">
+            <label for="payDay">Pay day</label>
+            <select id="payDay" name="payDay">
+              <option value="">Choose…</option>
+              <option>15th</option><option>20th</option><option>25th</option><option>Last day</option><option value="Other">Other</option>
+            </select>
+            <p class="err" id="payDay-err"></p>
+          </div>
+        </div>
+        <div class="fl" id="payDayOtherWrap" hidden>
+          <label for="payDayOther">Which day are you paid?</label>
+          <input id="payDayOther" name="payDayOther" class="f" maxlength="40" placeholder="e.g. 28th, or every Friday" />
+          <p class="err" id="payDayOther-err"></p>
+        </div>
+      </section>
 
-      <label class="consent" id="consentWrap">
-        <input type="checkbox" name="consent" required />
-        <span>I confirm the information and documents are true, and I agree that QuickServe may contact me and use these details to assess my loan request. <span class="req">*</span></span>
-      </label>
-      <span class="err" id="consentErr" style="display:none">Please tick to continue.</span>
+      <section class="card" aria-labelledby="h4-bank">
+        <h2 id="h4-bank"><span class="n" aria-hidden="true">4</span>Your bank account</h2>
+        <div class="fl">
+          <label for="bankName">Bank</label>
+          <select id="bankName" name="bankName">
+            <option value="">Choose…</option>
+            <option>FNB Namibia</option><option>Bank Windhoek</option><option>Standard Bank Namibia</option><option>Nedbank Namibia</option><option value="Other">Other</option>
+          </select>
+          <p class="err" id="bankName-err"></p>
+        </div>
+        <div class="fl" id="bankNameOtherWrap" hidden>
+          <label for="bankNameOther">Which bank?</label>
+          <input id="bankNameOther" name="bankNameOther" class="f" maxlength="80" />
+          <p class="err" id="bankNameOther-err"></p>
+        </div>
+        <div class="fl">
+          <label for="bankAccountHolder">Account holder</label>
+          <input id="bankAccountHolder" name="bankAccountHolder" class="f" autocomplete="off" maxlength="120" />
+          <p class="err" id="bankAccountHolder-err"></p>
+        </div>
+        <div class="fl">
+          <label for="bankAccountNo">Account number</label>
+          <input id="bankAccountNo" name="bankAccountNo" class="f mono" inputmode="numeric" autocomplete="off" maxlength="30" />
+          <p class="err" id="bankAccountNo-err"></p>
+        </div>
+        <fieldset class="fl" id="salaryIntoAccount-group">
+          <legend class="lb">Is your salary paid into this account?</legend>
+          <div class="yn">
+            <input type="radio" class="vh" id="salaryIntoAccount-yes" name="salaryIntoAccount" value="yes" /><label for="salaryIntoAccount-yes">Yes</label>
+            <input type="radio" class="vh" id="salaryIntoAccount-no" name="salaryIntoAccount" value="no" /><label for="salaryIntoAccount-no">No</label>
+          </div>
+          <p class="err" id="salaryIntoAccount-err"></p>
+        </fieldset>
+      </section>
 
-      <button type="submit" id="submitBtn">Submit application</button>
-      <p class="foot">🔒 Your information and documents are sent securely and seen only by QuickServe.</p>
+      <section class="card" aria-labelledby="h5-money">
+        <h2 id="h5-money"><span class="n" aria-hidden="true">5</span>Your money each month</h2>
+        <div class="fl">
+          <label for="declaredIncome">Take-home pay (N$)</label>
+          <input id="declaredIncome" name="declaredIncome" class="f mono" inputmode="decimal" autocomplete="off" maxlength="16" aria-describedby="declaredIncome-hint" />
+          <small class="hint" id="declaredIncome-hint">What reaches your bank after tax and deductions.</small>
+          <p class="err" id="declaredIncome-err"></p>
+        </div>
+        <div class="fl">
+          <label for="declaredDeductions">Loan and account repayments (N$)</label>
+          <input id="declaredDeductions" name="declaredDeductions" class="f mono" inputmode="decimal" autocomplete="off" maxlength="16" aria-describedby="declaredDeductions-hint" />
+          <small class="hint" id="declaredDeductions-hint">Other loans, store cards, funeral policies. 0 if none.</small>
+          <p class="err" id="declaredDeductions-err"></p>
+        </div>
+        <div class="fl">
+          <label for="declaredExpenses">Living costs (N$)</label>
+          <input id="declaredExpenses" name="declaredExpenses" class="f mono" inputmode="decimal" autocomplete="off" maxlength="16" aria-describedby="declaredExpenses-hint" />
+          <small class="hint" id="declaredExpenses-hint">Rent, food, transport, school, family support.</small>
+          <p class="err" id="declaredExpenses-err"></p>
+        </div>
+        <fieldset class="fl" id="otherLenderLoans-group">
+          <legend class="lb">Do you have loans with other lenders?</legend>
+          <div class="yn">
+            <input type="radio" class="vh" id="otherLenderLoans-yes" name="otherLenderLoans" value="yes" /><label for="otherLenderLoans-yes">Yes</label>
+            <input type="radio" class="vh" id="otherLenderLoans-no" name="otherLenderLoans" value="no" /><label for="otherLenderLoans-no">No</label>
+          </div>
+          <p class="err" id="otherLenderLoans-err"></p>
+        </fieldset>
+        <div class="fl" id="otherLenderCountWrap" hidden>
+          <label for="otherLenderCount">How many?</label>
+          <input id="otherLenderCount" name="otherLenderCount" class="f mono" inputmode="numeric" autocomplete="off" maxlength="2" />
+          <p class="err" id="otherLenderCount-err"></p>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h6-kin">
+        <h2 id="h6-kin"><span class="n" aria-hidden="true">6</span>Next of kin</h2>
+        <div class="fl">
+          <label for="kinName">Name</label>
+          <input id="kinName" name="kinName" class="f" autocomplete="off" maxlength="120" />
+          <p class="err" id="kinName-err"></p>
+        </div>
+        <div class="two">
+          <div class="fl">
+            <label for="kinRelationship">Relationship</label>
+            <input id="kinRelationship" name="kinRelationship" class="f" autocomplete="off" maxlength="60" placeholder="e.g. Mother" />
+            <p class="err" id="kinRelationship-err"></p>
+          </div>
+          <div class="fl">
+            <label for="kinPhone">Phone</label>
+            <input id="kinPhone" name="kinPhone" class="f mono" type="tel" inputmode="tel" autocomplete="off" maxlength="24" />
+            <p class="err" id="kinPhone-err"></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h7-docs" id="docsCard">
+        <h2 id="h7-docs"><span class="n" aria-hidden="true">7</span>Documents</h2>
+        <div class="fl">
+          <div class="doc" id="docId-slot">
+            <span class="doc-ic" aria-hidden="true"><svg class="ic-add" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><svg class="ic-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+            <div class="doc-body"><div class="doc-t" id="docId-t">Namibian ID</div><div class="doc-m" id="docId-m">Clear photo of the front, or a PDF. Passport photo page is fine.</div></div>
+            <input type="file" class="vh" id="docId" accept="image/*,application/pdf,.pdf,.heic,.heif" aria-labelledby="docId-t" aria-describedby="docId-m" />
+            <label for="docId" class="btn ghost pick" id="docId-pick">Add</label>
+            <ul class="flist" id="docId-list"></ul>
+          </div>
+          <p class="err" id="docId-err"></p>
+        </div>
+        <div class="fl">
+          <div class="doc" id="docPayslip-slot">
+            <span class="doc-ic" aria-hidden="true"><svg class="ic-add" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><svg class="ic-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+            <div class="doc-body"><div class="doc-t" id="docPayslip-t">Latest payslip</div><div class="doc-m" id="docPayslip-m">Photo or PDF of your most recent payslip.</div></div>
+            <input type="file" class="vh" id="docPayslip" accept="image/*,application/pdf,.pdf,.heic,.heif" aria-labelledby="docPayslip-t" aria-describedby="docPayslip-m" />
+            <label for="docPayslip" class="btn ghost pick" id="docPayslip-pick">Add</label>
+            <ul class="flist" id="docPayslip-list"></ul>
+          </div>
+          <p class="err" id="docPayslip-err"></p>
+        </div>
+        <div class="fl">
+          <div class="doc" id="docBank-slot">
+            <span class="doc-ic" aria-hidden="true"><svg class="ic-add" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><svg class="ic-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+            <div class="doc-body"><div class="doc-t" id="docBank-t">Bank statements — last 3 months</div><div class="doc-m" id="docBank-m">Up to 6 files. One PDF with all 3 months is fine.</div></div>
+            <input type="file" class="vh" id="docBank" multiple accept="image/*,application/pdf,.pdf,.heic,.heif" aria-labelledby="docBank-t" aria-describedby="docBank-m" />
+            <label for="docBank" class="btn ghost pick" id="docBank-pick">Add</label>
+            <ul class="flist" id="docBank-list"></ul>
+          </div>
+          <p class="err" id="docBank-err"></p>
+        </div>
+        <div class="fl">
+          <div class="doc" id="docAddress-slot">
+            <span class="doc-ic" aria-hidden="true"><svg class="ic-add" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><svg class="ic-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+            <div class="doc-body"><div class="doc-t" id="docAddress-t">Proof of address <span class="opt">(optional)</span></div><div class="doc-m" id="docAddress-m">Utility bill or letter</div></div>
+            <input type="file" class="vh" id="docAddress" accept="image/*,application/pdf,.pdf,.heic,.heif" aria-labelledby="docAddress-t" aria-describedby="docAddress-m" />
+            <label for="docAddress" class="btn ghost pick" id="docAddress-pick">Add</label>
+            <ul class="flist" id="docAddress-list"></ul>
+          </div>
+          <p class="err" id="docAddress-err"></p>
+        </div>
+        <small class="hint" id="docs-hint">Photos (JPG, PNG, HEIC) or PDF, up to 10 MB each and 40 MB in total.<span id="docs-total"></span></small>
+        <p class="err" id="documents-err"></p>
+      </section>
+
+      <section class="card" aria-labelledby="h8-consent">
+        <h2 id="h8-consent"><span class="n" aria-hidden="true">8</span>Your consent</h2>
+        <div class="fl">
+          <label class="cb"><input type="checkbox" id="consentProcessing" name="consentProcessing" value="yes" /><span>I agree that QuickServe Cashloan may use my information to assess this application, as explained in the <a href="documents/pdf/10-consent-and-privacy-notice.pdf" target="_blank" rel="noopener">privacy notice</a>.</span></label>
+          <p class="err" id="consentProcessing-err"></p>
+        </div>
+        <div class="fl">
+          <label class="cb"><input type="checkbox" id="consentBureau" name="consentBureau" value="yes" /><span>I agree to a credit check with a credit bureau and to QuickServe confirming my employment.</span></label>
+        </div>
+        <div class="shield">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/></svg>
+          <span>We will <b>never</b> ask for your bank card, PIN, or to keep your original ID.</span>
+        </div>
+      </section>
+
+      <!-- Bots fill every box; people never see this one. Must stay empty. -->
+      <div class="hp" aria-hidden="true">
+        <label for="website">Website (leave empty)</label>
+        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      </div>
+      <input type="hidden" id="consentVersion" name="consentVersion" value="2026-10-v1" />
+
+      <div class="alert" id="formAlert" role="alert" tabindex="-1"></div>
+      <button type="submit" class="btn" id="submitBtn">Send application</button>
+      <p class="sending" id="sendStatus" aria-live="polite"></p>
+      <p class="foot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>Sending this form is a request, not an approved loan. Your information and documents are sent securely and seen only by QuickServe.</span></p>
     </form>
 
-    <div class="done" id="done">
-      <div class="tick">✓</div>
-      <h2>Application received</h2>
-      <p>Thank you. We've got your request and documents, and will review them and reply to you on WhatsApp shortly.</p>
-      <p class="ref">Your reference: <b id="refNo">—</b></p>
-    </div>
-  </div>
+    <section class="done" id="done" hidden aria-labelledby="doneTitle">
+      <div class="done-head">
+        <div class="tick" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+        <h1 id="doneTitle" tabindex="-1">Application received</h1>
+        <p id="doneThanks">Thank you. Keep this reference — screenshot this page.</p>
+      </div>
+      <div class="refbox" id="refBox">
+        <div class="k">Your reference</div>
+        <div class="v" id="refNo">—</div>
+        <div class="t" id="doneWhen"></div>
+      </div>
+      <div class="card">
+        <h2>What happens next</h2>
+        <ol class="steps">
+          <li><span class="n" aria-hidden="true">1</span><span>A credit analyst checks your documents — usually the same working day.</span></li>
+          <li><span class="n" aria-hidden="true">2</span><span>If we need anything, we WhatsApp you from <span class="mono">+264 81 264 6222</span>.</span></li>
+          <li><span class="n" aria-hidden="true">3</span><span>If approved, you get a written quotation, sign the agreement at our office and collect your money.</span></li>
+        </ol>
+      </div>
+      <div class="shield">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/></svg>
+        <span>We will never ask for your bank card, your PIN, or to keep your original ID. If anyone does, it is not us.</span>
+      </div>
+      <a class="again" href="apply.html">Back to the form</a>
+    </section>
+  </main>
 
   <script>
     // ── CONFIG ──────────────────────────────────────────────────────────────
     // After deploying the Worker (see intake-worker/README.md), set this to your
     // Worker URL + "/applications". Leave "" to run the form in preview mode.
+    // (If the Worker's host changes, update connect-src in the CSP meta too.)
     const ENDPOINT = "https://quickserve-intake.quickservefinance.workers.dev/applications";
-    const MAX_MB = 10;
+    const CONSENT_VERSION = "2026-10-v1";       // wording of the two consent boxes
+    const MAX_AMOUNT = 100000;                   // N$ — legal cap (policy max principal)
+    const MAX_TERM_MONTHS = 5;                   // repay date at most 5 months away
+    const ESTIMATE_RATE = 30;                    // % once-off, for the estimate only
+    const AGE_MIN = 18, AGE_MAX = 70;            // soft warning only; staff decide
+    const MAX_MB = 10, MAX_TOTAL_MB = 40, MAX_BANK_FILES = 6;
+    const WHATSAPP = "+264 81 264 6222";
     // ────────────────────────────────────────────────────────────────────────
 
-    const form = document.getElementById("applyForm");
-    const btn = document.getElementById("submitBtn");
+    const MB = 1024 * 1024;
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const $ = (id) => document.getElementById(id);
+    const form = $("applyForm");
+    const btn = $("submitBtn");
+    const alertBox = $("formAlert");
 
-    function isBad(el){
-      if (el.type === "checkbox") return !el.checked;
-      if (el.type === "file") return el.files.length === 0;
-      return !String(el.value).trim();
+    // Documents live here (not in the file inputs) so several picks add up and
+    // nothing is lost when a send fails.
+    const SLOTS = {
+      docId:      { max: 1, missing: "Please add a photo or PDF of your ID." },
+      docPayslip: { max: 1, missing: "Please add your latest payslip." },
+      docBank:    { max: MAX_BANK_FILES, missing: "Please add your bank statements for the last 3 months." },
+      docAddress: { max: 1, missing: "" }
+    };
+    const files = { docId: [], docPayslip: [], docBank: [], docAddress: [] };
+
+    // Field keys in page order: the first one with a problem gets the focus.
+    const ORDER = ["amountRequested","repayDate","purpose","fullName","nationalId","dateOfBirth","phone","email",
+      "address","town","dependants","townOther","employer","jobTitle","employmentType","payDay","payDayOther",
+      "bankName","bankNameOther","bankAccountHolder","bankAccountNo","salaryIntoAccount","declaredIncome",
+      "declaredDeductions","declaredExpenses","otherLenderLoans","otherLenderCount","kinName","kinRelationship",
+      "kinPhone","docId","docPayslip","docBank","docAddress","documents","consentProcessing"];
+
+    let sending = false, submitted = false, dirty = false;
+
+    // ── small helpers ──────────────────────────────────────────────────────
+    const val = (id) => String(($(id) || {}).value || "").trim();
+    const choice = (name) => { const r = form.querySelector('input[name="' + name + '"]:checked'); return r ? r.value : ""; };
+    const pad = (n) => String(n).padStart(2, "0");
+    const isoOf = (y, m, d) => String(y).padStart(4, "0") + "-" + pad(m) + "-" + pad(d);
+
+    // "Today" is Windhoek's date (UTC+2, no DST), as in the Worker and database.
+    function todayNa() { return new Date(Date.now() + 2 * 3600 * 1000).toISOString().slice(0, 10); }
+    function parseIso(s) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ""));
+      if (!m) return null;
+      const y = +m[1], mo = +m[2], d = +m[3];
+      const dt = new Date(Date.UTC(y, mo - 1, d));
+      return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d ? { y, m: mo, d } : null;
     }
-    function validate(){
-      let ok = true;
-      form.querySelectorAll("[required]").forEach(el => {
-        const wrap = el.closest("label");
-        const bad = isBad(el);
-        if (wrap) wrap.classList.toggle("invalid", bad);
-        if (el.name === "consent") document.getElementById("consentErr").style.display = bad ? "block" : "none";
-        if (bad) ok = false;
+    function addDays(s, n) { const p = parseIso(s); return new Date(Date.UTC(p.y, p.m - 1, p.d + n)).toISOString().slice(0, 10); }
+    // Calendar months, clamped to the month's last day (as Postgres date + interval).
+    function addMonths(s, n) {
+      const p = parseIso(s);
+      const first = new Date(Date.UTC(p.y, p.m - 1 + n, 1));
+      const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+      return isoOf(first.getUTCFullYear(), first.getUTCMonth() + 1, Math.min(p.d, last));
+    }
+    function fmtDate(s) { const p = parseIso(s); return p.d + " " + MONTHS[p.m - 1] + " " + p.y; }
+    function ageOn(dob, today) {
+      const a = parseIso(dob), t = parseIso(today);
+      return t.y - a.y - (t.m < a.m || (t.m === a.m && t.d < a.d) ? 1 : 0);
+    }
+    function fmtBytes(b) { return b < MB ? Math.max(1, Math.round(b / 1024)) + " KB" : (b / MB).toFixed(1) + " MB"; }
+    const fmtN = (n) => Math.round(n).toLocaleString("en-US");
+
+    // "18,400" / "18 400" / "N$18400.50" / "18400,50" → number, else null.
+    function parseMoney(raw) {
+      let s = String(raw == null ? "" : raw).trim().replace(/^N\$/i, "").replace(/\s+/g, "");
+      if (/^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(s)) s = s.replace(/,/g, "");
+      else if (/^\d+,\d{1,2}$/.test(s)) s = s.replace(",", ".");
+      return /^\d{1,9}(\.\d{1,2})?$/.test(s) ? Number(s) : null;
+    }
+    // What we send: plain digits with a dot, which every Worker version reads.
+    const moneyOut = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+    const phoneOk = (s) => { const d = s.replace(/\D/g, "").length; return /^\+?[0-9 ()-]{7,24}$/.test(s) && d >= 7 && d <= 15; };
+    const countOf = (s) => (/^\d{1,2}$/.test(s) && +s <= 50 ? +s : null);
+
+    // ── Namibian ID (soft check — never blocks; passports are fine) ─────────
+    // 11 digits, the first 6 are YYMMDD. Century: 19xx if YY is after this year's
+    // two digits, else 20xx.
+    function readId(raw) {
+      const compact = String(raw || "").trim().replace(/[\s-]/g, "");
+      if (!compact) return { kind: "empty" };
+      if (!/^\d+$/.test(compact)) return { kind: "passport" };
+      if (compact.length !== 11) return { kind: "length" };
+      const today = todayNa();
+      const yy = +compact.slice(0, 2), mm = +compact.slice(2, 4), dd = +compact.slice(4, 6);
+      const year = yy > +today.slice(2, 4) ? 1900 + yy : 2000 + yy;
+      const dob = isoOf(year, mm, dd);
+      if (!parseIso(dob) || dob > today) return { kind: "baddate" };
+      return { kind: "id", dob, age: ageOn(dob, today) };
+    }
+    function ageNote(dob) {
+      const age = ageOn(dob, todayNa());
+      const born = "Born " + fmtDate(dob);
+      if (age < AGE_MIN) return { text: born + " — you must be " + AGE_MIN + " or older.", cls: "warn" };
+      if (age > AGE_MAX) return { text: born + " · age " + age + " — we lend to people aged " + AGE_MIN + " to " + AGE_MAX + ".", cls: "warn" };
+      return { text: born + " · age " + age, cls: "good", tick: true };
+    }
+    function setNote(el, note) {
+      const sig = (note.cls || "") + "|" + note.text;
+      if (el.dataset.sig === sig) return;   // unchanged: don't re-announce while typing
+      el.dataset.sig = sig;
+      el.className = "note" + (note.cls ? " " + note.cls : "");
+      el.textContent = note.text;
+      if (note.tick) { const t = document.createElement("span"); t.setAttribute("aria-hidden", "true"); t.textContent = " ✓"; el.appendChild(t); }
+    }
+    function updateId() {
+      const r = readId($("nationalId").value);
+      const notes = {
+        empty: { text: "Using a passport? That is fine — enter its number.", cls: "" },
+        passport: { text: "Passport number — that is fine. Please add your date of birth below.", cls: "" },
+        length: { text: "A Namibian ID has 11 digits. Using a passport? That is fine.", cls: "warn" },
+        baddate: { text: "The first 6 digits should be your date of birth — please check.", cls: "warn" }
+      };
+      setNote($("nationalId-note"), r.kind === "id" ? ageNote(r.dob) : notes[r.kind]);
+      // With a real Namibian ID the date of birth comes from it; otherwise ask.
+      $("dobWrap").hidden = r.kind === "id" || r.kind === "empty";
+      updateDob();
+    }
+    function updateDob() {
+      const d = val("dateOfBirth");
+      const ok = parseIso(d) && d <= todayNa() && d >= "1900-01-01";
+      setNote($("dateOfBirth-note"), ok ? ageNote(d) : { text: "We read it from a Namibian ID. With a passport, please add it here.", cls: "" });
+    }
+    // The date of birth we send: from the ID when it reads as one, else typed.
+    function dobToSend() {
+      const r = readId($("nationalId").value);
+      if (r.kind === "id") return r.dob;
+      const d = val("dateOfBirth");
+      return !$("dobWrap").hidden && parseIso(d) && d <= todayNa() ? d : "";
+    }
+
+    // ── estimate (30 % once-off; the quotation is the real figure) ─────────
+    function updateEstimate() {
+      const raw = val("amountRequested"), n = parseMoney(raw);
+      let t = "Enter an amount to see an estimate.";
+      if (n !== null && n > MAX_AMOUNT) t = "The most we can lend is N$" + fmtN(MAX_AMOUNT) + ".";
+      else if (n !== null && n > 0) t = "Estimate: you would repay about N$" + fmtN(n * (100 + ESTIMATE_RATE) / 100) + " (" + ESTIMATE_RATE + "% once-off). Your exact quotation comes before you sign anything.";
+      if ($("estimate").textContent !== t) $("estimate").textContent = t;
+    }
+
+    // "Other" in a list opens a box to type it in.
+    function updateOthers() {
+      [["town", "townOtherWrap"], ["payDay", "payDayOtherWrap"], ["bankName", "bankNameOtherWrap"]].forEach(([sel, wrap]) => {
+        $(wrap).hidden = $(sel).value !== "Other";
       });
-      return ok;
+      $("otherLenderCountWrap").hidden = choice("otherLenderLoans") !== "yes";
     }
-    function oversize(){
-      for (const el of form.querySelectorAll("input[type=file]"))
-        for (const f of el.files) if (f.size > MAX_MB*1024*1024) return f.name;
-      return null;
+    const listValue = (sel) => ($(sel).value === "Other" ? val(sel + "Other") : $(sel).value);
+
+    // ── validation rules: "" = fine, else the message to show ──────────────
+    function moneyRule(v, empty, needPositive) {
+      if (!v) return empty;
+      const n = parseMoney(v);
+      if (n === null) return "Please enter the amount in numbers only, for example 18400.";
+      if (n > 10000000) return "That amount looks too large — please check it.";
+      if (needPositive && n <= 0) return "Please enter an amount more than N$0.";
+      return "";
     }
-    form.addEventListener("input", e => { const w = e.target.closest("label"); if (w) w.classList.remove("invalid"); });
+    function phoneRule(v, empty) {
+      if (!v) return empty;
+      return phoneOk(v) ? "" : "Please enter a phone number we can reach, for example 081 234 5678.";
+    }
+    const RULES = {
+      amountRequested() {
+        const v = val("amountRequested");
+        if (!v) return "Please enter how much you need.";
+        const n = parseMoney(v);
+        if (n === null) return "Please enter the amount in numbers only, for example 4000.";
+        if (n > MAX_AMOUNT) return "The most we can lend is N$" + fmtN(MAX_AMOUNT) + ".";
+        if (n < 1) return "Please enter an amount of at least N$1.";
+        return "";
+      },
+      repayDate() {
+        const v = val("repayDate"), today = todayNa(), last = addMonths(today, MAX_TERM_MONTHS);
+        if (!v) return "Please choose the date you will pay the loan back.";
+        if (!parseIso(v)) return "Please choose a real date.";
+        if (v <= today) return "Please choose a date after today.";
+        if (v > last) return "Please choose a date no later than " + fmtDate(last) + " — at most " + MAX_TERM_MONTHS + " months away.";
+        return "";
+      },
+      purpose: () => (val("purpose") ? "" : "Please tell us what the loan is for."),
+      fullName: () => (val("fullName").length >= 2 ? "" : "Please enter your full name, as on your ID."),
+      nationalId() {
+        const v = val("nationalId"), norm = v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (!v) return "Please enter your Namibian ID number, or your passport number.";
+        if (norm.length < 4) return "That number looks too short — please check it.";
+        if (norm.length > 20) return "That number looks too long — please check it.";
+        return "";
+      },
+      dateOfBirth() {
+        const v = val("dateOfBirth");
+        if (!v) return "";
+        if (!parseIso(v) || v < "1900-01-01") return "Please enter a real date of birth, or leave it empty.";
+        if (v > todayNa()) return "Your date of birth can't be in the future.";
+        return "";
+      },
+      phone: () => phoneRule(val("phone"), "Please enter your WhatsApp number."),
+      email() {
+        const v = val("email");
+        return !v || /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/.test(v) ? "" : "Please check your email address, or leave it empty.";
+      },
+      address: () => (val("address") ? "" : "Please enter your home address."),
+      town: () => ($("town").value ? "" : "Please choose your town."),
+      townOther: () => (val("townOther") ? "" : "Please type the name of your town."),
+      dependants() {
+        const v = val("dependants");
+        if (!v) return "Please enter how many people you support (0 if none).";
+        return countOf(v) === null ? "Please enter a number from 0 to 50." : "";
+      },
+      employer: () => (val("employer") ? "" : "Please enter who you work for (or your business name)."),
+      jobTitle: () => (val("jobTitle") ? "" : "Please enter your job title."),
+      employmentType: () => ($("employmentType").value ? "" : "Please choose your type of work."),
+      payDay: () => ($("payDay").value ? "" : "Please choose your pay day."),
+      payDayOther: () => (val("payDayOther") ? "" : "Please tell us which day you are paid."),
+      bankName: () => ($("bankName").value ? "" : "Please choose your bank."),
+      bankNameOther: () => (val("bankNameOther") ? "" : "Please type the name of your bank."),
+      bankAccountHolder: () => (val("bankAccountHolder") ? "" : "Please enter the name on the bank account."),
+      bankAccountNo() {
+        const v = val("bankAccountNo");
+        if (!v) return "Please enter your account number.";
+        return /^[A-Za-z0-9 -]{4,30}$/.test(v) ? "" : "Please check the account number — numbers only (spaces are fine).";
+      },
+      salaryIntoAccount: () => (choice("salaryIntoAccount") ? "" : "Please choose Yes or No."),
+      declaredIncome: () => moneyRule(val("declaredIncome"), "Please enter your take-home pay.", true),
+      declaredDeductions: () => moneyRule(val("declaredDeductions"), "Please enter your monthly repayments (0 if none)."),
+      declaredExpenses: () => moneyRule(val("declaredExpenses"), "Please enter your monthly living costs."),
+      otherLenderLoans: () => (choice("otherLenderLoans") ? "" : "Please choose Yes or No."),
+      otherLenderCount() {
+        const v = val("otherLenderCount"), n = countOf(v);
+        if (!v) return "Please enter how many loans you have with other lenders.";
+        return n === null || n < 1 ? "Please enter a number from 1 to 50." : "";
+      },
+      kinName: () => (val("kinName") ? "" : "Please enter your next of kin's name."),
+      kinRelationship: () => (val("kinRelationship") ? "" : "Please tell us how they are related to you."),
+      kinPhone: () => phoneRule(val("kinPhone"), "Please enter their phone number."),
+      docId: () => (files.docId.length ? "" : SLOTS.docId.missing),
+      docPayslip: () => (files.docPayslip.length ? "" : SLOTS.docPayslip.missing),
+      docBank: () => (files.docBank.length ? "" : SLOTS.docBank.missing),
+      documents: () => (totalBytes() > MAX_TOTAL_MB * MB ? "All documents together must be " + MAX_TOTAL_MB + " MB or less — please remove or replace a large file." : ""),
+      consentProcessing: () => ($("consentProcessing").checked ? "" : "Please tick this box so we can assess your application.")
+    };
+
+    // ── showing problems (inline, linked with aria-describedby) ────────────
+    function controlsOf(key) {
+      if (key === "salaryIntoAccount" || key === "otherLenderLoans") return [$(key + "-yes"), $(key + "-no")];
+      if (key === "documents") return [];
+      return [$(key)];
+    }
+    function wrapOf(key) { return $(key + "-err").closest(".fl") || $(key + "-err").parentNode; }
+    function isHidden(key) { return !!wrapOf(key).closest("[hidden]"); }
+    function mark(key, msg) {
+      const err = $(key + "-err");
+      if (!err) return;
+      err.textContent = msg || "";
+      wrapOf(key).classList.toggle("invalid", !!msg);
+      controlsOf(key).forEach((c) => {
+        const ids = (c.getAttribute("aria-describedby") || "").split(/\s+/).filter((x) => x && x !== err.id);
+        if (msg) { ids.unshift(err.id); c.setAttribute("aria-invalid", "true"); } else c.removeAttribute("aria-invalid");
+        if (ids.length) c.setAttribute("aria-describedby", ids.join(" ")); else c.removeAttribute("aria-describedby");
+      });
+    }
+    const check = (key) => (!RULES[key] || isHidden(key) ? "" : RULES[key]() || "");
+    // Names for the problem list where the on-screen label alone is ambiguous.
+    const LIST_NAMES = { kinName: "Next of kin's name", kinRelationship: "Next of kin's relationship", kinPhone: "Next of kin's phone",
+      otherLenderCount: "Number of other lenders", townOther: "Town", payDayOther: "Pay day", bankNameOther: "Bank",
+      consentProcessing: "Consent", documents: "Documents" };
+    function labelOf(key) {
+      if (LIST_NAMES[key]) return LIST_NAMES[key];
+      if (SLOTS[key]) return $(key + "-t").firstChild.textContent.trim();
+      if (controlsOf(key)[0].type === "radio") return wrapOf(key).querySelector("legend").textContent;
+      const l = form.querySelector('label[for="' + key + '"]');
+      return l ? l.firstChild.textContent.trim() : key;
+    }
+    function focusField(key) {
+      const target = controlsOf(key)[0] || $("docId");
+      const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      wrapOf(key).scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+      target.focus({ preventScroll: true });
+    }
+    function showAlert(title, text, keys) {
+      alertBox.textContent = "";
+      const p = document.createElement("p"); const b = document.createElement("b");
+      b.textContent = title; p.appendChild(b); alertBox.appendChild(p);
+      if (text) {
+        const q = document.createElement("p");
+        // text may carry our WhatsApp number: make it a link, all else stays text.
+        text.split(WHATSAPP).forEach((part, i) => {
+          if (i) { const a = document.createElement("a"); a.href = "https://wa.me/" + WHATSAPP.replace(/\D/g, ""); a.target = "_blank"; a.rel = "noopener"; a.textContent = WHATSAPP; q.appendChild(a); }
+          q.appendChild(document.createTextNode(part));
+        });
+        alertBox.appendChild(q);
+      }
+      if (keys && keys.length) {
+        const ul = document.createElement("ul");
+        keys.forEach((k) => {
+          const li = document.createElement("li"), a = document.createElement("a");
+          a.href = "#" + ((controlsOf(k)[0] || $("docId")).id);
+          a.textContent = labelOf(k) + ": " + $(k + "-err").textContent;
+          a.addEventListener("click", (e) => { e.preventDefault(); focusField(k); });
+          li.appendChild(a); ul.appendChild(li);
+        });
+        alertBox.appendChild(ul);
+      }
+    }
+    const clearAlert = () => { alertBox.textContent = ""; };
+    function validateAll() {
+      const bad = [];
+      ORDER.forEach((k) => { const m = check(k); mark(k, m); if (m) bad.push(k); });
+      return bad;
+    }
+
+    // ── documents ──────────────────────────────────────────────────────────
+    const totalBytes = () => Object.keys(files).reduce((s, k) => s + files[k].reduce((t, f) => t + f.size, 0), 0);
+    async function head16(file) {
+      const blob = file.slice(0, 16);
+      const buf = blob.arrayBuffer ? await blob.arrayBuffer() : await new Response(blob).arrayBuffer();
+      return new Uint8Array(buf);
+    }
+    // Same check as the Worker: the file's first bytes, never its name.
+    function sniff(b) {
+      const at = (i, s) => [...s].every((ch, k) => b[i + k] === ch.charCodeAt(0));
+      if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return true;
+      if (b.length >= 4 && b[0] === 0x89 && at(1, "PNG")) return true;
+      if (b.length >= 12 && at(0, "RIFF") && at(8, "WEBP")) return true;
+      if (b.length >= 5 && at(0, "%PDF-")) return true;
+      return b.length >= 12 && at(4, "ftyp") && ["heic", "heix", "mif1", "msf1", "hevc"].some((t) => at(8, t));
+    }
+    async function addFiles(slot, picked) {
+      const cfg = SLOTS[slot], box = $(slot + "-slot");
+      box.setAttribute("aria-busy", "true");
+      let list = cfg.max === 1 ? [] : files[slot].slice();
+      const others = totalBytes() - files[slot].reduce((t, f) => t + f.size, 0);
+      const problems = [];
+      for (const f of picked) {
+        const name = "“" + f.name + "”";
+        if (list.length >= cfg.max) { problems.push("You can add up to " + cfg.max + " files here — " + name + " was not added."); continue; }
+        if (!f.size) { problems.push(name + " is empty. Please choose it again."); continue; }
+        if (f.size > MAX_MB * MB) { problems.push(name + " is " + fmtBytes(f.size) + ". Each file must be " + MAX_MB + " MB or smaller — try a smaller photo or a PDF."); continue; }
+        if (others + list.reduce((t, x) => t + x.size, 0) + f.size > MAX_TOTAL_MB * MB) { problems.push("All documents together must be " + MAX_TOTAL_MB + " MB or less — " + name + " was not added."); continue; }
+        let okType = false;
+        try { okType = sniff(await head16(f)); } catch (e) { okType = false; }
+        if (!okType) { problems.push(name + " isn't a photo or PDF we can open. Please use a JPG, PNG or HEIC photo, or a PDF."); continue; }
+        list.push(f);
+      }
+      // A single slot keeps its old file when the new one is refused.
+      if (cfg.max === 1 && !list.length) list = files[slot];
+      files[slot] = list;
+      renderSlot(slot);
+      mark(slot, problems.join(" "));
+      mark("documents", "");
+      box.removeAttribute("aria-busy");
+      dirty = true;
+    }
+    function renderSlot(slot) {
+      const list = files[slot], ul = $(slot + "-list"), cfg = SLOTS[slot];
+      ul.textContent = "";
+      list.forEach((f, i) => {
+        const li = document.createElement("li");
+        const n = document.createElement("span"); n.className = "fn"; n.textContent = f.name || "file";
+        const s = document.createElement("span"); s.className = "fs"; s.textContent = "· " + fmtBytes(f.size);
+        const rm = document.createElement("button"); rm.type = "button"; rm.className = "rm"; rm.textContent = "Remove";
+        const hid = document.createElement("span"); hid.className = "vh"; hid.textContent = " " + (f.name || "file"); rm.appendChild(hid);
+        rm.addEventListener("click", () => { files[slot].splice(i, 1); renderSlot(slot); mark(slot, ""); $(slot).focus(); });
+        li.append(n, s, rm); ul.appendChild(li);
+      });
+      $(slot + "-slot").classList.toggle("ok", list.length > 0);
+      const pick = $(slot + "-pick");
+      pick.textContent = cfg.max === 1 ? (list.length ? "Change" : "Add") : (list.length ? "Add more" : "Add");
+      const full = cfg.max > 1 && list.length >= cfg.max;
+      pick.hidden = full;
+      $(slot).disabled = full;
+      if (slot === "docBank") {
+        $("docBank-m").textContent = !list.length ? "Up to 6 files. One PDF with all 3 months is fine."
+          : list.length >= MAX_BANK_FILES ? list.length + " files added — that is the most."
+          : list.length + (list.length === 1 ? " file" : " files") + " added · add more if your 3 months are in separate files";
+      }
+      const total = totalBytes();
+      $("docs-total").textContent = total ? " Now " + fmtBytes(total) + " of " + MAX_TOTAL_MB + " MB." : "";
+    }
+    Object.keys(SLOTS).forEach((slot) => {
+      $(slot).addEventListener("change", (e) => {
+        const picked = Array.from(e.target.files || []);
+        e.target.value = "";   // so the same file can be picked again
+        if (picked.length) addFiles(slot, picked);
+      });
+    });
+
+    // ── live feedback ──────────────────────────────────────────────────────
+    const keyOf = (el) => (el.type === "radio" ? el.name : el.id);
+    form.addEventListener("input", (e) => {
+      dirty = true;
+      if (e.target.type === "file") return;   // handled by addFiles
+      const k = keyOf(e.target);
+      if (k === "amountRequested") updateEstimate();
+      if (k === "nationalId") updateId();
+      if (k === "dateOfBirth") updateDob();
+      if (RULES[k] && wrapOf(k).classList.contains("invalid")) mark(k, check(k));
+    });
+    form.addEventListener("change", (e) => {
+      const k = keyOf(e.target);
+      if (e.target.type === "file") return;
+      updateOthers();
+      if (k === "dateOfBirth") updateDob();
+      if (RULES[k] && (e.target.tagName === "SELECT" || e.target.type === "radio" || e.target.type === "checkbox" || wrapOf(k).classList.contains("invalid"))) mark(k, check(k));
+    });
+    // Leaving a filled-in box checks it; empty boxes wait for "Send".
+    form.addEventListener("focusout", (e) => {
+      const el = e.target, k = keyOf(el);
+      if (el.classList.contains("f") && RULES[k] && String(el.value).trim()) mark(k, check(k));
+    });
+    window.addEventListener("beforeunload", (e) => {
+      if (dirty && !submitted) { e.preventDefault(); e.returnValue = "Your application has not been sent yet."; }
+    });
+
+    // ── send ───────────────────────────────────────────────────────────────
+    // Exactly the contract §8 names, plus consentVersion, the honeypot and the
+    // two old-Worker fields (consent, income) so either Worker version accepts it.
+    function buildForm() {
+      const fd = new FormData();
+      const money = (id) => { const n = parseMoney(val(id)); return n === null ? val(id) : moneyOut(n); };
+      const others = choice("otherLenderLoans");
+      const fields = [
+        ["fullName", val("fullName")],
+        ["nationalId", val("nationalId")],
+        ["dateOfBirth", dobToSend()],
+        ["phone", val("phone")],
+        ["email", val("email")],
+        ["address", val("address")],
+        ["town", listValue("town")],
+        ["dependants", String(countOf(val("dependants")))],
+        ["employer", val("employer")],
+        ["jobTitle", val("jobTitle")],
+        ["employmentType", $("employmentType").value],
+        ["payDay", listValue("payDay")],
+        ["bankName", listValue("bankName")],
+        ["bankAccountHolder", val("bankAccountHolder")],
+        ["bankAccountNo", val("bankAccountNo")],
+        ["salaryIntoAccount", choice("salaryIntoAccount")],
+        ["kinName", val("kinName")],
+        ["kinRelationship", val("kinRelationship")],
+        ["kinPhone", val("kinPhone")],
+        ["amountRequested", money("amountRequested")],
+        ["repayDate", val("repayDate")],
+        ["purpose", val("purpose")],
+        ["declaredIncome", money("declaredIncome")],
+        ["declaredDeductions", money("declaredDeductions")],
+        ["declaredExpenses", money("declaredExpenses")],
+        ["otherLenderLoans", others],
+        ["otherLenderCount", others === "yes" ? String(countOf(val("otherLenderCount"))) : "0"],
+        ["consentProcessing", $("consentProcessing").checked ? "yes" : "no"],
+        ["consentBureau", $("consentBureau").checked ? "yes" : "no"],
+        ["consentVersion", CONSENT_VERSION],
+        ["website", $("website").value],
+        ["consent", $("consentProcessing").checked ? "yes" : "no"],
+        ["income", money("declaredIncome")]
+      ];
+      fields.forEach(([k, v]) => fd.append(k, v));
+      Object.keys(SLOTS).forEach((slot) => files[slot].forEach((f) => fd.append(slot, f, f.name || slot)));
+      return fd;
+    }
+
+    function setSending(on) {
+      sending = on;
+      btn.disabled = on;
+      btn.textContent = on ? "Sending…" : "Send application";
+      if (on) form.setAttribute("aria-busy", "true"); else form.removeAttribute("aria-busy");
+      $("sendStatus").textContent = on ? "Sending your application and documents — this can take a minute on mobile data. Please keep this page open." : "";
+    }
+
+    const FILE_KEYS = { docId: 1, docPayslip: 1, docBank: 1, docAddress: 1 };
+    // Worker field names → our keys (the old Worker says "consent").
+    const serverKey = (f) => (f === "consent" ? "consentProcessing" : f);
+
+    function handleFailure(status, body) {
+      const fields = (body && Array.isArray(body.fields) ? body.fields : []).map(serverKey).filter((k) => $(k + "-err"));
+      if (fields.includes("dateOfBirth")) $("dobWrap").hidden = false;
+      const later = "Your details are still here — nothing was lost.";
+      if (status === 400) {
+        fields.forEach((k) => mark(k, check(k) || "Please check this — it wasn't accepted."));
+        if (fields.length) {
+          showAlert("Some details need checking.", "We've marked them below. " + later, fields);
+          focusField(fields.sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b))[0]);
+          return;
+        }
+        showAlert("We couldn't accept the form as it is.", "Please check your details and try again. If it keeps happening, WhatsApp us on " + WHATSAPP + ".");
+      } else if (status === 413) {
+        const slots = fields.filter((k) => FILE_KEYS[k] || k === "documents");
+        slots.forEach((k) => mark(k, k === "documents"
+          ? "All documents together are too large — please remove or replace a large file."
+          : "This file is too large. Each file must be " + MAX_MB + " MB or smaller."));
+        showAlert("Your documents are too large to send.", "Each file must be " + MAX_MB + " MB or smaller and all of them together " + MAX_TOTAL_MB + " MB or smaller. Try smaller photos, or fewer bank statement pages. " + later, slots);
+      } else if (status === 415) {
+        const slots = fields.filter((k) => FILE_KEYS[k]);
+        slots.forEach((k) => mark(k, "Please replace this with a JPG, PNG or HEIC photo, or a PDF."));
+        showAlert("One of your documents isn't a photo or PDF we can open.", "Please use JPG, PNG or HEIC photos, or PDF files. " + later, slots);
+      } else if (status === 429) {
+        showAlert("We've already received several applications from this internet connection.", "Please wait an hour and try again, or WhatsApp us on " + WHATSAPP + ". " + later);
+      } else if (status === 0) {
+        showAlert("We couldn't reach QuickServe.", "Please check your internet connection and try again. " + later);
+      } else {
+        showAlert("Sorry — something went wrong on our side and your application was not sent.", "Please try again in a few minutes. If it keeps happening, WhatsApp us on " + WHATSAPP + ". " + later);
+      }
+      alertBox.focus();
+    }
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      if (!validate()) return;
-      const big = oversize();
-      if (big){ alert(`"${big}" is larger than ${MAX_MB} MB. Please attach a smaller file.`); return; }
+      if (sending || submitted) return;
+      clearAlert();
+      updateOthers();
+      const bad = validateAll();
+      if (bad.length) {
+        showAlert(bad.length === 1 ? "Please check 1 item." : "Please check " + bad.length + " items.", "", bad);
+        focusField(bad[0]);
+        return;
+      }
 
-      btn.disabled = true; btn.textContent = "Submitting…";
-      const fd = new FormData(form);
-      fd.set("consent", form.consent.checked ? "yes" : "no");
-      fd.set("submittedAt", new Date().toISOString());
-
+      const fd = buildForm();
+      setSending(true);
+      let status = 0, body = null;
       try {
-        if (ENDPOINT){
-          const res = await fetch(ENDPOINT, { method:"POST", body: fd });
-          if (!res.ok) throw new Error("bad status");
-          const out = await res.json().catch(()=>({}));
-          showDone(out.reference);
+        if (ENDPOINT) {
+          const res = await fetch(ENDPOINT, { method: "POST", body: fd, credentials: "omit", cache: "no-store" });
+          status = res.status;
+          body = await res.json().catch(() => null);
         } else {
           const summary = {};
-          fd.forEach((v,k)=>{ summary[k] = (v instanceof File) ? (v.name || "(file)") : v; });
+          fd.forEach((v, k) => { summary[k] = (typeof v === "object" && v && "name" in v) ? v.name : v; });
           console.log("Preview — would upload:", summary);
-          await new Promise(r => setTimeout(r, 700));
-          showDone("QS-PREVIEW");
+          await new Promise((r) => setTimeout(r, 700));
+          status = 201; body = { ok: true, reference: "QSA-PREVIEW" };
         }
       } catch (err) {
-        btn.disabled = false; btn.textContent = "Submit application";
-        alert("Sorry, something went wrong sending your application. Please try again, or message us on WhatsApp.");
+        status = 0;   // offline, DNS, CORS, connection dropped
       }
+      setSending(false);
+      if (status >= 200 && status < 300) showDone(body && body.reference);
+      else handleFailure(status, body);
     });
 
-    function showDone(ref){
-      form.style.display = "none";
-      document.querySelector(".disclaimer").style.display = "none";
-      document.getElementById("refNo").textContent = ref || "received";
-      document.getElementById("done").classList.add("show");
-      window.scrollTo({ top:0, behavior:"smooth" });
+    function showDone(reference) {
+      submitted = true;
+      const ref = String(reference || "").trim().slice(0, 40);
+      const first = val("fullName").split(/\s+/)[0].slice(0, 40);
+      const now = new Date(Date.now() + 2 * 3600 * 1000);   // Windhoek clock
+      form.hidden = true;
+      $("intro").hidden = true;
+      $("refBox").hidden = !ref;
+      $("refNo").textContent = ref;
+      $("doneWhen").textContent = "Received " + DAYS[now.getUTCDay()] + " " + now.getUTCDate() + " " + MONTHS[now.getUTCMonth()] + " " +
+        now.getUTCFullYear() + ", " + pad(now.getUTCHours()) + ":" + pad(now.getUTCMinutes());
+      $("doneThanks").textContent = (first ? "Thank you, " + first + "." : "Thank you.") +
+        (ref ? " Keep this reference — screenshot this page." : " We have your application.");
+      $("done").hidden = false;
+      window.scrollTo(0, 0);
+      $("doneTitle").focus();
     }
+
+    // ── start ──────────────────────────────────────────────────────────────
+    (function init() {
+      const today = todayNa();
+      $("repayDate").min = addDays(today, 1);
+      $("repayDate").max = addMonths(today, MAX_TERM_MONTHS);
+      $("dateOfBirth").max = today;
+      $("dateOfBirth").min = "1900-01-01";
+      $("consentVersion").value = CONSENT_VERSION;
+      updateOthers(); updateEstimate(); updateId();
+    })();
   </script>
 </body>
 </html>

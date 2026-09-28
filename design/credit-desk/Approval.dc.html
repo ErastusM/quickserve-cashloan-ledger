@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Owner approval</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#12201b;background:#e8ebe8;font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:#0c4a30}a:hover{color:#0a3d28}
+*{box-sizing:border-box}
+h1,h2,h3,h4,p{margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+.nav{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:7px;color:#3c4a45;font-weight:500;font-size:13px;text-decoration:none;border-left:2.5px solid transparent}
+.nav:hover{background:#f5f7f5;color:#12201b}
+.nav.on{background:#eef3ee;color:#12201b;font-weight:600;border-left-color:#0c4a30}
+.nav svg{width:17px;height:17px;flex:none}
+.sect{font-size:10px;text-transform:uppercase;letter-spacing:.11em;color:#6f7b75;font-weight:600;padding:14px 12px 6px}
+.badge{margin-left:auto;font-family:"IBM Plex Mono",monospace;background:#0c4a30;color:#fff;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:999px}
+.panel{background:#fff;border:1px solid #dadfdb;border-radius:8px;box-shadow:0 1px 2px rgba(18,32,27,.05);overflow:hidden}
+.ph{display:flex;align-items:baseline;gap:10px;padding:12px 18px;border-bottom:1px solid #dadfdb}
+.ph h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.ph .n{font-family:"IBM Plex Mono",monospace;color:#5f6b65;font-size:12px}
+.pill{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid currentColor;display:inline-block;white-space:nowrap;line-height:1.5}
+.good{color:#0d6b43}.warn{color:#8a6410}.bad{color:#9d2f22}.steel{color:#38566a}.acc{color:#0c4a30}.muted{color:#5f6b65}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #0c4a30;background:#0c4a30;color:#fff;border-radius:7px;padding:9px 16px;font:inherit;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none;min-height:40px;white-space:nowrap}
+.btn:hover{background:#0a3d28;color:#fff}
+.btn.ghost{background:#fff;border-color:#c9d1cc;color:#12201b}
+.btn.ghost:hover{background:#f5f7f5;color:#12201b}
+.btn.red{background:#9d2f22;border-color:#9d2f22}
+.btn.red:hover{background:#86271c}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.lrow{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #eef1ee}
+.lrow .lk{color:#3c4a45}
+.lrow .lk small{display:block;color:#5f6b65;font-size:11px}
+.lrow .lv{font-family:"IBM Plex Mono",monospace;font-size:14.5px;white-space:nowrap}
+.lrow.total{border-top:1.5px solid #c3ccc6;border-bottom:none;margin-top:3px;padding-top:11px}
+.lrow.total .lk{font-weight:600;color:#12201b}
+.lrow.total .lv{font-weight:600;font-size:17px}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border:1px solid #dadfdb;border-radius:7px;cursor:pointer;font-size:13px}
+.opt.on{border-color:#0c4a30;background:#f3f8f4}
+.opt.dis{opacity:.5;cursor:not-allowed}
+.opt input{width:18px;height:18px;margin:1px 0 0;accent-color:#0c4a30;flex:none}
+.lab{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#5f6b65;font-weight:600}
+input.f,select,textarea{font:inherit;font-size:13.5px;background:#fff;border:1px solid #c9d1cc;border-radius:7px;padding:9px 11px;color:#12201b;width:100%}
+input.f:focus,select:focus,textarea:focus{outline:none;border-color:#0c4a30;box-shadow:0 0 0 3px #e7efe9}
+textarea{resize:vertical;line-height:1.5}
+.term{padding:12px 16px;border-right:1px solid #eef1ee}
+.term .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#5f6b65;font-weight:600}
+.term .v{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:600;margin-top:3px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1400px; display: flex; flex-direction: column; background: #e8ebe8; overflow: hidden">
+
+  <header style="display: flex; align-items: center; gap: 13px; padding: 11px 22px; background: #0a1c14; color: #eef3ef; border-bottom: 3px solid #0c4a30; flex: none">
+    <div style="width: 34px; height: 34px; border-radius: 7px; background: #0c4a30; color: #ffffff; display: grid; place-items: center; font-weight: 700; font-size: 18px">Q</div>
+    <div style="display: flex; flex-direction: column; line-height: 1.25">
+      <span style="font-size: 13.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase">QuickServe Cashloan</span>
+      <span class="mono" style="font-size: 11px; color: #83978b">Credit desk · CC/2026/01904</span>
+    </div>
+    <div style="flex-grow: 1"></div>
+    <div style="text-align: right; line-height: 1.35">
+      <div style="font-size: 12px; font-weight: 500">Erastus Matheus</div>
+      <div style="font-size: 11.5px; color: #83978b">Owner · final approver</div>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-grow: 1; min-height: 0">
+    <nav style="width: 214px; flex: none; background: #ffffff; border-right: 1px solid #dadfdb; padding: 14px 10px; display: flex; flex-direction: column; gap: 1px">
+      <div class="sect">Overview</div>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"></rect><rect x="13" y="4" width="7" height="7" rx="1"></rect><rect x="4" y="13" width="7" height="7" rx="1"></rect><rect x="13" y="13" width="7" height="7" rx="1"></rect></svg>Dashboard</a>
+      <div class="sect">Credit</div>
+      <a class="nav" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path></svg>Credit queue<span class="badge">9</span></a>
+      <a class="nav on" href="Approval.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Approvals<span class="badge">2</span></a>
+      <a class="nav" href="Disburse.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>Ready to disburse<span class="badge">1</span></a>
+      <div class="sect">Loan book</div>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M3 21a6 6 0 0 1 12 0"></path><path d="M16 11a4 4 0 0 0 0-6"></path></svg>Clients</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18"></path></svg>Loans</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"></path><path d="M9 8h6M9 12h4"></path></svg>Payments</a>
+      <div class="sect">Control</div>
+      <a class="nav" href="Team.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"></path></svg>Team &amp; access</a>
+      <a class="nav" href="Audit.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Audit trail</a>
+    </nav>
+
+    <main style="flex-grow: 1; min-width: 0; padding: 20px 28px 28px; display: flex; flex-direction: column; gap: 16px">
+      <div style="font-size: 12.5px; color: #5f6b65"><a href="Main.dc.html" style="text-decoration: none">Approvals</a> <span aria-hidden="true">/</span> <span class="mono">{{c.ref}}</span></div>
+
+      <div style="display: flex; align-items: flex-start; gap: 16px">
+        <div>
+          <div style="display: flex; align-items: center; gap: 12px">
+            <h1 style="font-size: 22px; font-weight: 600; letter-spacing: -.02em">{{c.name}}</h1>
+            <span class="pill {{statusCls}}">{{statusText}}</span>
+          </div>
+          <div class="mono" style="font-size: 12px; color: #5f6b65; margin-top: 4px">{{c.ref}} · {{c.employer}} · requested {{c.requested}}</div>
+        </div>
+        <div style="flex-grow: 1"></div>
+        <a class="btn ghost" href="ApplicationFile.dc.html">Open application file</a>
+        <a class="btn ghost" href="Worksheet.dc.html">Open worksheet</a>
+      </div>
+
+      <div style="display: flex; gap: 12px; align-items: center; padding: 12px 16px; background: #e8eef1; border: 1px solid #c6d4dc; border-radius: 8px; color: #24404f">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 20px; height: 20px; flex: none" aria-hidden="true"><circle cx="8" cy="9" r="3.5"></circle><circle cx="16.5" cy="9" r="3.5"></circle><path d="M2 20a6 6 0 0 1 12 0M11 20a6 6 0 0 1 11 0"></path></svg>
+        <div style="font-size: 13px"><b>Two sets of eyes.</b> Assessed by <b>Tuyeni Shikongo</b> (credit analyst) · submitted {{c.submitted}} · worksheet version 1. You can't change the analyst's figures — if something is wrong, return the file.</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 16px; align-items: start">
+        <div style="display: flex; flex-direction: column; gap: 16px">
+
+          <section class="panel">
+            <div class="ph"><h3>Analyst's recommendation</h3></div>
+            <div style="padding: 16px 18px 6px; display: flex; align-items: center; gap: 12px">
+              <span class="pill {{c.recCls}}" style="font-size: 13px; padding: 5px 14px">{{c.recText}}</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 10px 18px 0; border: 1px solid #dadfdb; border-radius: 8px; overflow: hidden">
+              <div class="term"><div class="k">Principal</div><div class="v">{{c.p}}</div></div>
+              <div class="term"><div class="k">Interest</div><div class="v">{{c.interest}}</div></div>
+              <div class="term"><div class="k">Service fee</div><div class="v">{{c.fee}}</div></div>
+              <div class="term"><div class="k">Total repayable</div><div class="v">{{c.repay}}</div></div>
+              <div class="term" style="border-right: none"><div class="k">Due</div><div class="v" style="font-size: 15px">{{c.due}}</div></div>
+            </div>
+            <div style="padding: 14px 18px 18px">
+              <div class="lab" style="margin-bottom: 6px">Reasons</div>
+              <div style="font-size: 13.5px; line-height: 1.6; color: #24312c; border-left: 3px solid #c3ccc6; padding-left: 14px">{{c.reasons}}</div>
+              <sc-if value="{{c.above}}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top: 14px; padding: 12px 14px; border: 1px solid #e3d3a4; background: #f2ecd8; border-radius: 8px">
+                  <div class="lab" style="color: #6b4e0d; margin-bottom: 6px">Motivation to go {{c.overBy}} above the limit</div>
+                  <div style="font-size: 13.5px; line-height: 1.6; color: #3d2d07">{{c.motivation}}</div>
+                </div>
+              </sc-if>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>Affordability</h3><span class="n">policy: one repayment may take {{c.pct}} of disposable income</span></div>
+            <div style="padding: 4px 18px 14px">
+              <div class="lrow"><span class="lk">Verified monthly income <small>A8 — lower of payslip and bank average</small></span><span class="lv">{{c.income}}</span></div>
+              <div class="lrow"><span class="lk">Less existing commitments <small>B12</small></span><span class="lv">{{c.commit}}</span></div>
+              <div class="lrow"><span class="lk">Less living costs <small>C10</small></span><span class="lv">{{c.living}}</span></div>
+              <div class="lrow total"><span class="lk">Disposable income (D4)</span><span class="lv {{c.d4Cls}}">{{c.d4}}</span></div>
+              <div class="lrow"><span class="lk">Most one repayment may take (D6)</span><span class="lv">{{c.d6}}</span></div>
+              <div class="lrow"><span class="lk">Repayment on the recommended terms</span><span class="lv">{{c.repay}}</span></div>
+              <div class="lrow"><span class="lk">Affordability test (F3)</span><span class="lv"><span class="pill {{c.f3Cls}}">{{c.f3}}</span></span></div>
+              <div class="lrow" style="border-bottom: none"><span class="lk">Largest amount that passes (F5)</span><span class="lv">{{c.f5}}</span></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>Rules</h3><span class="n">{{c.rulesSummary}}</span></div>
+            <sc-for list="{{c.issues}}" as="g" hint-placeholder-count="2">
+              <div style="display: grid; grid-template-columns: 44px minmax(0, 1fr) 70px 60px; gap: 10px; align-items: center; padding: 10px 18px; border-bottom: 1px solid #eef1ee">
+                <span class="mono" style="font-size: 11px; color: #5f6b65; font-weight: 600">{{g.code}}</span>
+                <span>{{g.label}}<small style="display: block; color: #5f6b65; font-size: 11.5px">{{g.detail}}</small></span>
+                <span class="pill {{g.cls}}" style="text-align: center">{{g.result}}</span>
+                <span class="mono" style="font-size: 10px; color: #5f6b65; text-transform: uppercase; text-align: right">{{g.kind}}</span>
+              </div>
+            </sc-for>
+            <div style="padding: 11px 18px; font-size: 12.5px; color: #5f6b65">{{c.otherRules}}</div>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>Borrower</h3></div>
+            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr))">
+              <div class="term"><div class="k">With us</div><div class="v" style="font-size: 14px">{{c.history}}</div></div>
+              <div class="term"><div class="k">Repayment record</div><div class="v" style="font-size: 14px">{{c.record}}</div></div>
+              <div class="term"><div class="k">ID &amp; KYC checks</div><div class="v" style="font-size: 14px">{{c.kyc}}</div></div>
+              <div class="term" style="border-right: none"><div class="k">Documents</div><div class="v" style="font-size: 14px">{{c.docs}}</div></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="ph"><h3>Your decision</h3></div>
+          <sc-if value="{{notDone}}" hint-placeholder-val="{{ true }}">
+            <div style="padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 10px">
+              <sc-if value="{{c.blocked}}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 11px 13px; border: 1px solid #e0b4ab; background: #f6e6e2; border-radius: 7px; font-size: 12.5px; color: #6f2117"><b>Approval is blocked.</b> A hard rule fails ({{c.hardList}}). Nobody can override it — decline, or return the file if you think the figures are wrong.</div>
+              </sc-if>
+              <sc-for list="{{opts}}" as="o" hint-placeholder-count="4">
+                <label class="{{o.cls}}"><input type="radio" name="dec" checked="{{o.on}}" disabled="{{o.off}}" onChange="{{o.pick}}"><span><b>{{o.label}}</b><small style="display: block; color: #5f6b65; font-size: 11.5px">{{o.hint}}</small></span></label>
+              </sc-for>
+
+              <sc-if value="{{isAmount}}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; background: #f5f7f5; border-radius: 7px">
+                  <label class="lab" for="amt">Principal to approve</label>
+                  <input id="amt" class="f mono" inputmode="decimal" value="{{amount}}" onChange="{{setAmount}}">
+                  <div class="mono {{amtCls}}" style="font-size: 12px">{{amtNote}}</div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{needsOverride}}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-direction: column; gap: 6px">
+                  <label class="lab" for="ovr">Override note — why you accept {{c.softList}}</label>
+                  <textarea id="ovr" rows="3" value="{{override}}" onChange="{{setOverride}}" placeholder="e.g. The undeclared lender was repaid in August — confirmed on the statement."></textarea>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{isDecline}}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-direction: column; gap: 6px">
+                  <label class="lab" for="why">Reason given to the applicant</label>
+                  <select id="why" value="{{declineReason}}" onChange="{{setDeclineReason}}">
+                    <option value="">Choose a reason…</option>
+                    <option value="afford">The repayment would not be affordable on your current income</option>
+                    <option value="docs">We could not verify your documents</option>
+                    <option value="history">Your repayment history with us</option>
+                    <option value="other">Another reason — explained by phone</option>
+                  </select>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{isReturn}}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-direction: column; gap: 6px">
+                  <label class="lab" for="ret">What should the analyst look at again?</label>
+                  <textarea id="ret" rows="3" value="{{returnNote}}" onChange="{{setReturnNote}}" placeholder="e.g. Rent on the statement looks higher than N$3,500 — please check."></textarea>
+                </div>
+              </sc-if>
+
+              <button type="button" class="{{confirmCls}}" disabled="{{cantConfirm}}" onClick="{{confirm}}">{{confirmLabel}}</button>
+              <div style="font-size: 12px; color: #5f6b65">{{confirmHint}}</div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 18px; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; gap: 10px; align-items: center">
+                <span class="pill {{doneCls}}" style="font-size: 12px; padding: 4px 12px">{{doneTitle}}</span>
+                <span class="mono" style="font-size: 12px; color: #5f6b65">just now · recorded in the audit trail</span>
+              </div>
+              <div style="font-size: 13.5px; line-height: 1.55">{{doneText}}</div>
+              <sc-if value="{{showWa}}" hint-placeholder-val="{{ false }}">
+                <div style="border: 1px solid #dadfdb; border-radius: 8px; background: #f5f7f5; padding: 12px; font-size: 13px; line-height: 1.55">
+                  <div class="mono" style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #5f6b65; margin-bottom: 6px">WhatsApp message · preview</div>
+                  {{waText}}
+                </div>
+              </sc-if>
+              <div style="display: flex; gap: 8px">
+                <sc-if value="{{doneApproved}}" hint-placeholder-val="{{ false }}"><a class="btn" href="Disburse.dc.html">Go to Ready to disburse</a></sc-if>
+                <sc-if value="{{showWa}}" hint-placeholder-val="{{ false }}"><a class="btn" href="#">Open in WhatsApp</a></sc-if>
+                <button type="button" class="btn ghost" onClick="{{undo}}">Start again</button>
+              </div>
+            </div>
+          </sc-if>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"scenario":{"editor":"enum","options":["Clean pass","Above limit — motivated","Hard fail"],"default":"Clean pass","section":"Example file"},"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { choice: '', amount: '', override: '', declineReason: '', returnNote: '', done: '' };
+  }
+  componentDidUpdate(prev) {
+    if (prev.scenario !== this.props.scenario) {
+      this.setState({ choice: '', amount: '', override: '', declineReason: '', returnNote: '', done: '' });
+    }
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state;
+    function fmt(x) { var neg = x < 0; var a = Math.round(Math.abs(x) * 100) / 100; return (neg ? '−' : '') + 'N$' + a.toLocaleString('en-US', { minimumFractionDigits: (a % 1) ? 2 : 0, maximumFractionDigits: 2 }); }
+    var CASES = {
+      'Clean pass': {
+        ref: 'QSA-7K2M9P', name: 'Selma Nangolo', first: 'Selma', employer: 'Rössing Uranium', requested: 'N$4,000', submitted: 'Mon 28 Sep 10:02',
+        recKey: 'approve', recText: 'Recommends: approve as applied', recCls: 'good',
+        P: 4000, rate: 30, fee: 0, due: 'Wed 28 Oct 2026',
+        income: 18100, commit: 1480, living: 9000, pct: 70,
+        reasons: 'Verified income N$18,100 (bank average, lower than payslip net). After N$1,480 of commitments and N$9,000 living costs, disposable income is N$7,620, so the N$5,200 repayment is within the N$5,334 limit. Returning borrower: three loans repaid, one 4 days late. One warning sign (8.5, balance near zero before pay day) — noted, not decisive. Employer confirmed by phone.',
+        issues: [{ code: '8.5', label: 'Balance near zero before pay day', detail: '1 warning sign — below the threshold of 2', result: 'Noted', cls: 'steel', kind: '' }],
+        soft: [], hard: [],
+        history: 'Returning · 3 loans', record: '2 on time · 1 × 4 days late', kyc: '7 of 7 clear', docs: '5 of 5 viewed'
+      },
+      'Above limit — motivated': {
+        ref: 'QSA-D5KT9R', name: 'Gerson Haufiku', first: 'Gerson', employer: 'Namdeb', requested: 'N$8,000', submitted: 'Mon 28 Sep 08:41',
+        recKey: 'approve', recText: 'Motivates: N$5,250 — above the limit', recCls: 'warn', above: true,
+        P: 5250, rate: 30, fee: 0, due: 'Sun 25 Oct 2026',
+        income: 26300, commit: 4900, living: 12800, pct: 70,
+        reasons: 'Verified income N$26,300. Commitments N$4,900 include a cash lender not declared on the form (seen on the July and August statements). Disposable income N$8,600 gives a limit of N$6,020, so the most that passes is N$4,600. N$8,000 as applied is not supportable. Two warning signs: 8.3 undeclared lender and 8.5 balance near zero before pay day.',
+        motivation: 'Gerson has been permanently employed at Namdeb for 11 years. The undeclared lender is repaid with his October salary (N$1,400 a month, final instalment visible on the statement), after which N$6,825 is well inside his limit. I motivate for N$5,250 instead of N$4,600.',
+        issues: [
+          { code: 'F3', label: 'Repayment above the affordability limit', detail: 'N$6,825 to repay, limit N$6,020 — N$805 over', result: 'Fail', cls: 'bad', kind: 'Owner' },
+          { code: '8.x', label: '2 bank-statement warning signs', detail: '8.3 undeclared cash lender · 8.5 balance near zero before pay day', result: 'Fail', cls: 'warn', kind: 'Soft' },
+          { code: '2.x', label: 'Declared debts don\'t match the statements', detail: 'Applicant declared N$2,000; statements show N$4,900', result: 'Fail', cls: 'warn', kind: 'Soft' }
+        ],
+        soft: ['8.x', '2.x'], hard: [],
+        history: 'New client', record: '—', kyc: '7 of 7 clear', docs: '5 of 5 viewed'
+      },
+      'Hard fail': {
+        ref: 'QSA-9PF4KE', name: 'Ndapewa Iipinge', first: 'Ndapewa', employer: 'Shoprite, Swakopmund', requested: 'N$1,500', submitted: 'Mon 28 Sep 09:55',
+        recKey: 'decline', recText: 'Recommends: decline', recCls: 'bad',
+        P: 1500, rate: 30, fee: 0, due: 'Sun 25 Oct 2026',
+        income: 5200, commit: 900, living: 4640, pct: 70,
+        reasons: 'Verified income N$5,200. After N$900 of commitments and N$4,640 living costs (already modest for a household of three), there is nothing left over: disposable income is −N$340. No amount can pass the affordability test. I recommend a decline and suggesting she apply again if her circumstances change.',
+        issues: [
+          { code: 'D4', label: 'Disposable income is not above zero', detail: '−N$340 a month after commitments and living costs', result: 'Fail', cls: 'bad', kind: 'Hard' },
+          { code: 'F3', label: 'Repayment above the affordability limit', detail: 'N$1,950 required, limit N$0 — cannot be motivated while D4 is below zero', result: 'Fail', cls: 'bad', kind: 'Owner' }
+        ],
+        soft: [], hard: ['D4', 'F3'],
+        history: 'New client', record: '—', kyc: '7 of 7 clear', docs: '5 of 5 viewed'
+      }
+    };
+    var key = this.props.scenario || 'Clean pass';
+    var c0 = CASES[key] || CASES['Clean pass'];
+    var d4 = c0.income - c0.commit - c0.living;
+    var d6 = Math.max(0, d4 * c0.pct / 100);
+    var repay = c0.P * (1 + c0.rate / 100) + c0.fee;
+    var f5 = d6 > c0.fee ? Math.floor(((d6 - c0.fee) / (1 + c0.rate / 100)) / 50) * 50 : 0;
+    var f3 = repay <= d6;
+    var blocked = c0.hard.length > 0;
+    var above = !!c0.above;
+    var c = {
+      ref: c0.ref, name: c0.name, employer: c0.employer, requested: c0.requested, submitted: c0.submitted,
+      recText: c0.recText, recCls: c0.recCls,
+      p: fmt(c0.P), interest: fmt(c0.P * c0.rate / 100) + ' (' + c0.rate + '%)', fee: fmt(c0.fee), repay: fmt(repay), due: c0.due,
+      reasons: c0.reasons, pct: c0.pct + '%',
+      income: fmt(c0.income), commit: fmt(c0.commit), living: fmt(c0.living),
+      d4: fmt(d4), d4Cls: d4 > 0 ? 'acc' : 'bad', d6: fmt(d6),
+      f3: f3 ? 'Pass' : 'Fail', f3Cls: f3 ? 'good' : 'bad', f5: fmt(f5),
+      issues: c0.issues,
+      rulesSummary: c0.hard.length + ' hard · ' + (above ? 1 : 0) + ' owner · ' + c0.soft.length + ' soft failing',
+      above: above, motivation: c0.motivation || '', overBy: fmt(Math.max(0, repay - d6)),
+      otherRules: 'All other rules pass: charges 30% or less, principal and term within limits, consent on file, no compulsory insurance, no card, PIN or ID held.',
+      history: c0.history, record: c0.record, kyc: c0.kyc, docs: c0.docs,
+      blocked: blocked, hardList: c0.hard.join(', '), softList: (above ? ['going above the limit'] : []).concat(c0.soft).join(', ')
+    };
+    var recLabel = c0.recKey === 'approve' ? (above ? 'Approve ' + fmt(c0.P) + ' above the limit (override)' : 'Approve ' + fmt(c0.P) + ' as recommended') : 'Approve';
+    var choice = s.choice || (blocked ? 'decline' : 'approve');
+    var defs = [
+      { key: 'approve', label: recLabel, hint: 'Repays ' + fmt(repay) + ' on ' + c0.due, off: blocked || c0.recKey !== 'approve' },
+      { key: 'amount', label: 'Approve a different amount', hint: 'Up to ' + fmt(f5) + ' passes without an override', off: blocked || f5 < 500 },
+      { key: 'return', label: 'Return to the analyst', hint: 'Sends it back with your note — nothing is decided', off: false },
+      { key: 'decline', label: 'Decline', hint: 'The applicant is told the main reason', off: false }
+    ];
+    var opts = defs.map(function (o) {
+      return {
+        label: o.label, hint: o.hint, on: choice === o.key, off: o.off,
+        cls: 'opt' + (choice === o.key ? ' on' : '') + (o.off ? ' dis' : ''),
+        pick: function () { if (!o.off) self.setState({ choice: o.key }); }
+      };
+    });
+    var amt = parseFloat(String(s.amount).replace(/[^0-9.]/g, '')) || 0;
+    var amtOk = amt >= 500 && amt <= f5;
+    var approving = choice === 'approve' || choice === 'amount';
+    var needsOverride = approving && (c0.soft.length > 0 || (choice === 'approve' && above));
+    var overrideOk = !needsOverride || s.override.trim().length >= 20;
+    var cant = false, label = 'Confirm', hint = '', cls = 'btn';
+    if (choice === 'approve') { label = above ? 'Override and approve ' + fmt(c0.P) : 'Approve ' + fmt(c0.P); cant = !overrideOk; hint = needsOverride && !overrideOk ? 'Write an override note (at least 20 characters) — it is kept with the analyst\'s motivation.' : 'Moves the file to Ready to disburse. No money moves yet.'; }
+    if (choice === 'amount') { label = amtOk ? 'Approve ' + fmt(amt) : 'Approve'; cant = !amtOk || !overrideOk; hint = !amtOk ? 'Enter an amount between N$500 and ' + fmt(f5) + '.' : (!overrideOk ? 'Write an override note for the soft rules.' : 'Repays ' + fmt(amt * (1 + c0.rate / 100) + c0.fee) + '.'); }
+    if (choice === 'return') { label = 'Return to Tuyeni'; cls = 'btn ghost'; cant = s.returnNote.trim().length < 10; hint = cant ? 'Say what to look at again.' : 'The file goes back to “In review”.'; }
+    if (choice === 'decline') { label = 'Decline application'; cls = 'btn red'; cant = !s.declineReason; hint = cant ? 'Choose the reason the applicant will be given.' : 'A decline message is prepared for WhatsApp.'; }
+    var reasonText = { afford: 'the repayment would not be affordable on your current income', docs: 'we could not verify your documents', history: 'of your repayment history with us', other: 'of a reason we will explain by phone' }[s.declineReason] || '';
+    var done = s.done;
+    var doneTitle = '', doneText = '', doneCls = 'good', waText = '';
+    if (done === 'approve' || done === 'amount') {
+      var fp = done === 'amount' ? amt : c0.P;
+      doneTitle = 'Approved · ' + fmt(fp); doneCls = 'good';
+      doneText = c0.name + ' moves to Ready to disburse. Nothing is booked in the ledger until you pay out the cash and complete the checklist.';
+      waText = 'Hello ' + c0.first + ', good news from QuickServe Cashloan: your application ' + c0.ref + ' is approved for ' + fmt(fp) + '. Please come to our office with your ID to sign the agreement and collect. We will never ask for your PIN.';
+    } else if (done === 'return') {
+      doneTitle = 'Returned to analyst'; doneCls = 'steel';
+      doneText = 'Tuyeni has been notified with your note. The file is back “In review” and will come back to you when resubmitted.';
+    } else if (done === 'decline') {
+      doneTitle = 'Declined'; doneCls = 'bad';
+      doneText = 'The decision and your reasons are saved. Send the applicant the message below.';
+      waText = 'Hello ' + c0.first + ', thank you for applying to QuickServe Cashloan (' + c0.ref + '). We are unable to approve your application at this time because ' + reasonText + '. You are welcome to apply again if your circumstances change.';
+    }
+    return {
+      c: c,
+      statusText: done ? (done === 'return' ? 'Returned' : (done === 'decline' ? 'Declined' : 'Approved')) : 'Awaiting your approval',
+      statusCls: done === 'decline' ? 'bad' : (done && done !== 'return' ? 'good' : 'warn'),
+      opts: opts,
+      isAmount: choice === 'amount', isDecline: choice === 'decline', isReturn: choice === 'return',
+      needsOverride: needsOverride,
+      amount: s.amount,
+      setAmount: function (e) { self.setState({ amount: e.target.value }); },
+      amtNote: amt ? (amtOk ? 'Repays ' + fmt(amt * (1 + c0.rate / 100) + c0.fee) + ' · within the limit' : 'Must be between N$500 and ' + fmt(f5)) : 'Largest amount that passes: ' + fmt(f5),
+      amtCls: amt && !amtOk ? 'bad' : 'muted',
+      override: s.override,
+      setOverride: function (e) { self.setState({ override: e.target.value }); },
+      declineReason: s.declineReason,
+      setDeclineReason: function (e) { self.setState({ declineReason: e.target.value }); },
+      returnNote: s.returnNote,
+      setReturnNote: function (e) { self.setState({ returnNote: e.target.value }); },
+      confirmLabel: label, confirmCls: cls, cantConfirm: cant, confirmHint: hint,
+      confirm: function () { self.setState({ done: choice, choice: choice }); },
+      notDone: !done, done: !!done,
+      doneTitle: doneTitle, doneText: doneText, doneCls: doneCls,
+      doneApproved: done === 'approve' || done === 'amount',
+      showWa: !!waText, waText: waText,
+      undo: function () { self.setState({ done: '' }); }
+    };
+  }
+}
+</script>
+</body>
+</html>
