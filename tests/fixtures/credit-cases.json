@@ -1,0 +1,6442 @@
+[
+  {
+    "name": "clean_pass",
+    "note": "The contract's example worksheet: D4 7,620, D6 5,334, E7 5,200 — every rule passes (G7 yes: another lender).",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 30,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "f3_owner_fail_with_other_debts",
+    "note": "N$5,000 repays 6,500 > limit 5,334: F3 fails, and with another lender (b5) G8 fails too — both owner-class.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 5000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 5000,
+      "e2": 1500,
+      "e3": 0,
+      "e4": 1500,
+      "e5": 6500,
+      "e7": 6500,
+      "e10": 30,
+      "f3": false,
+      "f4": 1120,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [
+        "F3",
+        "G8"
+      ],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "f3_fail_no_other_debts_g8_pass",
+    "note": "Only our own balance (b8) and no other lender: G7 no, so G8 passes even though F3 fails.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 0,
+        "b6": 0,
+        "b7": 0,
+        "b8": 3000,
+        "b9": 0,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 3000,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 3000,
+      "d3": 9000,
+      "d4": 6100,
+      "d5": 70,
+      "d6": 4270,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 30,
+      "f3": false,
+      "f4": 900,
+      "f5": 3250,
+      "g7": false,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "no"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [
+        "F3"
+      ],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "g8_other_debt_b11_only",
+    "note": "Any of b1–b7/b9–b11 counts as another lender (here b11 only): G7 yes; F3 passes so G8 passes.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 0,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 0,
+        "b10": 0,
+        "b11": 150,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 3000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 150,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 150,
+      "d3": 9000,
+      "d4": 8950,
+      "d5": 70,
+      "d6": 6265,
+      "e1": 3000,
+      "e2": 900,
+      "e3": 0,
+      "e4": 900,
+      "e5": 3900,
+      "e7": 3900,
+      "e10": 30,
+      "f3": true,
+      "f4": 5050,
+      "f5": 4800,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "d4_negative_hard_fail",
+    "note": "Living costs leave −N$340: D4 hard fail, D6 0, F3/G8 fail, F5 0.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 7000,
+        "a2": 1000,
+        "a3": 300,
+        "a5": 5200,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 0,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 900,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 1500,
+        "c2": 400,
+        "c3": 1540,
+        "c4": 600,
+        "c5": 200,
+        "c6": 0,
+        "c7": 400,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 1500,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 5700,
+      "a6": 5200,
+      "a8": 5200,
+      "b12": 900,
+      "c10": 4640,
+      "d1": 5200,
+      "d2": 900,
+      "d3": 4640,
+      "d4": -340,
+      "d5": 70,
+      "d6": 0,
+      "e1": 1500,
+      "e2": 450,
+      "e3": 0,
+      "e4": 450,
+      "e5": 1950,
+      "e7": 1950,
+      "e10": 30,
+      "f3": false,
+      "f4": -2290,
+      "f5": 0,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "D4"
+      ],
+      "owner_fail_codes": [
+        "F3",
+        "G8"
+      ],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "d4_zero_boundary",
+    "note": "D4 exactly 0 is not above zero: hard fail.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 7620,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 500,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 16620,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 16620,
+      "d4": 0,
+      "d5": 70,
+      "d6": 0,
+      "e1": 500,
+      "e2": 150,
+      "e3": 0,
+      "e4": 150,
+      "e5": 650,
+      "e7": 650,
+      "e10": 30,
+      "f3": false,
+      "f4": -650,
+      "f5": 0,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "D4"
+      ],
+      "owner_fail_codes": [
+        "F3",
+        "G8"
+      ],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "docs_missing",
+    "note": "Bank statement month 1 (2.3) not examined: DOCS hard fail. 2.6/2.7 are not required.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": false,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": null
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 30,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "DOCS"
+      ],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "g1_charges_above_cap",
+    "note": "Service fee N$50 on top of 30% interest: charges 1,250 > 30% of 4,000 → G1 hard fail.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 50,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 50,
+      "e4": 1250,
+      "e5": 5250,
+      "e7": 5250,
+      "e10": 30,
+      "f3": true,
+      "f4": 2370,
+      "f5": 4050,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "G1"
+      ],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "g1_tolerance_pass",
+    "note": "333.33 at 30%: E2 rounds to 100.00, a hair above 99.999 but within the 0.005 tolerance → G1 passes.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 333.33,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 333.33,
+      "e2": 100,
+      "e3": 0,
+      "e4": 100,
+      "e5": 433.33,
+      "e7": 433.33,
+      "e10": 30,
+      "f3": true,
+      "f4": 7186.67,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "g2_above_max_principal",
+    "note": "N$120,000 is above the N$100,000 maximum: G2 hard fail (and far above the limit).",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 120000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 120000,
+      "e2": 36000,
+      "e3": 0,
+      "e4": 36000,
+      "e5": 156000,
+      "e7": 156000,
+      "e10": 30,
+      "f3": false,
+      "f4": -148380,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "G2"
+      ],
+      "owner_fail_codes": [
+        "F3",
+        "G8"
+      ],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "g3_over_five_months",
+    "note": "Due 2027-03-01 is after 2027-02-28 (issue + 5 months): G3 hard fail.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2027-03-01"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 154,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "G3"
+      ],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "g3_month_end_clamp",
+    "note": "Issue 30 Sep + 5 months = 28 Feb 2027 (month end clamps). Due 1 Mar 2027 fails G3.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-30",
+      "due_date": "2027-03-01"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 152,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "G3"
+      ],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "g3_month_end_clamp_pass",
+    "note": "Issue 30 Sep, due 28 Feb 2027: exactly 5 months (clamped) → G3 passes.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-30",
+      "due_date": "2027-02-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 151,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "g3_due_not_after_issue",
+    "note": "Due date equal to the issue date: G3 hard fail, E10 = 0.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-09-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 0,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "G3"
+      ],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "g3_missing_dates",
+    "note": "No dates yet (draft): E10 null, G3 fails.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": null,
+      "due_date": null
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": null,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "G3"
+      ],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "bureau_required_without_report",
+    "note": "Policy requires the bureau and none is recorded: G4 hard fail.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": true,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 30,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "G4"
+      ],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "bureau_required_with_report",
+    "note": "Policy requires the bureau; used, date and ref recorded: G4 passes.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": true,
+        "date": "2026-09-20",
+        "ref": "TU-884211",
+        "open_accounts": 2,
+        "monthly_commitments": 1200,
+        "adverse": false,
+        "enquiries_3m": 1,
+        "agrees": true,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": true,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 30,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "irregular_income_uses_a11",
+    "note": "Irregular income: A6 is the lowest month (a11 = 15,000), not the lower of A4 and A5.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": true,
+        "a11": 15000,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 3000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 15000,
+      "a8": 15000,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 15000,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 4520,
+      "d5": 70,
+      "d6": 3164,
+      "e1": 3000,
+      "e2": 900,
+      "e3": 0,
+      "e4": 900,
+      "e5": 3900,
+      "e7": 3900,
+      "e10": 30,
+      "f3": false,
+      "f4": 620,
+      "f5": 2400,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [
+        "F3",
+        "G8"
+      ],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "flags_at_threshold",
+    "note": "Two warning signs (8.3, 8.5) reach the threshold of 2: FLAGS soft fail.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": true,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 30,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 2,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "fail"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": [
+        "FLAGS"
+      ]
+    }
+  },
+  {
+    "name": "verify_false",
+    "note": "2.9: the bank account is not the payout account → VERIFY soft fail.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": false,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 30,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "fail"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": [
+        "VERIFY"
+      ]
+    }
+  },
+  {
+    "name": "g9_no",
+    "note": "Salary deductions over one third (G9 'no'): soft fail.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "no",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 30,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "fail"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": [
+        "G9"
+      ]
+    }
+  },
+  {
+    "name": "g5_g6_soft_fails",
+    "note": "No bureau consent (G5) and no bank account number (G6): soft fails.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": false,
+      "amount_requested": 4000,
+      "bank_account_no": "",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 30,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "fail"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "fail"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": [
+        "G5",
+        "G6"
+      ]
+    }
+  },
+  {
+    "name": "g10_g11_hard_fail",
+    "note": "Compulsory insurance (G10) and a card held (G11): hard fails.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": false,
+        "g11": false
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 70,
+      "d6": 5334,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 30,
+      "f3": true,
+      "f4": 2420,
+      "f5": 4100,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "G10",
+        "G11"
+      ],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "cent_rounding",
+    "note": "Half cents round away from zero: E2 = 1,234.55 × 30% = 370.365 → 370.37; D6 = 7,770.05 × 70% = 5,439.035 → 5,439.04.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500.05,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18300,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 1234.55,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250.05,
+      "a6": 18250.05,
+      "a8": 18250.05,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18250.05,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7770.05,
+      "d5": 70,
+      "d6": 5439.04,
+      "e1": 1234.55,
+      "e2": 370.37,
+      "e3": 0,
+      "e4": 370.37,
+      "e5": 1604.92,
+      "e7": 1604.92,
+      "e10": 30,
+      "f3": true,
+      "f4": 6165.13,
+      "f5": 4150,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "f5_exact_step",
+    "note": "D6 = 5,200.00 exactly (7,428.57 × 70% = 5,199.999): 5,200 / 1.3 = 4,000 exactly → F5 4,000, not 3,950.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 17908.57,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 4000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 17908.57,
+      "a8": 17908.57,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 17908.57,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7428.57,
+      "d5": 70,
+      "d6": 5200,
+      "e1": 4000,
+      "e2": 1200,
+      "e3": 0,
+      "e4": 1200,
+      "e5": 5200,
+      "e7": 5200,
+      "e10": 30,
+      "f3": true,
+      "f4": 2228.57,
+      "f5": 4000,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "f5_zero_fee_above_limit",
+    "note": "D6 (70) is not above the service fee (100): F5 = 0.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 7520,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 500,
+      "interest_rate": 30,
+      "service_fee": 100,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 16520,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 16520,
+      "d4": 100,
+      "d5": 70,
+      "d6": 70,
+      "e1": 500,
+      "e2": 150,
+      "e3": 100,
+      "e4": 250,
+      "e5": 750,
+      "e7": 750,
+      "e10": 30,
+      "f3": false,
+      "f4": -650,
+      "f5": 0,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "fail"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "fail"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [
+        "G1"
+      ],
+      "owner_fail_codes": [
+        "F3",
+        "G8"
+      ],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "f5_capped_at_max_principal",
+    "note": "Very high income: floor(198,289 / 1.3 / 50) × 50 = 152,500, capped at the N$100,000 maximum.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 300000,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 300000,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": false,
+        "f8_2": false,
+        "f8_3": false,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 100000,
+      "interest_rate": 30,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-10-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 70,
+      "default_interest_rate": 30,
+      "default_service_fee": 0,
+      "cost_cap_pct": 30,
+      "max_principal": 100000,
+      "max_term_months": 5,
+      "bureau_required": false,
+      "red_flag_threshold": 2,
+      "principal_round_step": 50,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 293750,
+      "a6": 293750,
+      "a8": 293750,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 293750,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 283270,
+      "d5": 70,
+      "d6": 198289,
+      "e1": 100000,
+      "e2": 30000,
+      "e3": 0,
+      "e4": 30000,
+      "e5": 130000,
+      "e7": 130000,
+      "e10": 30,
+      "f3": true,
+      "f4": 153270,
+      "f5": 100000,
+      "g7": true,
+      "flag_count": 1,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": []
+    }
+  },
+  {
+    "name": "policy_custom",
+    "note": "Other policy values flow through: D5 50%, rate 25%, step N$100, cap 25%, 3 months, threshold 3.",
+    "worksheet": {
+      "docs": {
+        "d2_1": true,
+        "d2_2": true,
+        "d2_3": true,
+        "d2_4": true,
+        "d2_5": true,
+        "d2_6": null,
+        "d2_7": true
+      },
+      "verify": {
+        "v2_8": true,
+        "v2_9": true,
+        "v2_10": true,
+        "v2_11": ""
+      },
+      "bureau": {
+        "used": null,
+        "date": null,
+        "ref": null,
+        "open_accounts": null,
+        "monthly_commitments": null,
+        "adverse": null,
+        "enquiries_3m": null,
+        "agrees": null,
+        "explain": ""
+      },
+      "income": {
+        "a1": 24500,
+        "a2": 4150,
+        "a3": 2100,
+        "a5": 18100,
+        "a7": 0,
+        "irregular": false,
+        "a11": 0,
+        "notes": ""
+      },
+      "commitments": {
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 1200,
+        "b6": 0,
+        "b7": 0,
+        "b8": 0,
+        "b9": 280,
+        "b10": 0,
+        "b11": 0,
+        "b11_desc": ""
+      },
+      "living": {
+        "c1": 2500,
+        "c2": 700,
+        "c3": 2800,
+        "c4": 1200,
+        "c5": 400,
+        "c6": 600,
+        "c7": 800,
+        "c8": 0,
+        "c9": 0,
+        "c9_desc": "",
+        "dependants": 2,
+        "credible": true,
+        "adjust_note": ""
+      },
+      "flags": {
+        "f8_1": true,
+        "f8_2": false,
+        "f8_3": true,
+        "f8_4": false,
+        "f8_5": true,
+        "f8_6": false,
+        "f8_7": false,
+        "detail": ""
+      },
+      "conduct": {
+        "g9": "na",
+        "g10": true,
+        "g11": true
+      }
+    },
+    "terms": {
+      "principal": 2500,
+      "interest_rate": 25,
+      "service_fee": 0,
+      "issue_date": "2026-09-28",
+      "due_date": "2026-12-28"
+    },
+    "application": {
+      "consent_bureau": true,
+      "amount_requested": 4000,
+      "bank_account_no": "62001234567",
+      "pay_day": "25th",
+      "employer": "Rössing Uranium",
+      "kin_name": "Martha Nangolo",
+      "kin_phone": "085 612 3390"
+    },
+    "policy": {
+      "max_share_disposable_pct": 50,
+      "default_interest_rate": 25,
+      "default_service_fee": 0,
+      "cost_cap_pct": 25,
+      "max_principal": 100000,
+      "max_term_months": 3,
+      "bureau_required": false,
+      "red_flag_threshold": 3,
+      "principal_round_step": 100,
+      "min_age": 18,
+      "max_age": 70,
+      "sla_pickup_hours": 24,
+      "sla_approval_hours": 24,
+      "idle_minutes": 20
+    },
+    "expected": {
+      "a4": 18250,
+      "a6": 18100,
+      "a8": 18100,
+      "b12": 1480,
+      "c10": 9000,
+      "d1": 18100,
+      "d2": 1480,
+      "d3": 9000,
+      "d4": 7620,
+      "d5": 50,
+      "d6": 3810,
+      "e1": 2500,
+      "e2": 625,
+      "e3": 0,
+      "e4": 625,
+      "e5": 3125,
+      "e7": 3125,
+      "e10": 91,
+      "f3": true,
+      "f4": 4495,
+      "f5": 3000,
+      "g7": true,
+      "flag_count": 3,
+      "rules": [
+        {
+          "code": "D4",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "DOCS",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G1",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G2",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G3",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G4",
+          "class": "hard",
+          "result": "na"
+        },
+        {
+          "code": "G10",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "G11",
+          "class": "hard",
+          "result": "pass"
+        },
+        {
+          "code": "F3",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G8",
+          "class": "owner",
+          "result": "pass"
+        },
+        {
+          "code": "G5",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G6",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G9",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "FLAGS",
+          "class": "soft",
+          "result": "fail"
+        },
+        {
+          "code": "VERIFY",
+          "class": "soft",
+          "result": "pass"
+        },
+        {
+          "code": "G7",
+          "class": "info",
+          "result": "yes"
+        }
+      ],
+      "hard_fail_codes": [],
+      "owner_fail_codes": [],
+      "soft_fail_codes": [
+        "FLAGS"
+      ]
+    }
+  }
+]

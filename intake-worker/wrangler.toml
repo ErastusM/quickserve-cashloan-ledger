@@ -1,15 +1,27 @@
 # QuickServe Cashloan — intake Worker configuration.
-# Fill in the two REPLACE_ values after creating the D1 database (see README.md).
-# Secrets (OWNER_TOKEN) are NOT stored here — set them with `wrangler secret put`.
+# Fill in the D1 database_id after creating the database (see README.md).
+#
+# Secrets are NOT stored here — set them with `npx wrangler secret put <NAME>`:
+#   INTAKE_KEY   the credit desk's intake key (from `select private.intake_rotate_key();`
+#                in the Supabase SQL editor). Lets the Worker call rpc/intake_submit and
+#                rpc/intake_import_legacy, and keys the ip_hash used for rate limiting.
+#   OWNER_TOKEN  the old inbox password (legacy /applications routes and /legacy/migrate).
+#
+# Never put a Supabase secret / service-role key anywhere in this Worker.
 
 name = "quickserve-intake"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
 
 [vars]
-# The origin your apply.html / inbox.html are served from (for CORS).
-# For GitHub Pages this is your Pages origin, e.g. https://erastusm.github.io
-ALLOWED_ORIGIN = "https://erastusm.github.io"
+# Supabase project (public values — the publishable key is safe to ship).
+SUPABASE_URL = "https://ptlwhpvzyfpxtpghwlqs.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_jy5bMPcZ9uIwXHV2M7Sq0g_5uYtWcZH"
+# Browser origins allowed to call the Worker (apply form, console, old inbox).
+# Comma-separated, exact scheme + host. "*" would allow any site — don't.
+# The console and form are on GitHub Pages (erastusm.github.io) today; the
+# quickserve.group addresses are ready for the move to your own domain.
+ALLOWED_ORIGINS = "https://erastusm.github.io,https://quickserve.group,https://apply.quickserve.group,https://admin.quickserve.group"
 
 [[d1_databases]]
 binding = "DB"
