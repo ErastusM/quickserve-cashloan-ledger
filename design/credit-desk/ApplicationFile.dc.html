@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Application file</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#12201b;background:#e8ebe8;font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:#0c4a30}a:hover{color:#0a3d28}
+*{box-sizing:border-box}
+h1,h2,h3,h4,p{margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+.nav{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:7px;color:#3c4a45;font-weight:500;font-size:13px;text-decoration:none;border-left:2.5px solid transparent}
+.nav:hover{background:#f5f7f5;color:#12201b}
+.nav.on{background:#eef3ee;color:#12201b;font-weight:600;border-left-color:#0c4a30}
+.nav svg{width:17px;height:17px;flex:none}
+.sect{font-size:10px;text-transform:uppercase;letter-spacing:.11em;color:#6f7b75;font-weight:600;padding:14px 12px 6px}
+.badge{margin-left:auto;font-family:"IBM Plex Mono",monospace;background:#0c4a30;color:#fff;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:999px}
+.panel{background:#fff;border:1px solid #dadfdb;border-radius:8px;box-shadow:0 1px 2px rgba(18,32,27,.05);overflow:hidden}
+.ph{display:flex;align-items:baseline;gap:10px;padding:12px 18px;border-bottom:1px solid #dadfdb}
+.ph h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.ph .n{font-family:"IBM Plex Mono",monospace;color:#5f6b65;font-size:12px}
+.pill{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid currentColor;display:inline-block;white-space:nowrap;line-height:1.5}
+.good{color:#0d6b43}.warn{color:#8a6410}.bad{color:#9d2f22}.steel{color:#38566a}.acc{color:#0c4a30}.muted{color:#5f6b65}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #0c4a30;background:#0c4a30;color:#fff;border-radius:7px;padding:9px 16px;font:inherit;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none;min-height:40px;white-space:nowrap}
+.btn:hover{background:#0a3d28;color:#fff}
+.btn.ghost{background:#fff;border-color:#c9d1cc;color:#12201b}
+.btn.ghost:hover{background:#f5f7f5;color:#12201b}
+.btn.danger{background:#fff;color:#9d2f22;border-color:#e0b4ab}
+.btn.danger:hover{background:#f6e6e2;color:#9d2f22}
+.btn.sm{min-height:32px;padding:5px 12px;font-size:12.5px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.frow{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid #eef1ee}
+.fk{color:#5f6b65;font-size:12.5px;flex:none}
+.fv{text-align:right;font-size:13px}
+.chk{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 18px;border-bottom:1px solid #eef1ee}
+.ico{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;border:1.5px solid currentColor}
+.ico svg{width:13px;height:13px}
+.doc{border:1px solid #dadfdb;border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.doc.sel{border-color:#0c4a30;box-shadow:0 0 0 3px #e7efe9}
+.thumb{height:64px;border-radius:6px;background:#eef1ee;display:grid;place-items:center;color:#5f6b65}
+.thumb svg{width:26px;height:26px}
+.gh5{display:grid;grid-template-columns:96px 110px 100px 90px 100px minmax(0,1fr);gap:12px;padding:9px 18px;border-bottom:1px solid #dadfdb;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#5f6b65;font-weight:600}
+.gr5{display:grid;grid-template-columns:96px 110px 100px 90px 100px minmax(0,1fr);gap:12px;padding:10px 18px;border-bottom:1px solid #eef1ee;align-items:center}
+.r{text-align:right}
+textarea{font:inherit;font-size:13.5px;background:#fff;border:1px solid #c9d1cc;border-radius:7px;padding:9px 11px;color:#12201b;width:100%;resize:vertical}
+textarea:focus{outline:none;border-color:#0c4a30;box-shadow:0 0 0 3px #e7efe9}
+</style>
+</helmet>
+<div style="width: 1440px; height: 2160px; display: flex; flex-direction: column; background: #e8ebe8; overflow: hidden">
+
+  <header style="display: flex; align-items: center; gap: 13px; padding: 11px 22px; background: #0a1c14; color: #eef3ef; border-bottom: 3px solid #0c4a30; flex: none">
+    <div style="width: 34px; height: 34px; border-radius: 7px; background: #0c4a30; color: #ffffff; display: grid; place-items: center; font-weight: 700; font-size: 18px">Q</div>
+    <div style="display: flex; flex-direction: column; line-height: 1.25">
+      <span style="font-size: 13.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase">QuickServe Cashloan</span>
+      <span class="mono" style="font-size: 11px; color: #83978b">Credit desk · CC/2026/01904</span>
+    </div>
+    <div style="flex-grow: 1"></div>
+    <div style="text-align: right; line-height: 1.35">
+      <div style="font-size: 12px; font-weight: 500">Tuyeni Shikongo</div>
+      <div style="font-size: 11.5px; color: #83978b">Credit analyst</div>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-grow: 1; min-height: 0">
+    <nav style="width: 214px; flex: none; background: #ffffff; border-right: 1px solid #dadfdb; padding: 14px 10px; display: flex; flex-direction: column; gap: 1px">
+      <div class="sect">Credit</div>
+      <a class="nav on" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path></svg>Credit queue<span class="badge">9</span></a>
+      <div class="sect">Account</div>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>My account</a>
+    </nav>
+
+    <main style="flex-grow: 1; min-width: 0; padding: 20px 28px 28px; display: flex; flex-direction: column; gap: 16px">
+
+      <div style="font-size: 12.5px; color: #5f6b65"><a href="Main.dc.html" style="text-decoration: none">Credit queue</a> <span aria-hidden="true">/</span> <span class="mono">QSA-7K2M9P</span></div>
+
+      <div style="display: flex; align-items: flex-start; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <h1 style="font-size: 22px; font-weight: 600; letter-spacing: -.02em">Selma Nangolo</h1>
+            <span class="pill acc">In review</span>
+            <span class="pill good">Returning · QS-0019</span>
+          </div>
+          <div class="mono" style="font-size: 12px; color: #5f6b65">QSA-7K2M9P · N$4,000 requested · received Mon 28 Sep 07:02 · picked up by you 09:14 · waiting 2 h</div>
+        </div>
+        <div style="flex-grow: 1"></div>
+        <button type="button" class="btn ghost" onClick="{{toggleAsk}}">Ask for documents</button>
+        <button type="button" class="btn danger">Withdraw…</button>
+        <a class="btn" href="Worksheet.dc.html">Open worksheet
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 15px; height: 15px" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+      </div>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start">
+
+        <div style="display: flex; flex-direction: column; gap: 16px">
+
+          <section class="panel">
+            <div class="ph"><h3>Identity &amp; KYC checks</h3><span class="n">{{kycDone}} of 7 clear</span></div>
+            <sc-for list="{{kyc}}" as="k" hint-placeholder-count="7">
+              <div class="chk">
+                <div class="ico {{k.cls}}">
+                  <sc-if value="{{k.ok}}" hint-placeholder-val="{{ true }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></sc-if>
+                  <sc-if value="{{k.warn}}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M12 6v8M12 18v.5"></path></svg></sc-if>
+                  <sc-if value="{{k.todo}}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M8 12h8"></path></svg></sc-if>
+                </div>
+                <div>
+                  <div style="font-weight: 600">{{k.title}}</div>
+                  <div style="font-size: 12.5px; color: #5f6b65">{{k.detail}}</div>
+                </div>
+                <div>
+                  <sc-if value="{{k.canConfirm}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn ghost sm" onClick="{{k.confirm}}">{{k.action}}</button></sc-if>
+                  <sc-if value="{{k.hasTag}}" hint-placeholder-val="{{ false }}"><span class="pill {{k.cls}}">{{k.tag}}</span></sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>The application</h3><span class="n">as submitted on the website</span></div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 36px; padding: 6px 18px 12px">
+              <div>
+                <div class="frow"><span class="fk">Amount requested</span><span class="fv mono">N$4,000.00</span></div>
+                <div class="frow"><span class="fk">Needed by</span><span class="fv">Tue 29 Sep 2026</span></div>
+                <div class="frow"><span class="fk">Wants to repay on</span><span class="fv">Wed 28 Oct 2026 · pay day 25th</span></div>
+                <div class="frow"><span class="fk">Purpose</span><span class="fv">School fees for two children</span></div>
+                <div class="frow"><span class="fk">Declared net pay</span><span class="fv mono">N$18,400</span></div>
+                <div class="frow"><span class="fk">Declared deductions &amp; debts</span><span class="fv mono">N$1,500</span></div>
+                <div class="frow"><span class="fk">Declared living costs</span><span class="fv mono">N$9,000</span></div>
+                <div class="frow"><span class="fk">Other lenders</span><span class="fv">Yes · 1 loan</span></div>
+                <div class="frow" style="border-bottom: none"><span class="fk">Dependants</span><span class="fv">2</span></div>
+              </div>
+              <div>
+                <div class="frow"><span class="fk">Employer</span><span class="fv">Rössing Uranium · Plant operator</span></div>
+                <div class="frow"><span class="fk">Employment</span><span class="fv">Permanent · since Mar 2019</span></div>
+                <div class="frow"><span class="fk">Bank account</span><span class="fv mono">FNB Namibia ••••4471</span></div>
+                <div class="frow"><span class="fk">Account holder</span><span class="fv">Selma Nangolo · salary paid here</span></div>
+                <div class="frow"><span class="fk">Phone (WhatsApp)</span><span class="fv mono">+264 81 234 5678</span></div>
+                <div class="frow"><span class="fk">Address</span><span class="fv">14 Moses Garoeb St, Mondesa, Swakopmund</span></div>
+                <div class="frow"><span class="fk">Next of kin</span><span class="fv">Martha Nangolo (mother) · <span class="mono">+264 85 612 3390</span></span></div>
+                <div class="frow"><span class="fk">Consent</span><span class="fv">Processing ✓ · Credit check ✓</span></div>
+                <div class="frow" style="border-bottom: none"><span class="fk">Consent wording</span><span class="fv mono">v2026-10 · 28 Sep 07:02</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>Documents</h3><span class="n">5 uploaded · 1 optional missing</span><div style="flex-grow: 1"></div><span style="font-size: 12px; color: #5f6b65">Every view is recorded in the audit trail</span></div>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 16px 18px">
+              <sc-for list="{{docs}}" as="d" hint-placeholder-count="6">
+                <div class="{{d.cls}}">
+                  <div class="thumb">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path><path d="M10 13h6M10 16h4"></path></svg>
+                  </div>
+                  <div>
+                    <div style="font-weight: 600; font-size: 13px">{{d.kind}}</div>
+                    <div class="mono" style="font-size: 11.5px; color: #5f6b65">{{d.meta}}</div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px">
+                    <span class="{{d.seenCls}}" style="font-size: 11.5px; flex-grow: 1">{{d.seen}}</span>
+                    <sc-if value="{{d.present}}" hint-placeholder-val="{{ true }}"><button type="button" class="btn ghost sm" onClick="{{d.view}}">View</button></sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{hasPreview}}" hint-placeholder-val="{{ false }}">
+              <div style="margin: 0 18px 18px; border: 1px solid #dadfdb; border-radius: 8px; overflow: hidden">
+                <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f5f7f5; border-bottom: 1px solid #dadfdb">
+                  <span style="font-weight: 600">{{preview.kind}}</span>
+                  <span class="mono" style="font-size: 11.5px; color: #5f6b65">{{preview.meta}}</span>
+                  <div style="flex-grow: 1"></div>
+                  <button type="button" class="btn ghost sm">Open full size</button>
+                  <button type="button" class="btn ghost sm" onClick="{{closePreview}}" aria-label="Close preview">Close</button>
+                </div>
+                <div style="height: 240px; background: repeating-linear-gradient(45deg, #eef1ee 0 12px, #f5f7f5 12px 24px); display: grid; place-items: center; text-align: center; color: #5f6b65; padding: 20px">
+                  <div>
+                    <div style="font-weight: 600; color: #3c4a45">[The applicant's uploaded {{preview.kindLower}} shows here]</div>
+                    <div style="font-size: 12px; margin-top: 4px">Opened in a locked-down viewer — only signed-in staff can load it, and this view is logged.</div>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>History with QuickServe</h3><span class="n">client QS-0019 · matched by ID number</span></div>
+            <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-bottom: 1px solid #dadfdb">
+              <div style="padding: 13px 18px; border-right: 1px solid #eef1ee"><div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #5f6b65; font-weight: 600">Loans</div><div class="mono" style="font-size: 20px; font-weight: 600">3</div></div>
+              <div style="padding: 13px 18px; border-right: 1px solid #eef1ee"><div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #5f6b65; font-weight: 600">Borrowed</div><div class="mono" style="font-size: 20px; font-weight: 600">N$9,500</div></div>
+              <div style="padding: 13px 18px; border-right: 1px solid #eef1ee"><div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #5f6b65; font-weight: 600">Repaid</div><div class="mono" style="font-size: 20px; font-weight: 600">N$12,350</div></div>
+              <div style="padding: 13px 18px; border-right: 1px solid #eef1ee"><div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #5f6b65; font-weight: 600">Late payments</div><div class="mono warn" style="font-size: 20px; font-weight: 600">1 <span style="font-size: 12px">(4 days)</span></div></div>
+              <div style="padding: 13px 18px"><div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #5f6b65; font-weight: 600">Owing now</div><div class="mono good" style="font-size: 20px; font-weight: 600">N$0</div></div>
+            </div>
+            <div class="gh5"><span>Loan</span><span>Issued</span><span class="r">Principal</span><span>Due</span><span>Repaid</span><span>Result</span></div>
+            <div class="gr5"><span class="mono" style="font-weight: 600">QSL-0012</span><span>03 Feb 2026</span><span class="mono r">2,500.00</span><span>25 Mar</span><span>25 Mar</span><span><span class="pill good">On time</span></span></div>
+            <div class="gr5"><span class="mono" style="font-weight: 600">QSL-0027</span><span>28 Apr 2026</span><span class="mono r">3,000.00</span><span>25 May</span><span>29 May</span><span><span class="pill warn">4 days late</span></span></div>
+            <div class="gr5" style="border-bottom: none"><span class="mono" style="font-weight: 600">QSL-0041</span><span>27 Jul 2026</span><span class="mono r">4,000.00</span><span>25 Aug</span><span>25 Aug</span><span><span class="pill good">On time</span></span></div>
+            <div style="display: flex; gap: 9px; align-items: center; padding: 11px 18px; background: #f5f7f5; border-top: 1px solid #dadfdb; font-size: 12px; color: #5f6b65">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px; flex: none" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+              Only this borrower's own record is shown. The rest of the loan book and the company's figures are not available to credit analysts.
+            </div>
+          </section>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 16px">
+
+          <section class="panel">
+            <div class="ph"><h3>Assessment</h3><span class="n">v1 · autosaved 09:48</span></div>
+            <div style="padding: 14px 18px 16px; display: flex; flex-direction: column; gap: 12px">
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 12.5px"><span>Worksheet progress</span><span class="mono">6 of 9 sections</span></div>
+                <div style="height: 6px; background: #eef1ee; border-radius: 999px; margin-top: 6px; overflow: hidden"><div style="width: 67%; height: 100%; background: #0c4a30"></div></div>
+              </div>
+              <div>
+                <div class="frow"><span class="fk">Verified income</span><span class="fv mono">N$18,100</span></div>
+                <div class="frow"><span class="fk">Disposable income</span><span class="fv mono">N$7,620</span></div>
+                <div class="frow"><span class="fk">Most one repayment may take (70%)</span><span class="fv mono">N$5,334</span></div>
+                <div class="frow"><span class="fk">Repayment on N$4,000 at 30%</span><span class="fv mono">N$5,200</span></div>
+                <div class="frow" style="border-bottom: none"><span class="fk">Affordability test</span><span class="fv"><span class="pill good">Pass</span></span></div>
+              </div>
+              <a class="btn" href="Worksheet.dc.html" style="width: 100%">Continue worksheet</a>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>Contact applicant</h3></div>
+            <div style="padding: 12px 18px 16px; display: flex; flex-direction: column; gap: 10px">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <button type="button" class="btn ghost sm" onClick="{{toggleAsk}}">Ask for documents</button>
+                <a class="btn ghost sm" href="#">Call +264 81 234 5678</a>
+              </div>
+              <sc-if value="{{showAsk}}" hint-placeholder-val="{{ false }}">
+                <div style="border: 1px solid #dadfdb; border-radius: 8px; background: #f5f7f5; padding: 12px; display: flex; flex-direction: column; gap: 10px">
+                  <div class="mono" style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #5f6b65">WhatsApp message · preview</div>
+                  <div style="font-size: 13px; line-height: 1.55">Hello Selma, this is QuickServe Cashloan about your application QSA-7K2M9P. Please send a clearer photo of your August payslip to this number. We will never ask for your PIN or bank card. Thank you.</div>
+                  <div style="display: flex; gap: 8px; align-items: center">
+                    <a class="btn sm" href="#">Open in WhatsApp</a>
+                    <span style="font-size: 11.5px; color: #5f6b65">Moves the file to “Waiting on applicant”</span>
+                  </div>
+                </div>
+              </sc-if>
+              <div style="font-size: 12px; color: #5f6b65">Approval and decline messages unlock after the owner decides.</div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>Notes</h3><span class="n">staff only</span></div>
+            <div style="padding: 6px 18px 4px">
+              <sc-for list="{{notes}}" as="n" hint-placeholder-count="2">
+                <div style="padding: 10px 0; border-bottom: 1px solid #eef1ee">
+                  <div style="display: flex; gap: 8px; font-size: 12px; color: #5f6b65"><span style="font-weight: 600; color: #12201b">{{n.who}}</span><span class="mono">{{n.at}}</span></div>
+                  <div style="font-size: 13px; margin-top: 2px">{{n.text}}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="padding: 10px 18px 16px; display: flex; flex-direction: column; gap: 8px">
+              <label for="noteBox" style="font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #5f6b65; font-weight: 600">Add a note</label>
+              <textarea id="noteBox" rows="3" placeholder="e.g. Spoke to HR, salary confirmed" value="{{draft}}" onChange="{{setDraft}}"></textarea>
+              <div style="display: flex; justify-content: flex-end"><button type="button" class="btn sm" onClick="{{addNote}}" disabled="{{noDraft}}">Add note</button></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>Timeline</h3><span class="n">from the audit trail</span></div>
+            <div style="padding: 8px 18px 14px">
+              <sc-for list="{{timeline}}" as="t" hint-placeholder-count="7">
+                <div style="display: grid; grid-template-columns: 48px 12px minmax(0, 1fr); gap: 10px; padding: 6px 0; align-items: start">
+                  <span class="mono" style="font-size: 12px; color: #5f6b65">{{t.at}}</span>
+                  <span style="width: 8px; height: 8px; border-radius: 999px; background: #0c4a30; margin-top: 6px"></span>
+                  <span style="font-size: 12.5px">{{t.text}}</span>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2160}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      nameOk: false, employerOk: true, preview: -1, showAsk: false, draft: '',
+      viewed: { 0: '09:15', 1: '09:17' },
+      notes: [
+        { who: 'Tuyeni S.', at: '09:22', text: 'Called Rössing HR switchboard — permanent employee since 2019, paid on the 25th.' },
+        { who: 'System', at: '09:14', text: 'Picked up by Tuyeni S.' }
+      ],
+      timeline: [
+        { at: '09:48', text: 'Worksheet saved (version 1)' },
+        { at: '09:22', text: 'Employer confirmed by phone' },
+        { at: '09:21', text: 'Viewed borrower history (QS-0019)' },
+        { at: '09:17', text: 'Viewed payslip — August 2026' },
+        { at: '09:15', text: 'Viewed Namibian ID' },
+        { at: '09:14', text: 'Picked up by Tuyeni S.' },
+        { at: '07:02', text: 'Application received from the website; automatic ID and duplicate checks ran' }
+      ]
+    };
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state;
+    var kyc = [
+      { title: 'ID number is valid', detail: '89031200457 · 11 digits · the date part is a real date', state: 'ok' },
+      { title: 'Age from ID number', detail: 'Born 12 Mar 1989 · 37 years old · policy allows 18–70', state: 'ok' },
+      { title: 'Name on the ID matches the application', detail: s.nameOk ? 'Confirmed by you just now' : 'Open the ID document and confirm', state: s.nameOk ? 'ok' : 'todo', action: 'Confirm match', key: 'nameOk' },
+      { title: 'No other open application with this ID', detail: 'Checked across all applications', state: 'ok' },
+      { title: 'Returning borrower', detail: 'Matched client QS-0019 on ID number · 3 loans since Feb 2026', state: 'ok', tag: 'Returning' },
+      { title: 'Phone number is shared', detail: '+264 81 234 5678 is also on client QS-0031 (Aina Nangolo, different ID) — likely family', state: 'warn', tag: 'Check' },
+      { title: 'Employer confirmed', detail: s.employerOk ? 'Confirmed by phone with Rössing HR · 09:22' : 'Call the employer to confirm', state: s.employerOk ? 'ok' : 'todo', action: 'Mark confirmed', key: 'employerOk' }
+    ].map(function (k) {
+      var cls = k.state === 'ok' ? 'good' : (k.state === 'warn' ? 'warn' : 'muted');
+      return {
+        title: k.title, detail: k.detail, cls: cls,
+        ok: k.state === 'ok', warn: k.state === 'warn', todo: k.state === 'todo',
+        canConfirm: k.state === 'todo', action: k.action,
+        hasTag: !!k.tag && k.state !== 'todo', tag: k.tag,
+        confirm: function () { var p = {}; p[k.key] = true; self.setState(p); }
+      };
+    });
+    var kycDone = kyc.filter(function (k) { return k.ok; }).length;
+    var docDefs = [
+      { kind: 'Namibian ID', meta: 'JPEG · 1.2 MB', present: true },
+      { kind: 'Payslip — August 2026', meta: 'PDF · 240 KB', present: true },
+      { kind: 'Bank statement — June', meta: 'PDF · 410 KB', present: true },
+      { kind: 'Bank statement — July', meta: 'PDF · 395 KB', present: true },
+      { kind: 'Bank statement — August', meta: 'PDF · 402 KB', present: true },
+      { kind: 'Proof of address', meta: 'Not provided · optional', present: false }
+    ];
+    var docs = docDefs.map(function (d, i) {
+      var seenAt = s.viewed[i];
+      return {
+        kind: d.kind, meta: d.meta, present: d.present,
+        cls: i === s.preview ? 'doc sel' : 'doc',
+        seen: !d.present ? '—' : (seenAt ? 'Viewed by you ' + seenAt : 'Not opened yet'),
+        seenCls: seenAt ? 'good' : 'muted',
+        view: function () {
+          var v = Object.assign({}, self.state.viewed);
+          if (!v[i]) v[i] = 'just now';
+          self.setState({ preview: i, viewed: v });
+        }
+      };
+    });
+    var pv = s.preview >= 0 ? docDefs[s.preview] : docDefs[0];
+    return {
+      kyc: kyc,
+      kycDone: String(kycDone),
+      docs: docs,
+      hasPreview: s.preview >= 0,
+      preview: { kind: pv.kind, meta: pv.meta, kindLower: pv.kind.split(' — ')[0].toLowerCase() },
+      closePreview: function () { self.setState({ preview: -1 }); },
+      showAsk: s.showAsk,
+      toggleAsk: function () { self.setState({ showAsk: !self.state.showAsk }); },
+      notes: s.notes,
+      draft: s.draft,
+      noDraft: s.draft.trim().length === 0,
+      setDraft: function (e) { self.setState({ draft: e.target.value }); },
+      addNote: function () {
+        var t = self.state.draft.trim();
+        if (!t) return;
+        self.setState({
+          notes: [{ who: 'You', at: 'now', text: t }].concat(self.state.notes),
+          timeline: [{ at: 'now', text: 'Note added' }].concat(self.state.timeline),
+          draft: ''
+        });
+      },
+      timeline: s.timeline
+    };
+  }
+}
+</script>
+</body>
+</html>

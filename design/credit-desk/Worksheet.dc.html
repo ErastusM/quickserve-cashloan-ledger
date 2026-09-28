@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Affordability worksheet</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#12201b;background:#e8ebe8;font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:#0c4a30}a:hover{color:#0a3d28}
+*{box-sizing:border-box}
+h1,h2,h3,h4,p{margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+.nav{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:7px;color:#3c4a45;font-weight:500;font-size:13px;text-decoration:none;border-left:2.5px solid transparent}
+.nav:hover{background:#f5f7f5;color:#12201b}
+.nav.on{background:#eef3ee;color:#12201b;font-weight:600;border-left-color:#0c4a30}
+.nav svg{width:17px;height:17px;flex:none}
+.sect{font-size:10px;text-transform:uppercase;letter-spacing:.11em;color:#6f7b75;font-weight:600;padding:14px 12px 6px}
+.badge{margin-left:auto;font-family:"IBM Plex Mono",monospace;background:#0c4a30;color:#fff;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:999px}
+.panel{background:#fff;border:1px solid #dadfdb;border-radius:8px;box-shadow:0 1px 2px rgba(18,32,27,.05);overflow:hidden}
+.ph{display:flex;align-items:baseline;gap:10px;padding:12px 16px;border-bottom:1px solid #dadfdb}
+.ph h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.ph .n{font-family:"IBM Plex Mono",monospace;color:#5f6b65;font-size:11.5px}
+.pill{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid currentColor;display:inline-block;white-space:nowrap;line-height:1.5}
+.good{color:#0d6b43}.warn{color:#8a6410}.bad{color:#9d2f22}.steel{color:#38566a}.acc{color:#0c4a30}.muted{color:#5f6b65}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #0c4a30;background:#0c4a30;color:#fff;border-radius:7px;padding:9px 16px;font:inherit;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none;min-height:40px;white-space:nowrap}
+.btn:hover{background:#0a3d28;color:#fff}
+.btn.ghost{background:#fff;border-color:#c9d1cc;color:#12201b}
+.btn.ghost:hover{background:#f5f7f5;color:#12201b}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.wrow{display:grid;grid-template-columns:36px minmax(0,1fr) 112px;gap:8px;align-items:center;padding:5px 16px;border-bottom:1px solid #eef1ee;min-height:44px}
+.wrow .code{font-family:"IBM Plex Mono",monospace;font-size:11px;color:#5f6b65;font-weight:600}
+.wrow .lbl{font-size:12.5px;line-height:1.35}
+.wrow .lbl small{display:block;color:#5f6b65;font-size:11px}
+.wrow.tot{background:#f5f7f5;border-top:1.5px solid #c3ccc6}
+.wrow.tot .lbl{font-weight:600}
+.val{font-family:"IBM Plex Mono",monospace;text-align:right;font-weight:600;font-size:13.5px;padding-right:11px}
+.num{font-family:"IBM Plex Mono",monospace;text-align:right;font-size:13.5px;background:#fff;border:1px solid #c9d1cc;border-radius:6px;padding:7px 10px;color:#12201b;width:100%;min-height:34px}
+.num:focus{outline:none;border-color:#0c4a30;box-shadow:0 0 0 3px #e7efe9}
+.num[readonly]{background:#f5f7f5;color:#3c4a45}
+.yn{display:flex;gap:2px;background:#fff;border:1px solid #c9d1cc;border-radius:6px;padding:2px}
+.yn button{border:none;background:none;font:inherit;font-size:12px;font-weight:600;color:#5f6b65;padding:4px 10px;border-radius:4px;cursor:pointer;min-height:28px;min-width:44px}
+.yn button.on{background:#0c4a30;color:#fff}
+.yn button.on.no{background:#9d2f22}
+.yrow{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 16px;border-bottom:1px solid #eef1ee;min-height:44px}
+.cb{display:flex;gap:10px;align-items:flex-start;padding:9px 16px;border-bottom:1px solid #eef1ee;cursor:pointer;font-size:12.5px;line-height:1.4}
+.cb input{width:18px;height:18px;margin:1px 0 0;accent-color:#0c4a30;flex:none}
+.rule{display:grid;grid-template-columns:40px minmax(0,1fr) 58px 44px;gap:8px;align-items:center;padding:6px 16px;border-bottom:1px solid #eef1ee;font-size:12.5px}
+.kind{font-family:"IBM Plex Mono",monospace;font-size:9.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5f6b65;text-align:right}
+.big{display:flex;justify-content:space-between;align-items:baseline;padding:9px 16px;border-bottom:1px solid #eef1ee}
+.big .k{font-size:12.5px;color:#3c4a45}
+.big .k small{display:block;color:#5f6b65;font-size:11px}
+.big .v{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:600}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid #dadfdb;border-radius:7px;cursor:pointer;font-size:13px}
+.opt.on{border-color:#0c4a30;background:#f3f8f4}
+.opt input{width:18px;height:18px;margin:1px 0 0;accent-color:#0c4a30;flex:none}
+.opt.dis{opacity:.5;cursor:not-allowed}
+textarea{font:inherit;font-size:13px;background:#fff;border:1px solid #c9d1cc;border-radius:7px;padding:9px 11px;color:#12201b;width:100%;resize:vertical;line-height:1.5}
+textarea:focus{outline:none;border-color:#0c4a30;box-shadow:0 0 0 3px #e7efe9}
+</style>
+</helmet>
+<div style="width: 1440px; height: 2500px; display: flex; flex-direction: column; background: #e8ebe8; overflow: hidden">
+
+  <header style="display: flex; align-items: center; gap: 13px; padding: 11px 22px; background: #0a1c14; color: #eef3ef; border-bottom: 3px solid #0c4a30; flex: none">
+    <div style="width: 34px; height: 34px; border-radius: 7px; background: #0c4a30; color: #ffffff; display: grid; place-items: center; font-weight: 700; font-size: 18px">Q</div>
+    <div style="display: flex; flex-direction: column; line-height: 1.25">
+      <span style="font-size: 13.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase">QuickServe Cashloan</span>
+      <span class="mono" style="font-size: 11px; color: #83978b">Credit desk · CC/2026/01904</span>
+    </div>
+    <div style="flex-grow: 1"></div>
+    <div style="text-align: right; line-height: 1.35">
+      <div style="font-size: 12px; font-weight: 500">Tuyeni Shikongo</div>
+      <div style="font-size: 11.5px; color: #83978b">Credit analyst</div>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-grow: 1; min-height: 0">
+    <nav style="width: 214px; flex: none; background: #ffffff; border-right: 1px solid #dadfdb; padding: 14px 10px; display: flex; flex-direction: column; gap: 1px">
+      <div class="sect">Credit</div>
+      <a class="nav on" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path></svg>Credit queue<span class="badge">9</span></a>
+      <div class="sect">Account</div>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>My account</a>
+    </nav>
+
+    <main style="flex-grow: 1; min-width: 0; padding: 20px 28px 28px; display: flex; flex-direction: column; gap: 16px">
+      <div style="font-size: 12.5px; color: #5f6b65"><a href="Main.dc.html" style="text-decoration: none">Credit queue</a> <span aria-hidden="true">/</span> <a href="ApplicationFile.dc.html" style="text-decoration: none" class="mono">QSA-7K2M9P</a> <span aria-hidden="true">/</span> Affordability worksheet</div>
+      <div style="display: flex; align-items: flex-end; gap: 16px">
+        <div>
+          <h1 style="font-size: 21px; font-weight: 600; letter-spacing: -.02em">Affordability assessment — Selma Nangolo</h1>
+          <div class="mono" style="font-size: 12px; color: #5f6b65; margin-top: 4px">QSA-7K2M9P · version 1 · saves as you type · every blank line must be filled or marked N/A</div>
+        </div>
+        <div style="flex-grow: 1"></div>
+        <a class="btn ghost" href="ApplicationFile.dc.html">Back to file</a>
+      </div>
+
+      <sc-if value="{{submitted}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px; border: 1px solid #0d6b43; background: #e6f0ea; border-radius: 8px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#0d6b43" stroke-width="2.4" style="width: 20px; height: 20px; flex: none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+          <div style="flex-grow: 1"><b>Sent to the owner for approval.</b> The worksheet is locked at version 1. You can recall it until a decision is made.</div>
+          <a class="btn" href="Approval.dc.html">See what the owner sees</a>
+          <button type="button" class="btn ghost" onClick="{{recall}}">Recall</button>
+        </div>
+      </sc-if>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 372px; gap: 16px; align-items: start">
+
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <section class="panel">
+            <div class="ph"><h3>1 · Documents examined</h3><span class="n">2.1–2.10</span></div>
+            <sc-for list="{{docRows}}" as="d" hint-placeholder-count="7">
+              <label class="cb"><input type="checkbox" checked="{{d.on}}" onChange="{{d.toggle}}"><span><span class="mono" style="color: #5f6b65; font-size: 11px; font-weight: 600; margin-right: 6px">{{d.code}}</span>{{d.label}}<small style="display: block; color: #5f6b65; font-size: 11px">{{d.note}}</small></span></label>
+            </sc-for>
+            <sc-for list="{{verifyRows}}" as="v" hint-placeholder-count="3">
+              <div class="yrow">
+                <span class="mono" style="font-size: 11px; color: #5f6b65; font-weight: 600">{{v.code}}</span>
+                <span style="font-size: 12.5px; line-height: 1.35">{{v.label}}</span>
+                <div class="yn" role="group" aria-label="{{v.label}}"><button type="button" class="{{v.yesCls}}" onClick="{{v.yes}}">Yes</button><button type="button" class="{{v.noCls}}" onClick="{{v.no}}">No</button></div>
+              </div>
+            </sc-for>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>2 · Credit bureau</h3><span class="n">section 3</span></div>
+            <div style="padding: 12px 16px; font-size: 12.5px; color: #3c4a45; line-height: 1.5">No credit-bureau subscription yet, so the credit policy records this check as <b>N/A</b>. The applicant has agreed to a bureau check on the form, so once a subscription is in place this section asks for the bureau, reference number and findings.</div>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>3 · Verified monthly income</h3><span class="n">A1–A8</span></div>
+            <sc-for list="{{incomeRows}}" as="r" hint-placeholder-count="8">
+              <div class="{{r.rowCls}}">
+                <span class="code">{{r.code}}</span>
+                <span class="lbl">{{r.label}}<small>{{r.src}}</small></span>
+                <sc-if value="{{r.edit}}" hint-placeholder-val="{{ true }}"><input class="num" inputmode="decimal" aria-label="{{r.label}}" value="{{r.v}}" onChange="{{r.set}}"></sc-if>
+                <sc-if value="{{r.calc}}" hint-placeholder-val="{{ false }}"><span class="val">{{r.out}}</span></sc-if>
+              </div>
+            </sc-for>
+            <label class="cb" style="border-bottom: none"><input type="checkbox" checked="{{irregular}}" onChange="{{toggleIrregular}}"><span>Income is irregular — use the lowest of the three months (A11) instead of the lower of A4 and A5</span></label>
+            <sc-if value="{{irregular}}" hint-placeholder-val="{{ false }}">
+              <div class="wrow" style="border-top: 1px solid #eef1ee"><span class="code">A11</span><span class="lbl">Lowest month's salary credit<small>bank statements</small></span><input class="num" inputmode="decimal" aria-label="Lowest month" value="{{a11.v}}" onChange="{{a11.set}}"></div>
+            </sc-if>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>4 · Existing commitments</h3><span class="n">B1–B12</span></div>
+            <sc-for list="{{commitRows}}" as="r" hint-placeholder-count="12">
+              <div class="{{r.rowCls}}">
+                <span class="code">{{r.code}}</span>
+                <span class="lbl">{{r.label}}<small>{{r.src}}</small></span>
+                <sc-if value="{{r.edit}}" hint-placeholder-val="{{ true }}"><input class="num" inputmode="decimal" aria-label="{{r.label}}" value="{{r.v}}" onChange="{{r.set}}" readonly="{{r.locked}}"></sc-if>
+                <sc-if value="{{r.calc}}" hint-placeholder-val="{{ false }}"><span class="val">{{r.out}}</span></sc-if>
+              </div>
+            </sc-for>
+          </section>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <section class="panel">
+            <div class="ph"><h3>5 · Living expenses</h3><span class="n">C1–C13</span></div>
+            <sc-for list="{{livingRows}}" as="r" hint-placeholder-count="10">
+              <div class="{{r.rowCls}}">
+                <span class="code">{{r.code}}</span>
+                <span class="lbl">{{r.label}}<small>{{r.src}}</small></span>
+                <sc-if value="{{r.edit}}" hint-placeholder-val="{{ true }}"><input class="num" inputmode="decimal" aria-label="{{r.label}}" value="{{r.v}}" onChange="{{r.set}}"></sc-if>
+                <sc-if value="{{r.calc}}" hint-placeholder-val="{{ false }}"><span class="val">{{r.out}}</span></sc-if>
+              </div>
+            </sc-for>
+            <div class="yrow" style="border-bottom: none">
+              <span class="mono" style="font-size: 11px; color: #5f6b65; font-weight: 600">C12</span>
+              <span style="font-size: 12.5px; line-height: 1.35">Believable for a household with 2 dependants? <small style="display: block; color: #5f6b65; font-size: 11px">Applicant declared N$9,000</small></span>
+              <div class="yn" role="group" aria-label="Living costs credible"><button type="button" class="{{credYesCls}}" onClick="{{credYes}}">Yes</button><button type="button" class="{{credNoCls}}" onClick="{{credNo}}">No</button></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>6 · Bank-statement warning signs</h3><span class="n">8.1–8.7 · {{flagCount}} yes</span></div>
+            <sc-for list="{{flagRows}}" as="v" hint-placeholder-count="7">
+              <div class="yrow">
+                <span class="mono" style="font-size: 11px; color: #5f6b65; font-weight: 600">{{v.code}}</span>
+                <span style="font-size: 12.5px; line-height: 1.35">{{v.label}}</span>
+                <div class="yn" role="group" aria-label="{{v.label}}"><button type="button" class="{{v.yesCls}}" onClick="{{v.yes}}">Yes</button><button type="button" class="{{v.noCls}}" onClick="{{v.no}}">No</button></div>
+              </div>
+            </sc-for>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>7 · The loan being considered</h3><span class="n">E1–E10</span></div>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px 16px">
+              <label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #5f6b65; font-weight: 600">E1 Principal<input class="num" inputmode="decimal" value="{{p.v}}" onChange="{{p.set}}"></label>
+              <label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #5f6b65; font-weight: 600">Interest %<input class="num" inputmode="decimal" value="{{rate.v}}" onChange="{{rate.set}}"></label>
+              <label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #5f6b65; font-weight: 600">E3 Service fee<input class="num" inputmode="decimal" value="{{fee.v}}" onChange="{{fee.set}}"></label>
+              <label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #5f6b65; font-weight: 600">E8 Issue date<input class="num" type="date" value="{{issue.v}}" onChange="{{issue.set}}"></label>
+              <label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #5f6b65; font-weight: 600">E9 Due date<input class="num" type="date" value="{{due.v}}" onChange="{{due.set}}"></label>
+              <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #5f6b65; font-weight: 600">E10 Term<span class="mono" style="font-size: 13.5px; color: #12201b; text-transform: none; letter-spacing: 0; padding: 7px 0">{{termText}}</span></div>
+            </div>
+            <div class="big"><span class="k">E2 Interest</span><span class="v">{{e2}}</span></div>
+            <div class="big"><span class="k">E4 Total finance charges <small>{{chargePct}} of principal</small></span><span class="v">{{e4}}</span></div>
+            <div class="big" style="border-bottom: none; background: #f5f7f5"><span class="k"><b>E7 Single repayment due {{dueText}}</b></span><span class="v">{{e7}}</span></div>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>8 · Conduct checks</h3><span class="n">G9–G11</span></div>
+            <div class="yrow"><span class="mono" style="font-size: 11px; color: #5f6b65; font-weight: 600">G9</span><span style="font-size: 12.5px">Salary-deduction authority used?</span><span class="pill muted">Not used · N/A</span></div>
+            <label class="cb"><input type="checkbox" checked="{{g10}}" onChange="{{toggleG10}}"><span><b class="mono" style="font-size: 11px; color: #5f6b65; margin-right: 6px">G10</b>The loan is not conditional on the applicant buying insurance</span></label>
+            <label class="cb" style="border-bottom: none"><input type="checkbox" checked="{{g11}}" onChange="{{toggleG11}}"><span><b class="mono" style="font-size: 11px; color: #5f6b65; margin-right: 6px">G11</b>We hold no bank card, PIN, or original ID, passport or driver's licence</span></label>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>9 · Your recommendation</h3><span class="n">the owner decides</span></div>
+            <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 8px">
+              <sc-for list="{{recOpts}}" as="o" hint-placeholder-count="4">
+                <label class="{{o.cls}}"><input type="radio" name="rec" checked="{{o.on}}" disabled="{{o.off}}" onChange="{{o.pick}}"><span><b>{{o.label}}</b><small style="display: block; color: #5f6b65; font-size: 11.5px">{{o.hint}}</small></span></label>
+              </sc-for>
+              <sc-if value="{{needMot}}" hint-placeholder-val="{{ false }}">
+                <label for="mot" style="font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #8a6410; font-weight: 600; margin-top: 6px">Motivation for going above the limit</label>
+                <textarea id="mot" rows="4" value="{{motivation}}" onChange="{{setMotivation}}" disabled="{{submitted}}" placeholder="Why this applicant can repay more than the worksheet allows — e.g. a debt that ends this month, a confirmed bonus, a long clean record with us."></textarea>
+                <div class="mono {{motCls}}" style="font-size: 11.5px">{{motCount}}</div>
+              </sc-if>
+              <label for="reasons" style="font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #5f6b65; font-weight: 600; margin-top: 6px">Reasons, in full sentences (11.7)</label>
+              <textarea id="reasons" rows="6" value="{{reasons}}" onChange="{{setReasons}}" disabled="{{submitted}}"></textarea>
+              <div class="mono {{reasonCls}}" style="font-size: 11.5px">{{reasonCount}}</div>
+              <label class="cb" style="padding: 8px 0; border-bottom: none"><input type="checkbox" checked="{{declared}}" onChange="{{toggleDeclared}}" disabled="{{submitted}}"><span>I examined the original documents, did not adjust any figure to make the loan pass, and the applicant has had the pre-agreement quotation (declaration 12.1–12.7).</span></label>
+              <button type="button" class="btn" disabled="{{cantSubmit}}" onClick="{{submit}}">Submit for approval</button>
+              <div style="font-size: 12px; color: #5f6b65">{{submitHint}}</div>
+            </div>
+          </section>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <section class="panel">
+            <div class="ph"><h3>Live result</h3><span class="n">updates as you type</span></div>
+            <div class="big"><span class="k">D1 Verified income <small>A8</small></span><span class="v">{{d1}}</span></div>
+            <div class="big"><span class="k">D2 Less commitments <small>B12</small></span><span class="v">{{d2}}</span></div>
+            <div class="big"><span class="k">D3 Less living costs <small>C10</small></span><span class="v">{{d3}}</span></div>
+            <div class="big" style="background: #f5f7f5"><span class="k"><b>D4 Disposable income</b></span><span class="v {{d4Cls}}" style="font-size: 18px">{{d4}}</span></div>
+            <div class="big"><span class="k">D6 Most one repayment may take <small>D5 policy: {{policyPct}}% of D4 · set by the owner</small></span><span class="v">{{d6}}</span></div>
+            <div class="big"><span class="k">F1 Repayment required <small>E7</small></span><span class="v">{{e7}}</span></div>
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #eef1ee">
+              <span style="font-weight: 600">F3 Affordability test</span>
+              <span class="pill {{f3Cls}}" style="font-size: 13px; padding: 4px 14px">{{f3Text}}</span>
+            </div>
+            <div class="big"><span class="k">F4 Left over after repaying</span><span class="v {{f4Cls}}">{{f4}}</span></div>
+            <div class="big" style="border-bottom: none"><span class="k">F5 Largest amount that passes <small>at the same rate and fee, rounded down to N$50</small></span><span class="v">{{f5}}</span></div>
+          </section>
+
+          <section class="panel">
+            <div class="ph"><h3>Rules</h3><span class="n">failing: {{hardCount}} hard · {{ownerCount}} owner · {{softCount}} soft</span></div>
+            <sc-for list="{{rules}}" as="g" hint-placeholder-count="16">
+              <div class="rule">
+                <span class="mono" style="font-size: 11px; font-weight: 600; color: #5f6b65">{{g.code}}</span>
+                <span style="line-height: 1.35">{{g.label}}</span>
+                <span class="pill {{g.cls}}" style="text-align: center">{{g.result}}</span>
+                <span class="kind">{{g.kind}}</span>
+              </div>
+            </sc-for>
+            <div style="padding: 10px 16px; font-size: 11.5px; color: #5f6b65; border-bottom: 1px solid #eef1ee"><b>Hard</b> — no one can override · <b>Owner</b> — only the owner, after your written motivation · <b>Soft</b> — owner writes an override note</div>
+            <div style="padding: 12px 16px; font-size: 12px; color: #3c4a45; line-height: 1.5; background: {{verdictBg}}">{{verdict}}</div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"policyPct":{"editor":"range","default":70,"min":30,"max":100,"step":5,"unit":"%","section":"Credit policy"},"$preview":{"width":1440,"height":2500}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      v: {
+        A1: '24500', A2: '4150', A3: '2100', A5: '18100', A7: '0', A11: '17600',
+        B1: '0', B2: '0', B3: '0', B4: '0', B5: '1200', B6: '0', B7: '0', B8: '0', B9: '280', B10: '0', B11: '0',
+        C1: '2500', C2: '700', C3: '2800', C4: '1200', C5: '400', C6: '600', C7: '800', C8: '0', C9: '0',
+        P: '4000', R: '30', FEE: '0', ISSUE: '2026-09-28', DUE: '2026-10-28'
+      },
+      irregular: false,
+      docs: { d1: true, d2: true, d3: true, d4: true, d5: true, d6: false, d7: true },
+      verify: { v8: true, v9: true, v10: true },
+      flags: { f1: false, f2: false, f3: false, f4: false, f5: true, f6: false, f7: false },
+      credible: true, g10: true, g11: true,
+      rec: 'approve',
+      reasons: 'Verified income N$18,100 (bank average, lower than payslip net). After N$1,480 of commitments and N$9,000 living costs, disposable income is N$7,620, so the N$5,200 repayment is within the N$5,334 limit. Returning borrower: three loans repaid, one 4 days late. One warning sign (8.5, balance near zero before pay day) — noted, not decisive. Employer confirmed by phone.',
+      declared: false,
+      motivation: '',
+      submitted: false
+    };
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state;
+    var pct = Number(this.props.policyPct != null ? this.props.policyPct : 70);
+    function n(x) { var y = parseFloat(String(x == null ? '' : x).replace(/[^0-9.\-]/g, '')); return isFinite(y) ? y : 0; }
+    function fmt(x) {
+      var neg = x < 0; var a = Math.round(Math.abs(x) * 100) / 100;
+      var t = a.toLocaleString('en-US', { minimumFractionDigits: (a % 1) ? 2 : 0, maximumFractionDigits: 2 });
+      return (neg ? '−' : '') + 'N$' + t;
+    }
+    function setter(key) {
+      return function (e) { var v = Object.assign({}, self.state.v); v[key] = e.target.value; self.setState({ v: v }); };
+    }
+    function flip(group, key, val) {
+      return function () { var g = Object.assign({}, self.state[group]); g[key] = val; var p = {}; p[group] = g; self.setState(p); };
+    }
+    var v = s.v;
+    var A1 = n(v.A1), A2 = n(v.A2), A3 = n(v.A3), A5 = n(v.A5), A7 = n(v.A7), A11 = n(v.A11);
+    var A4 = A1 - A2 - A3;
+    var A6 = s.irregular ? A11 : Math.min(A4, A5);
+    var A8 = A6 + A7;
+    var Bkeys = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9', 'B10', 'B11'];
+    var B12 = Bkeys.reduce(function (t, k) { return t + n(v[k]); }, 0);
+    var Ckeys = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9'];
+    var C10 = Ckeys.reduce(function (t, k) { return t + n(v[k]); }, 0);
+    var D4 = A8 - B12 - C10;
+    var D6 = Math.max(0, D4 * pct / 100);
+    var P = n(v.P), R = n(v.R), FEE = n(v.FEE);
+    var E2 = Math.round(P * R) / 100;
+    var E4 = E2 + FEE;
+    var E7 = P + E4;
+    function d(str) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str || ''); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }
+    var iss = d(v.ISSUE), due = d(v.DUE);
+    var days = Math.round((due - iss) / 86400000);
+    var capDate = isFinite(iss) ? (function () { var x = new Date(iss); return Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 5, x.getUTCDate()); })() : NaN;
+    var F3 = E7 > 0 && E7 <= D6;
+    var F4 = D4 - E7;
+    var F5 = D6 > FEE ? Math.floor(((D6 - FEE) / (1 + R / 100)) / 50) * 50 : 0;
+    F5 = Math.min(F5, 100000);
+    var otherDebt = Bkeys.some(function (k) { return k !== 'B8' && n(v[k]) > 0; });
+    var docsOk = s.docs.d1 && s.docs.d2 && s.docs.d3 && s.docs.d4 && s.docs.d5;
+    var verifyOk = s.verify.v8 && s.verify.v9 && s.verify.v10;
+    var flagCount = Object.keys(s.flags).filter(function (k) { return s.flags[k]; }).length;
+    var G1 = P > 0 && (E4 / P) * 100 <= 30.0001;
+    var G2 = P > 0 && P <= 100000;
+    var G3 = days > 0 && due <= capDate;
+    var G8 = otherDebt ? F3 : true;
+
+    var rules = [
+      { code: 'D4', label: 'Disposable income above zero', ok: D4 > 0, kind: 'Hard' },
+      { code: '2.x', label: 'ID, payslip and 3 bank statements examined', ok: docsOk, kind: 'Hard' },
+      { code: 'F3', label: 'Repayment within the affordability limit', ok: F3, kind: 'Owner' },
+      { code: 'G1', label: 'Charges 30% of principal or less', ok: G1, kind: 'Hard' },
+      { code: 'G2', label: 'Principal N$100,000 or less', ok: G2, kind: 'Hard' },
+      { code: 'G3', label: 'Due within 5 months of issue', ok: G3, kind: 'Hard' },
+      { code: 'G4', label: 'Credit-bureau enquiry', na: true, kind: 'Hard' },
+      { code: 'G5', label: 'Consent to credit check on file', ok: true, kind: 'Soft' },
+      { code: 'G6', label: 'Application form complete', ok: true, kind: 'Soft' },
+      { code: 'G7', label: 'Has loans with other lenders', info: otherDebt ? 'Yes' : 'No', kind: '' },
+      { code: 'G8', label: 'Affordable on top of other loans', ok: G8, kind: 'Owner' },
+      { code: 'G9', label: 'Salary deductions within one third', na: true, kind: 'Soft' },
+      { code: 'G10', label: 'No compulsory insurance', ok: s.g10, kind: 'Hard' },
+      { code: 'G11', label: 'No card, PIN or original ID held', ok: s.g11, kind: 'Hard' },
+      { code: '8.x', label: 'Fewer than 2 bank-statement warning signs', ok: flagCount < 2, kind: 'Soft' },
+      { code: '2.8', label: 'Payslip, ID and bank details agree', ok: verifyOk, kind: 'Soft' }
+    ].map(function (g) {
+      var result, cls;
+      if (g.na) { result = 'N/A'; cls = 'muted'; }
+      else if (g.info) { result = g.info; cls = 'steel'; }
+      else if (g.ok) { result = 'Pass'; cls = 'good'; }
+      else { result = 'Fail'; cls = g.kind === 'Soft' ? 'warn' : 'bad'; }
+      return { code: g.code, label: g.label, result: result, cls: cls, kind: g.kind, failed: !g.na && !g.info && !g.ok, hard: g.kind === 'Hard', owner: g.kind === 'Owner' };
+    });
+    var hardFails = rules.filter(function (g) { return g.failed && g.hard; });
+    var ownerFails = rules.filter(function (g) { return g.failed && g.owner; });
+    var softFails = rules.filter(function (g) { return g.failed && !g.hard && !g.owner; });
+    var canApprove = hardFails.length === 0 && ownerFails.length === 0;
+    var canMotivate = hardFails.length === 0 && ownerFails.length > 0;
+    var canReduce = canMotivate && F5 >= 500;
+    var verdict, verdictBg;
+    if (canApprove && softFails.length === 0) { verdict = 'All rules pass. This can be recommended for approval as applied.'; verdictBg = '#e6f0ea'; }
+    else if (canApprove) { verdict = softFails.length + ' soft rule(s) fail. You can still recommend approval — explain each one in your reasons; the owner must write an override note.'; verdictBg = '#f2ecd8'; }
+    else if (canMotivate) { verdict = 'Above the affordability limit. Recommend ' + fmt(F5) + ' (the most that passes), or motivate for the full amount — only the owner can approve above the limit.'; verdictBg = '#f2ecd8'; }
+    else { verdict = 'A hard rule fails that no one can override. Recommend a decline.'; verdictBg = '#f6e6e2'; }
+
+    var rec = s.rec;
+    if (rec === 'approve' && !canApprove) rec = canMotivate ? 'motivate' : 'decline';
+    if (rec === 'motivate' && !canMotivate) rec = canApprove ? 'approve' : 'decline';
+    if (rec === 'reduce' && !canReduce && !canApprove) rec = 'decline';
+    var recDefs = [
+      { key: 'approve', label: 'Approve as applied', hint: fmt(P) + ' repaying ' + fmt(E7), off: !canApprove },
+      { key: 'motivate', label: 'Motivate for approval above the limit', hint: fmt(P) + ' is ' + fmt(Math.max(0, E7 - D6)) + ' over the limit · only the owner can approve it', off: !canMotivate },
+      { key: 'reduce', label: 'Approve a reduced amount', hint: 'Up to ' + fmt(F5) + ', the most that passes', off: !(canReduce || canApprove) },
+      { key: 'decline', label: 'Decline', hint: 'The owner confirms and the applicant is told why', off: false },
+      { key: 'refer', label: 'Refer to the owner without a view', hint: 'For unusual cases', off: false }
+    ];
+    var recOpts = recDefs.map(function (o) {
+      return {
+        label: o.label, hint: o.hint, on: rec === o.key, off: o.off || s.submitted,
+        cls: 'opt' + (rec === o.key ? ' on' : '') + (o.off ? ' dis' : ''),
+        pick: function () { if (!o.off) self.setState({ rec: o.key }); }
+      };
+    });
+    var rlen = s.reasons.trim().length;
+    var mlen = s.motivation.trim().length;
+    var needMot = rec === 'motivate';
+    var cantSubmit = s.submitted || rlen < 60 || !s.declared || (needMot && mlen < 60);
+    var submitHint = s.submitted ? 'Submitted — waiting for the owner.' : (rlen < 60 ? 'Write at least 60 characters of reasons.' : (needMot && mlen < 60 ? 'Write your motivation for going above the limit (at least 60 characters).' : !s.declared ? 'Tick the declaration to submit.' : 'Ready. The owner is notified and the file moves to “Awaiting approval”.'));
+
+    function row(code, label, src, key, opts) {
+      opts = opts || {};
+      return { code: code, label: label, src: src, edit: true, calc: false, v: v[key], set: setter(key), locked: !!opts.locked, rowCls: 'wrow' };
+    }
+    function calc(code, label, src, value, tot) {
+      return { code: code, label: label, src: src, edit: false, calc: true, out: fmt(value), rowCls: tot ? 'wrow tot' : 'wrow' };
+    }
+    var incomeRows = [
+      row('A1', 'Gross salary', 'payslip', 'A1'),
+      row('A2', 'PAYE and Social Security', 'payslip', 'A2'),
+      row('A3', 'Other payroll deductions', 'pension, medical aid, union', 'A3'),
+      calc('A4', 'Net salary per payslip', 'A1 − A2 − A3', A4),
+      row('A5', 'Average salary credit, 3 months', 'bank statements', 'A5'),
+      calc('A6', s.irregular ? 'Lowest month (irregular income)' : 'Lower of A4 and A5', 'the figure we rely on', A6),
+      row('A7', 'Other regular income, evidenced', 'rent, second job, grant', 'A7'),
+      calc('A8', 'Total verified income', 'A6 + A7', A8, true)
+    ];
+    var commitRows = [
+      row('B1', 'Home loan or rent-to-own', 'statement / declared', 'B1'),
+      row('B2', 'Vehicle finance', 'statement / declared', 'B2'),
+      row('B3', 'Bank loan or overdraft', 'statement / declared', 'B3'),
+      row('B4', 'Credit card or store accounts', 'statement / declared', 'B4'),
+      row('B5', 'Cash loan — other lender 1', 'seen on bank statement', 'B5'),
+      row('B6', 'Cash loan — other lender 2', 'statement / declared', 'B6'),
+      row('B7', 'Cash loan — other lender 3', 'statement / declared', 'B7'),
+      row('B8', 'QuickServe balance still due', 'from our ledger · filled in for you', 'B8', { locked: true }),
+      row('B9', 'Insurance and funeral policies', 'bank statement', 'B9'),
+      row('B10', 'Maintenance or court orders', 'statement / declared', 'B10'),
+      row('B11', 'Other', 'describe in notes', 'B11'),
+      calc('B12', 'Total commitments', 'B1 … B11', B12, true)
+    ];
+    var livingRows = [
+      row('C1', 'Rent', 'if not already deducted', 'C1'),
+      row('C2', 'Water and electricity', '', 'C2'),
+      row('C3', 'Food and household', '', 'C3'),
+      row('C4', 'Transport and fuel', '', 'C4'),
+      row('C5', 'Airtime and data', '', 'C5'),
+      row('C6', 'School fees', '', 'C6'),
+      row('C7', 'Support sent to family', '', 'C7'),
+      row('C8', 'Medical, not covered', '', 'C8'),
+      row('C9', 'Other', '', 'C9'),
+      calc('C10', 'Total living costs used', 'declared N$9,000', C10, true)
+    ];
+    var docDefs = [
+      ['d1', '2.1', 'Namibian ID — original sighted, copy on file', 'ID number and photo match'],
+      ['d2', '2.2', 'Latest payslip', 'August 2026'],
+      ['d3', '2.3', 'Bank statement — month 1', 'June 2026'],
+      ['d4', '2.4', 'Bank statement — month 2', 'July 2026'],
+      ['d5', '2.5', 'Bank statement — month 3', 'August 2026'],
+      ['d6', '2.6', 'Proof of address', 'Not required for this applicant'],
+      ['d7', '2.7', 'Employment confirmation', 'Rössing HR by phone, 09:22']
+    ];
+    var docRows = docDefs.map(function (x) {
+      return { code: x[1], label: x[2], note: x[3], on: !!s.docs[x[0]], toggle: flip('docs', x[0], !s.docs[x[0]]) };
+    });
+    function yn(group, key, code, label, badIsYes) {
+      var val = !!s[group][key];
+      var yesBad = badIsYes && val, noBad = !badIsYes && !val;
+      return {
+        code: code, label: label,
+        yesCls: val ? (yesBad ? 'on no' : 'on') : '',
+        noCls: !val ? (noBad ? 'on no' : 'on') : '',
+        yes: flip(group, key, true), no: flip(group, key, false)
+      };
+    }
+    var verifyRows = [
+      yn('verify', 'v8', '2.8', 'Name and ID on the payslip match the ID document', false),
+      yn('verify', 'v9', '2.9', 'Bank account on the statements is the payout account', false),
+      yn('verify', 'v10', '2.10', 'Net pay on the payslip matches the salary credit', false)
+    ];
+    var flagRows = [
+      yn('flags', 'f1', '8.1', 'Went into unarranged overdraft', true),
+      yn('flags', 'f2', '8.2', 'Returned or unpaid debit orders', true),
+      yn('flags', 'f3', '8.3', 'Payments to cash lenders not declared', true),
+      yn('flags', 'f4', '8.4', 'Many recent credit applications or new loans', true),
+      yn('flags', 'f5', '8.5', 'Balance near zero within days of pay day', true),
+      yn('flags', 'f6', '8.6', 'Significant gambling or betting', true),
+      yn('flags', 'f7', '8.7', 'Any other concern', true)
+    ];
+    function human(ms) { if (!isFinite(ms)) return '—'; var x = new Date(ms); return x.getUTCDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][x.getUTCMonth()] + ' ' + x.getUTCFullYear(); }
+
+    return {
+      policyPct: String(pct),
+      submitted: s.submitted,
+      recall: function () { self.setState({ submitted: false }); },
+      docRows: docRows, verifyRows: verifyRows, flagRows: flagRows, flagCount: String(flagCount),
+      incomeRows: incomeRows, commitRows: commitRows, livingRows: livingRows,
+      irregular: s.irregular,
+      toggleIrregular: function () { self.setState({ irregular: !self.state.irregular }); },
+      a11: { v: v.A11, set: setter('A11') },
+      credYesCls: s.credible ? 'on' : '', credNoCls: s.credible ? '' : 'on no',
+      credYes: function () { self.setState({ credible: true }); },
+      credNo: function () { self.setState({ credible: false }); },
+      p: { v: v.P, set: setter('P') }, rate: { v: v.R, set: setter('R') }, fee: { v: v.FEE, set: setter('FEE') },
+      issue: { v: v.ISSUE, set: setter('ISSUE') }, due: { v: v.DUE, set: setter('DUE') },
+      termText: isFinite(days) ? days + ' days' : '—',
+      dueText: human(due),
+      e2: fmt(E2), e4: fmt(E4), e7: fmt(E7),
+      chargePct: P > 0 ? (Math.round(E4 / P * 1000) / 10) + '%' : '—',
+      g10: s.g10, g11: s.g11,
+      toggleG10: function () { self.setState({ g10: !self.state.g10 }); },
+      toggleG11: function () { self.setState({ g11: !self.state.g11 }); },
+      d1: fmt(A8), d2: fmt(B12), d3: fmt(C10), d4: fmt(D4), d4Cls: D4 > 0 ? 'acc' : 'bad',
+      d6: fmt(D6),
+      f3Text: F3 ? 'Pass' : 'Fail', f3Cls: F3 ? 'good' : 'bad',
+      f4: fmt(F4), f4Cls: F4 >= 0 ? '' : 'bad',
+      f5: fmt(F5),
+      rules: rules,
+      hardCount: String(hardFails.length), ownerCount: String(ownerFails.length), softCount: String(softFails.length),
+      needMot: needMot,
+      motivation: s.motivation,
+      setMotivation: function (e) { self.setState({ motivation: e.target.value }); },
+      motCount: mlen + ' characters' + (mlen < 60 ? ' — at least 60 needed' : ' ✓'),
+      motCls: mlen < 60 ? 'warn' : 'good',
+      verdict: verdict, verdictBg: verdictBg,
+      recOpts: recOpts,
+      reasons: s.reasons,
+      setReasons: function (e) { self.setState({ reasons: e.target.value }); },
+      reasonCount: rlen + ' characters' + (rlen < 60 ? ' — at least 60 needed' : ' ✓'),
+      reasonCls: rlen < 60 ? 'warn' : 'good',
+      declared: s.declared,
+      toggleDeclared: function () { self.setState({ declared: !self.state.declared }); },
+      cantSubmit: cantSubmit,
+      submitHint: submitHint,
+      submit: function () { self.setState({ submitted: true, rec: rec }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

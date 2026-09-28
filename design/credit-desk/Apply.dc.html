@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Apply for a cash loan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#12201b;background:#e8ebe8;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:#0c4a30}a:hover{color:#0a3d28}
+*{box-sizing:border-box}
+h1,h2,h3,p{margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+.card{background:#fff;border:1px solid #dadfdb;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.card h2{font-size:15px;font-weight:600;display:flex;gap:10px;align-items:center}
+.card h2 .n{width:24px;height:24px;border-radius:999px;background:#0c4a30;color:#fff;font-size:12px;display:grid;place-items:center;font-family:"IBM Plex Mono",monospace;flex:none}
+.fl{display:flex;flex-direction:column;gap:5px}
+.fl label,.fl .lb{font-size:13px;font-weight:600;color:#24312c}
+.fl small{font-size:12px;color:#5f6b65;font-weight:400}
+input.f,select{font:inherit;font-size:16px;background:#fff;border:1px solid #b9c3bd;border-radius:8px;padding:11px 12px;color:#12201b;width:100%;min-height:48px}
+input.f:focus,select:focus{outline:none;border-color:#0c4a30;box-shadow:0 0 0 3px #e7efe9}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.yn{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.yn button{font:inherit;font-size:15px;font-weight:600;border:1px solid #b9c3bd;background:#fff;color:#24312c;border-radius:8px;min-height:46px;cursor:pointer}
+.yn button.on{background:#0c4a30;border-color:#0c4a30;color:#fff}
+.doc{display:flex;align-items:center;gap:12px;border:1px dashed #b9c3bd;border-radius:8px;padding:12px}
+.doc.ok{border-style:solid;border-color:#0d6b43;background:#f3f8f4}
+.doc svg{width:22px;height:22px;flex:none}
+.cb{display:flex;gap:12px;align-items:flex-start;font-size:14px;line-height:1.45;cursor:pointer}
+.cb input{width:22px;height:22px;margin:1px 0 0;accent-color:#0c4a30;flex:none}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #0c4a30;background:#0c4a30;color:#fff;border-radius:9px;padding:13px 18px;font:inherit;font-weight:600;font-size:16px;cursor:pointer;text-decoration:none;min-height:52px;width:100%}
+.btn:hover{background:#0a3d28;color:#fff}
+.btn.ghost{background:#fff;color:#12201b;border-color:#b9c3bd;min-height:44px;font-size:14px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.good{color:#0d6b43}.warn{color:#8a6410}.muted{color:#5f6b65}
+</style>
+</helmet>
+<div style="width: 390px; height: 3500px; display: flex; flex-direction: column; background: #e8ebe8; overflow: hidden">
+
+  <header style="background: #0a1c14; color: #eef3ef; border-bottom: 3px solid #0c4a30; padding: 16px 16px 20px; display: flex; flex-direction: column; gap: 14px; flex: none">
+    <div style="display: flex; align-items: center; gap: 11px">
+      <div style="width: 34px; height: 34px; border-radius: 7px; background: #0c4a30; color: #ffffff; display: grid; place-items: center; font-weight: 700; font-size: 18px">Q</div>
+      <div style="display: flex; flex-direction: column; line-height: 1.25">
+        <span style="font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase">QuickServe Cashloan</span>
+        <span style="font-size: 11.5px; color: #83978b">Registered microlender · Swakopmund</span>
+      </div>
+    </div>
+    <div>
+      <h1 style="font-size: 24px; font-weight: 600; letter-spacing: -.02em">Apply for a cash loan</h1>
+      <p style="font-size: 14px; color: #b9c8bf; margin-top: 4px">Takes about 5 minutes. We reply within one working day.</p>
+    </div>
+  </header>
+
+  <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+
+    <div style="background: #e7efe9; border: 1px solid #c5d8cc; border-radius: 10px; padding: 14px 16px; font-size: 14px">
+      <b>Have these ready</b>
+      <div style="margin-top: 6px; line-height: 1.7">Your Namibian ID · your latest payslip · your last 3 months of bank statements (photos or PDFs)</div>
+    </div>
+
+    <section class="card">
+      <h2><span class="n">1</span>The loan</h2>
+      <div class="fl"><label for="amt">How much do you need? (N$)</label><input id="amt" class="f mono" inputmode="decimal" value="{{amount}}" onChange="{{setAmount}}"></div>
+      <div class="fl"><label for="rd">When will you pay it back?</label><input id="rd" class="f" type="date" value="2026-10-28"><small>Usually your next pay day. At most 5 months away.</small></div>
+      <div class="fl"><label for="pp">What is it for?</label><input id="pp" class="f" value="School fees"></div>
+      <div style="padding: 10px 12px; border-radius: 8px; background: #f5f7f5; font-size: 13.5px">{{estimate}}</div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">2</span>About you</h2>
+      <div class="fl"><label for="nm">Full name, as on your ID</label><input id="nm" class="f" value="Selma Nangolo"></div>
+      <div class="fl"><label for="id">Namibian ID number</label><input id="id" class="f mono" inputmode="numeric" value="{{idno}}" onChange="{{setId}}"><small class="{{idCls}}">{{idNote}}</small></div>
+      <div class="fl"><label for="ph">WhatsApp number</label><input id="ph" class="f mono" inputmode="tel" value="+264 81 234 5678"></div>
+      <div class="fl"><label for="em">Email <small>(optional)</small></label><input id="em" class="f" inputmode="email" value=""></div>
+      <div class="fl"><label for="ad">Home address</label><input id="ad" class="f" value="14 Moses Garoeb St, Mondesa"></div>
+      <div class="two">
+        <div class="fl"><label for="tw">Town</label><select id="tw" value="Swakopmund"><option>Swakopmund</option><option>Walvis Bay</option><option>Arandis</option><option>Henties Bay</option><option>Other</option></select></div>
+        <div class="fl"><label for="dp">People you support</label><input id="dp" class="f mono" inputmode="numeric" value="2"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">3</span>Your work</h2>
+      <div class="fl"><label for="emp">Employer</label><input id="emp" class="f" value="Rössing Uranium"></div>
+      <div class="fl"><label for="jt">Job title</label><input id="jt" class="f" value="Plant operator"></div>
+      <div class="two">
+        <div class="fl"><label for="et">Employment</label><select id="et" value="Permanent"><option>Permanent</option><option>Contract</option><option>Self-employed</option><option>Other</option></select></div>
+        <div class="fl"><label for="pd">Pay day</label><select id="pd" value="25th"><option>15th</option><option>20th</option><option>25th</option><option>Last day</option><option>Other</option></select></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">4</span>Your bank account</h2>
+      <div class="fl"><label for="bk">Bank</label><select id="bk" value="FNB Namibia"><option>FNB Namibia</option><option>Bank Windhoek</option><option>Standard Bank Namibia</option><option>Nedbank Namibia</option><option>Other</option></select></div>
+      <div class="fl"><label for="ah">Account holder</label><input id="ah" class="f" value="Selma Nangolo"></div>
+      <div class="fl"><label for="an">Account number</label><input id="an" class="f mono" inputmode="numeric" value="62 1044 4471"></div>
+      <div class="fl"><span class="lb">Is your salary paid into this account?</span>
+        <div class="yn" role="group" aria-label="Salary paid into this account"><button type="button" class="{{salYes}}" onClick="{{setSalYes}}">Yes</button><button type="button" class="{{salNo}}" onClick="{{setSalNo}}">No</button></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">5</span>Your money each month</h2>
+      <div class="fl"><label for="np">Take-home pay (N$)</label><input id="np" class="f mono" inputmode="decimal" value="18,400"><small>What reaches your bank after tax and deductions.</small></div>
+      <div class="fl"><label for="dd">Loan and account repayments (N$)</label><input id="dd" class="f mono" inputmode="decimal" value="1,500"><small>Other loans, store cards, funeral policies.</small></div>
+      <div class="fl"><label for="lc">Living costs (N$)</label><input id="lc" class="f mono" inputmode="decimal" value="9,000"><small>Rent, food, transport, school, family support.</small></div>
+      <div class="fl"><span class="lb">Do you have loans with other lenders?</span>
+        <div class="yn" role="group" aria-label="Other loans"><button type="button" class="{{olYes}}" onClick="{{setOlYes}}">Yes</button><button type="button" class="{{olNo}}" onClick="{{setOlNo}}">No</button></div>
+      </div>
+      <sc-if value="{{otherLoans}}" hint-placeholder-val="{{ true }}">
+        <div class="fl"><label for="ol">How many?</label><input id="ol" class="f mono" inputmode="numeric" value="1"></div>
+      </sc-if>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">6</span>Next of kin</h2>
+      <div class="fl"><label for="kn">Name</label><input id="kn" class="f" value="Martha Nangolo"></div>
+      <div class="two">
+        <div class="fl"><label for="kr">Relationship</label><input id="kr" class="f" value="Mother"></div>
+        <div class="fl"><label for="kp">Phone</label><input id="kp" class="f mono" inputmode="tel" value="+264 85 612 3390"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">7</span>Documents</h2>
+      <div class="doc ok"><svg viewBox="0 0 24 24" fill="none" stroke="#0d6b43" stroke-width="2.2" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg><div style="flex-grow: 1"><div style="font-weight: 600">Namibian ID</div><div class="mono muted" style="font-size: 12px">id-front.jpg · 1.2 MB</div></div><button type="button" class="btn ghost" style="width: auto">Change</button></div>
+      <div class="doc ok"><svg viewBox="0 0 24 24" fill="none" stroke="#0d6b43" stroke-width="2.2" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg><div style="flex-grow: 1"><div style="font-weight: 600">Latest payslip</div><div class="mono muted" style="font-size: 12px">payslip-aug.pdf · 240 KB</div></div><button type="button" class="btn ghost" style="width: auto">Change</button></div>
+      <div class="doc"><svg viewBox="0 0 24 24" fill="none" stroke="#5f6b65" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><div style="flex-grow: 1"><div style="font-weight: 600">Bank statements — last 3 months</div><div class="muted" style="font-size: 12px">2 of 3 added · add the third</div></div><button type="button" class="btn ghost" style="width: auto">Add</button></div>
+      <div class="doc"><svg viewBox="0 0 24 24" fill="none" stroke="#5f6b65" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><div style="flex-grow: 1"><div style="font-weight: 600">Proof of address <small class="muted" style="font-weight: 400">(optional)</small></div><div class="muted" style="font-size: 12px">Utility bill or letter</div></div><button type="button" class="btn ghost" style="width: auto">Add</button></div>
+      <small class="muted" style="font-size: 12.5px">Photos (JPG, PNG, HEIC) or PDF, up to 10 MB each.</small>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">8</span>Your consent</h2>
+      <label class="cb"><input type="checkbox" checked="{{c1}}" onChange="{{toggleC1}}"><span>I agree that QuickServe Cashloan may use my information to assess this application, as explained in the <a href="#">privacy notice</a>.</span></label>
+      <label class="cb"><input type="checkbox" checked="{{c2}}" onChange="{{toggleC2}}"><span>I agree to a credit check with a credit bureau and to QuickServe confirming my employment.</span></label>
+      <div style="display: flex; gap: 10px; padding: 12px; border-radius: 8px; background: #f2ecd8; border: 1px solid #e3d3a4; font-size: 13.5px; color: #5c430a">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 20px; height: 20px; flex: none" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"></path></svg>
+        <span>We will <b>never</b> ask for your bank card, PIN, or to keep your original ID.</span>
+      </div>
+    </section>
+
+    <sc-if value="{{canSend}}" hint-placeholder-val="{{ false }}">
+      <a class="btn" href="ApplyDone.dc.html">Send application</a>
+    </sc-if>
+    <sc-if value="{{cantSend}}" hint-placeholder-val="{{ true }}">
+      <button type="button" class="btn" disabled="{{cantSend}}">Send application</button>
+      <p class="muted" style="font-size: 13px; text-align: center">Tick both consent boxes to send.</p>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":3500}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { amount: '4000', idno: '89031200457', sal: true, ol: true, c1: false, c2: false };
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state;
+    var amt = parseFloat(String(s.amount).replace(/[^0-9.]/g, '')) || 0;
+    var estimate = amt > 0
+      ? (amt > 100000 ? 'The most we can lend is N$100,000.' : 'Estimate: you would repay about N$' + Math.round(amt * 1.3).toLocaleString('en-US') + ' (30% once-off). Your exact quotation comes before you sign anything.')
+      : 'Enter an amount to see an estimate.';
+    var digits = String(s.idno).replace(/\D/g, '');
+    var idNote, idCls;
+    if (!digits) { idNote = 'Using a passport? That is fine — enter its number.'; idCls = 'muted'; }
+    else if (digits.length !== 11) { idNote = 'A Namibian ID has 11 digits. Using a passport? That is fine.'; idCls = 'warn'; }
+    else {
+      var yy = +digits.slice(0, 2), mm = +digits.slice(2, 4), dd = +digits.slice(4, 6);
+      var year = yy > 26 ? 1900 + yy : 2000 + yy;
+      var dt = new Date(Date.UTC(year, mm - 1, dd));
+      var valid = mm >= 1 && mm <= 12 && dt.getUTCDate() === dd;
+      if (!valid) { idNote = 'The first 6 digits should be your date of birth — please check.'; idCls = 'warn'; }
+      else {
+        var now = new Date(Date.UTC(2026, 8, 28));
+        var age = now.getUTCFullYear() - year - ((now.getUTCMonth() < mm - 1 || (now.getUTCMonth() === mm - 1 && now.getUTCDate() < dd)) ? 1 : 0);
+        var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        if (age < 18) { idNote = 'Born ' + dd + ' ' + months[mm - 1] + ' ' + year + ' — you must be 18 or older.'; idCls = 'warn'; }
+        else { idNote = 'Born ' + dd + ' ' + months[mm - 1] + ' ' + year + ' · age ' + age + ' ✓'; idCls = 'good'; }
+      }
+    }
+    return {
+      amount: s.amount, setAmount: function (e) { self.setState({ amount: e.target.value }); },
+      estimate: estimate,
+      idno: s.idno, setId: function (e) { self.setState({ idno: e.target.value }); },
+      idNote: idNote, idCls: idCls,
+      salYes: s.sal ? 'on' : '', salNo: s.sal ? '' : 'on',
+      setSalYes: function () { self.setState({ sal: true }); }, setSalNo: function () { self.setState({ sal: false }); },
+      olYes: s.ol ? 'on' : '', olNo: s.ol ? '' : 'on', otherLoans: s.ol,
+      setOlYes: function () { self.setState({ ol: true }); }, setOlNo: function () { self.setState({ ol: false }); },
+      c1: s.c1, c2: s.c2,
+      toggleC1: function () { self.setState({ c1: !self.state.c1 }); },
+      toggleC2: function () { self.setState({ c2: !self.state.c2 }); },
+      canSend: s.c1 && s.c2, cantSend: !(s.c1 && s.c2)
+    };
+  }
+}
+</script>
+</body>
+</html>

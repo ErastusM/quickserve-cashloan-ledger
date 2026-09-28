@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Audit trail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#12201b;background:#e8ebe8;font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:#0c4a30}a:hover{color:#0a3d28}
+*{box-sizing:border-box}
+h1,h2,h3,h4,p{margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+.nav{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:7px;color:#3c4a45;font-weight:500;font-size:13px;text-decoration:none;border-left:2.5px solid transparent}
+.nav:hover{background:#f5f7f5;color:#12201b}
+.nav.on{background:#eef3ee;color:#12201b;font-weight:600;border-left-color:#0c4a30}
+.nav svg{width:17px;height:17px;flex:none}
+.sect{font-size:10px;text-transform:uppercase;letter-spacing:.11em;color:#6f7b75;font-weight:600;padding:14px 12px 6px}
+.badge{margin-left:auto;font-family:"IBM Plex Mono",monospace;background:#0c4a30;color:#fff;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:999px}
+.panel{background:#fff;border:1px solid #dadfdb;border-radius:8px;box-shadow:0 1px 2px rgba(18,32,27,.05);overflow:hidden}
+.pill{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid currentColor;display:inline-block;white-space:nowrap;line-height:1.5}
+.good{color:#0d6b43}.warn{color:#8a6410}.bad{color:#9d2f22}.steel{color:#38566a}.acc{color:#0c4a30}.muted{color:#5f6b65}
+.seg{display:flex;gap:2px;background:#fff;border:1px solid #dadfdb;border-radius:7px;padding:3px}
+.seg button{border:none;background:none;color:#5f6b65;font:inherit;font-weight:600;font-size:12px;padding:7px 12px;border-radius:5px;cursor:pointer;min-height:32px}
+.seg button:hover{color:#12201b}
+.seg button.on{background:#0c4a30;color:#fff}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #c9d1cc;background:#fff;color:#12201b;border-radius:7px;padding:9px 16px;font:inherit;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none;min-height:40px;white-space:nowrap}
+.btn:hover{background:#f5f7f5}
+.gh{display:grid;grid-template-columns:118px 150px 84px 190px 118px minmax(0,1fr);gap:14px;padding:10px 18px;border-bottom:1px solid #dadfdb;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#5f6b65;font-weight:600}
+.gr{display:grid;grid-template-columns:118px 150px 84px 190px 118px minmax(0,1fr);gap:14px;padding:10px 18px;border-bottom:1px solid #eef1ee;align-items:center;font-size:13px}
+.gr:hover{background:#f8faf8}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1140px; display: flex; flex-direction: column; background: #e8ebe8; overflow: hidden">
+
+  <header style="display: flex; align-items: center; gap: 13px; padding: 11px 22px; background: #0a1c14; color: #eef3ef; border-bottom: 3px solid #0c4a30; flex: none">
+    <div style="width: 34px; height: 34px; border-radius: 7px; background: #0c4a30; color: #ffffff; display: grid; place-items: center; font-weight: 700; font-size: 18px">Q</div>
+    <div style="display: flex; flex-direction: column; line-height: 1.25">
+      <span style="font-size: 13.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase">QuickServe Cashloan</span>
+      <span class="mono" style="font-size: 11px; color: #83978b">Credit desk · CC/2026/01904</span>
+    </div>
+    <div style="flex-grow: 1"></div>
+    <div style="text-align: right; line-height: 1.35">
+      <div style="font-size: 12px; font-weight: 500">Erastus Matheus</div>
+      <div style="font-size: 11.5px; color: #83978b">Owner · final approver</div>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-grow: 1; min-height: 0">
+    <nav style="width: 214px; flex: none; background: #ffffff; border-right: 1px solid #dadfdb; padding: 14px 10px; display: flex; flex-direction: column; gap: 1px">
+      <div class="sect">Overview</div>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"></rect><rect x="13" y="4" width="7" height="7" rx="1"></rect><rect x="4" y="13" width="7" height="7" rx="1"></rect><rect x="13" y="13" width="7" height="7" rx="1"></rect></svg>Dashboard</a>
+      <div class="sect">Credit</div>
+      <a class="nav" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path></svg>Credit queue<span class="badge">9</span></a>
+      <a class="nav" href="Approval.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Approvals<span class="badge">2</span></a>
+      <a class="nav" href="Disburse.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>Ready to disburse<span class="badge">1</span></a>
+      <div class="sect">Loan book</div>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M3 21a6 6 0 0 1 12 0"></path><path d="M16 11a4 4 0 0 0 0-6"></path></svg>Clients</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18"></path></svg>Loans</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"></path><path d="M9 8h6M9 12h4"></path></svg>Payments</a>
+      <div class="sect">Control</div>
+      <a class="nav" href="Team.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"></path></svg>Team &amp; access</a>
+      <a class="nav on" href="Audit.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Audit trail</a>
+    </nav>
+
+    <main style="flex-grow: 1; min-width: 0; padding: 22px 28px 28px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div style="display: flex; align-items: baseline; gap: 12px">
+          <h1 style="font-size: 19px; font-weight: 600; letter-spacing: -.02em">Audit trail</h1>
+          <span class="mono" style="font-size: 12px; color: #5f6b65">{{shown}} entries shown</span>
+        </div>
+        <div style="flex-grow: 1"></div>
+        <button type="button" class="btn">Export CSV</button>
+      </div>
+
+      <div style="display: flex; gap: 12px; align-items: center; padding: 12px 16px; background: #ffffff; border: 1px solid #dadfdb; border-radius: 8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0c4a30" stroke-width="1.8" style="width: 20px; height: 20px; flex: none" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+        <div style="font-size: 13px">Entries are written by the database, not the app, and <b>can't be edited or deleted — not even by the owner.</b> Who did it comes from their login, never from what the screen says.</div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div class="seg" role="tablist" aria-label="Filter">
+          <sc-for list="{{tabs}}" as="t" hint-placeholder-count="6">
+            <button type="button" role="tab" class="{{t.cls}}" onClick="{{t.pick}}">{{t.label}}</button>
+          </sc-for>
+        </div>
+        <div style="flex-grow: 1"></div>
+        <span style="font-size: 12px; color: #5f6b65">Mon 28 Sep 2026 and the day before</span>
+      </div>
+
+      <section class="panel">
+        <div class="gh"><span>When</span><span>Who</span><span>Role</span><span>What</span><span>Application</span><span>Detail</span></div>
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="17">
+          <div class="gr">
+            <span class="mono" style="font-size: 12px; color: #3c4a45">{{r.at}}</span>
+            <span style="font-weight: 500">{{r.who}}</span>
+            <span style="font-size: 12px; color: #5f6b65">{{r.role}}</span>
+            <span><span class="pill {{r.cls}}">{{r.what}}</span></span>
+            <span class="mono" style="font-size: 12px">{{r.app}}</span>
+            <span style="font-size: 12.5px; color: #3c4a45">{{r.detail}}</span>
+          </div>
+        </sc-for>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1140}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'all' };
+  }
+  renderVals() {
+    var self = this;
+    var E = [
+      ['28 Sep 11:40', 'Erastus Matheus', 'Owner', 'Ledger saved', 'ledger', 'steel', '—', 'From the phone app · version 1,285 → 1,286 · +1 payment'],
+      ['28 Sep 11:05', 'Erastus Matheus', 'Owner', 'Loan booked', 'ledger', 'good', 'QSA-7K2M9P', 'QSL-0058 for client QS-0019 · N$4,000 · cash · checklist 10 of 10'],
+      ['28 Sep 10:30', 'Erastus Matheus', 'Owner', 'Approved', 'decision', 'good', 'QSA-7K2M9P', 'N$4,000 as recommended'],
+      ['28 Sep 10:12', 'Erastus Matheus', 'Owner', 'Approved', 'decision', 'good', 'QSA-X7QJ4M', 'N$2,000 as recommended'],
+      ['28 Sep 10:02', 'Tuyeni Shikongo', 'Analyst', 'Sent for approval', 'application', 'acc', 'QSA-7K2M9P', 'Recommends approve · worksheet version 1'],
+      ['28 Sep 09:55', 'Tuyeni Shikongo', 'Analyst', 'Sent for approval', 'application', 'acc', 'QSA-9PF4KE', 'Recommends decline · hard fail D4 (−N$340)'],
+      ['28 Sep 09:48', 'Tuyeni Shikongo', 'Analyst', 'Worksheet saved', 'application', 'acc', 'QSA-7K2M9P', 'D4 N$7,620 · limit N$5,334 · F3 pass'],
+      ['28 Sep 09:22', 'Tuyeni Shikongo', 'Analyst', 'Note added', 'application', 'acc', 'QSA-7K2M9P', 'Employer confirmed by phone'],
+      ['28 Sep 09:21', 'Tuyeni Shikongo', 'Analyst', 'History viewed', 'document', 'warn', 'QSA-7K2M9P', "Client QS-0019's loans and payments"],
+      ['28 Sep 09:17', 'Tuyeni Shikongo', 'Analyst', 'Document viewed', 'document', 'warn', 'QSA-7K2M9P', 'Payslip — August 2026'],
+      ['28 Sep 09:15', 'Tuyeni Shikongo', 'Analyst', 'Document viewed', 'document', 'warn', 'QSA-7K2M9P', 'Namibian ID'],
+      ['28 Sep 09:14', 'Tuyeni Shikongo', 'Analyst', 'Picked up', 'application', 'acc', 'QSA-7K2M9P', 'Assigned to Tuyeni Shikongo'],
+      ['28 Sep 09:02', 'Tuyeni Shikongo', 'Analyst', 'Signed in', 'access', 'muted', '—', 'New session on the credit desk'],
+      ['28 Sep 08:41', 'Tuyeni Shikongo', 'Analyst', 'Sent for approval', 'application', 'acc', 'QSA-D5KT9R', 'Motivates N$5,250 above the N$4,600 limit · 2 warning signs'],
+      ['28 Sep 08:05', 'Website', 'Intake', 'Application received', 'application', 'acc', 'QSA-C2LM7D', '5 documents · matched returning client QS-0027'],
+      ['28 Sep 07:02', 'Website', 'Intake', 'Application received', 'application', 'acc', 'QSA-7K2M9P', '5 documents · matched returning client QS-0019'],
+      ['27 Sep 18:20', 'Erastus Matheus', 'Owner', 'Policy changed', 'access', 'muted', '—', 'Most one repayment may take: 80% → 70% · owner may override above it']
+    ];
+    var tabDefs = [['all', 'Everything'], ['application', 'Applications'], ['decision', 'Decisions'], ['ledger', 'Ledger'], ['document', 'Documents viewed'], ['access', 'Access & policy']];
+    var tab = this.state.tab;
+    var rows = E.filter(function (e) { return tab === 'all' || e[4] === tab; }).map(function (e) {
+      return { at: e[0], who: e[1], role: e[2], what: e[3], cls: e[5], app: e[6], detail: e[7] };
+    });
+    return {
+      tabs: tabDefs.map(function (d) { return { label: d[1], cls: d[0] === tab ? 'on' : '', pick: function () { self.setState({ tab: d[0] }); } }; }),
+      rows: rows,
+      shown: String(rows.length)
+    };
+  }
+}
+</script>
+</body>
+</html>
