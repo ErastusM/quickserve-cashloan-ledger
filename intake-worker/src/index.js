@@ -177,11 +177,65 @@ async function getApplication(id, env) {
 async function setStatus(id, request, env) {
   const body = await request.json().catch(() => ({}));
   if (!STATUSES.includes(body.status)) return json({ error: "bad status" }, 400, env);
-  const res = await env.DB.prepare(
+  const row = await env.DB.prepare(`SELECT full_name, phone FROM applications WHERE id = ?`).bind(id).first();
+  if (!row) return json({ error: "not found" }, 404, env);
+  await env.DB.prepare(
     `UPDATE applications SET status = ?, decided_at = ?, decided_note = ? WHERE id = ?`
   ).bind(body.status, new Date().toISOString(), (body.note || "").toString().slice(0, 500), id).run();
-  if (!res.meta.changes) return json({ error: "not found" }, 404, env);
-  return json({ ok: true }, 200, env);
+
+  // Auto-notify the applicant on WhatsApp (approved / declined), if the Cloud
+  // API is configured. Never fail the decision if the message can't be sent —
+  // report it so the inbox can offer the manual reply as a fallback.
+  let notified = false, notifyError = null;
+  if ((body.status === "approved" || body.status === "declined") && env.WHATSAPP_TOKEN && env.WHATSAPP_PHONE_ID) {
+    const template = body.status === "approved"
+      ? (env.WA_TEMPLATE_APPROVED || "loan_approved")
+      : (env.WA_TEMPLATE_DECLINED || "loan_declined");
+    try {
+      await sendWhatsAppTemplate(env, row.phone, template, [firstName(row.full_name), id]);
+      notified = true;
+    } catch (e) { notifyError = String((e && e.message) || e); }
+  }
+  return json({ ok: true, notified, notifyError }, 200, env);
+}
+
+function firstName(n) { return String(n || "").trim().split(/\s+/)[0] || "there"; }
+
+// Namibian numbers to WhatsApp's international format (digits only, 264…).
+function waNormalize(v) {
+  let d = String(v || "").replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.startsWith("264")) return d;
+  if (d.startsWith("0")) return "264" + d.slice(1);
+  if (d.length === 9) return "264" + d;
+  return d;
+}
+
+async function sendWhatsAppTemplate(env, toPhone, templateName, bodyParams) {
+  const to = waNormalize(toPhone);
+  if (!to) throw new Error("no recipient phone");
+  const version = env.WA_API_VERSION || "v21.0";
+  const url = `https://graph.facebook.com/${version}/${env.WHATSAPP_PHONE_ID}/messages`;
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: templateName,
+      language: { code: env.WA_LANG || "en" },
+      components: [{ type: "body", parameters: bodyParams.map((t) => ({ type: "text", text: String(t) })) }]
+    }
+  };
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: "Bearer " + env.WHATSAPP_TOKEN, "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => "");
+    throw new Error("whatsapp " + r.status + " " + detail.slice(0, 200));
+  }
+  return true;
 }
 
 async function getFile(id, field, n, env) {
