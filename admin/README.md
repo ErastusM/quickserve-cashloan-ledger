@@ -46,7 +46,8 @@ screen:
   write a loan off or reopen it, and open a prefilled WhatsApp payment
   reminder. Rollover interest is included in every balance.
 - **Collections** — arrears ageing (not yet due, 1–30, 31–60, 61–90, 90+ days)
-  with a provision for doubtful loans (editable rates, shown on the dashboard
+  with an optional provision for doubtful loans (rates start at 0% — set them
+  under Collections → Provision rates; when above zero it shows on the dashboard
   as "total funds after provision"), a work list of overdue loans, a contact
   log per loan and **promises to pay** that show as due today / kept / broken.
 - **Profit & loss** — monthly, cash basis: interest and fees collected

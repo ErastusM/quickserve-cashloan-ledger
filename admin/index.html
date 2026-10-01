@@ -1494,7 +1494,9 @@ td.r,th.r{text-align:right}
     {key:"d90",     label:"61–90 days late", min:61, max:90},
     {key:"d90p",    label:"Over 90 days",    min:91, max:Infinity}
   ];
-  var DEFAULT_PROVISION={current:0, d30:10, d60:25, d90:50, d90p:100};
+  // Off by default (owner's choice): no provision until rates are set under
+  // Collections → Provision rates. A common starting point is 0/10/25/50/100.
+  var DEFAULT_PROVISION={current:0, d30:0, d60:0, d90:0, d90p:0};
   function provisionRates(){
     var s=(state.settings&&state.settings.provisionRates)||{}, out={};
     AGE_BUCKETS.forEach(function(b){ var v=Number(s[b.key]); out[b.key]=(isFinite(v)&&s[b.key]!==""&&s[b.key]!=null)?Math.min(100,Math.max(0,v)):DEFAULT_PROVISION[b.key]; });
