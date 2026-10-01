@@ -47,14 +47,17 @@ jobs:
 
       # Only the admin console is published. The phone app, apply form, old
       # inbox and documents stay in the repository but are no longer online.
-      # site/ holds the redirect from the old address, a 404 page and the
-      # service worker that retires the phone app's offline cache.
+      # The console is served at the site root (https://admin.quickserve.group/,
+      # set under Settings -> Pages -> Custom domain) and at /admin/ so older
+      # links keep working. site/ holds the 404 page and the service worker
+      # that retires the phone app's offline cache.
       - name: Assemble the site (admin console only)
         run: |
           rm -rf _site
           mkdir -p _site/admin
+          cp admin/index.html _site/index.html
           cp admin/index.html _site/admin/index.html
-          cp site/index.html site/404.html site/sw.js _site/
+          cp site/404.html site/sw.js _site/
           touch _site/.nojekyll
           find _site -type f | sort
 

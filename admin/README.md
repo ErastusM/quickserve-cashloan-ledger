@@ -1,11 +1,14 @@
 # QuickServe Admin Console
 
-**Where it lives:** GitHub Pages publishes **only this console**, at
-`https://erastusm.github.io/quickserve-cashloan-ledger/admin/` (the old root
-address redirects there). The phone app, apply form and old inbox stay in the
+**Where it lives:** **https://admin.quickserve.group** — GitHub Pages with a
+custom domain (repository Settings → Pages → Custom domain, plus a DNS
+`CNAME admin → erastusm.github.io` record at Hostinger). Pages publishes **only
+this console**, at the site root and at `/admin/` for older links; the old
+`erastusm.github.io/quickserve-cashloan-ledger/…` addresses redirect to the new
+domain automatically. The phone app, apply form and old inbox stay in the
 repository but are no longer online; to publish one again, add it to the
-"Assemble the site" step in `.github/workflows/pages.yml`. The long-term home
-is your own domain, `admin.quickserve.group` (upload steps below).
+"Assemble the site" step in `.github/workflows/pages.yml`. (The Hostinger
+upload steps further down are only needed if you ever move off GitHub Pages.)
 
 A single self-contained web page (`index.html`) — no build step, no server, no
 framework, and no external dependencies (the typeface is embedded). It signs in
