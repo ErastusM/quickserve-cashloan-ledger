@@ -45,10 +45,23 @@ jobs:
         with:
           enablement: true
 
+      # Only the admin console is published. The phone app, apply form, old
+      # inbox and documents stay in the repository but are no longer online.
+      # site/ holds the redirect from the old address, a 404 page and the
+      # service worker that retires the phone app's offline cache.
+      - name: Assemble the site (admin console only)
+        run: |
+          rm -rf _site
+          mkdir -p _site/admin
+          cp admin/index.html _site/admin/index.html
+          cp site/index.html site/404.html site/sw.js _site/
+          touch _site/.nojekyll
+          find _site -type f | sort
+
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy
         id: deployment

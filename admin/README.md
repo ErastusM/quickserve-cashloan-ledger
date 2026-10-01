@@ -1,4 +1,11 @@
-# QuickServe Admin Console — deploy to `admin.quickserve.global`
+# QuickServe Admin Console
+
+**Where it lives:** GitHub Pages publishes **only this console**, at
+`https://erastusm.github.io/quickserve-cashloan-ledger/admin/` (the old root
+address redirects there). The phone app, apply form and old inbox stay in the
+repository but are no longer online; to publish one again, add it to the
+"Assemble the site" step in `.github/workflows/pages.yml`. The long-term home
+is your own domain, `admin.quickserve.group` (upload steps below).
 
 A single self-contained web page (`index.html`) — no build step, no server, no
 framework, and no external dependencies (the typeface is embedded). It signs in
@@ -24,6 +31,17 @@ screen:
     has loans; deleting a loan also removes its payments.
   - Every write is **rev-guarded** — a change made on the phone at the same
     moment is merged, never overwritten — and syncs back to the phone app.
+- **Accounts** — the float split across your bank accounts (e.g. two FNB
+  accounts). Each loan payout, repayment, expense and capital entry belongs to
+  an account; **transfers** move money between them without changing total
+  funds. Per-account **statements** with running balances, **reconcile**
+  against the bank's balance (with one click to book bank charges), and
+  **money in / out** for capital you put in or take out. Records from before
+  accounts existed belong to the first (original) account.
+- **Rollovers, write-offs and reminders** — roll a loan over (adds another
+  interest cycle and moves the due date, exactly like the phone app did),
+  write a loan off or reopen it, and open a prefilled WhatsApp payment
+  reminder. Rollover interest is included in every balance.
 - **Expenses** — record, edit and delete business expenses (category, amount,
   date, note), with this-month / monthly-average / total tiles. Expenses net
   off cash on hand and set the default *monthly costs* in Projections.
@@ -43,7 +61,7 @@ Nothing lives in this file but code: every figure is pulled live from Supabase a
 sign-in.
 
 ```
-Browser (admin.quickserve.global)
+Browser (admin.quickserve.group)
       │  sign in (email + password)
       ▼
   Supabase  ──►  ledger row (clients, loans, payments)   ← same data as the phone app
@@ -60,7 +78,7 @@ You already have these from setting up the phone app — reuse them:
    same project URL and **publishable** key that are wired into the app.
 2. **Intake Worker** deployed (see [`../intake-worker/README.md`](../intake-worker/README.md)).
    Only needed for the Applications tab.
-3. A **Hostinger** plan and the **quickserve.global** domain.
+3. A **Hostinger** plan and the **quickserve.group** domain.
 
 No new accounts, no new keys. The console is already pointed at your project.
 
@@ -69,7 +87,7 @@ No new accounts, no new keys. The console is already pointed at your project.
 You are putting one file on a subdomain. In **hPanel**:
 
 1. **Domains → Subdomains → Create.** Subdomain: `admin`, domain:
-   `quickserve.global`. Note the **document root** it creates, usually
+   `quickserve.group`. Note the **document root** it creates, usually
    `public_html/admin`.
 2. **Files → File Manager**, open that `admin` folder.
 3. Upload **`index.html`** from this folder into it. That's the whole app.
@@ -80,11 +98,11 @@ the console needs `https://` to talk to Supabase.
 
 > **DNS:** because the subdomain is created inside Hostinger and the domain's
 > nameservers point at Hostinger, the record is added for you — nothing to type.
-> If `quickserve.global` uses external nameservers (e.g. Cloudflare), add a
+> If `quickserve.group` uses external nameservers (e.g. Cloudflare), add a
 > **CNAME** `admin → your-hostinger-target` (hPanel shows the target), or the
 > **A** record Hostinger lists for the subdomain.
 
-Open **https://admin.quickserve.global** — you should see the sign-in card.
+Open **https://admin.quickserve.group** — you should see the sign-in card.
 
 ## 2. Sign in
 
@@ -103,7 +121,7 @@ as a bearer token to the Worker. Enter it once and applications load.
 
 ## CORS — why it already works, and how to lock it down
 
-Two services must accept requests coming from `https://admin.quickserve.global`:
+Two services must accept requests coming from `https://admin.quickserve.group`:
 
 - **Supabase** allows browser requests from any origin on its REST and Auth
   endpoints when you send the publishable `apikey` (which the console does), so
@@ -113,7 +131,7 @@ Two services must accept requests coming from `https://admin.quickserve.global`:
   [`../intake-worker/wrangler.toml`](../intake-worker/wrangler.toml). Owner
   endpoints are gated by the token regardless of origin and the apply form is
   public, so `*` is safe. To tighten it once this is your only admin origin, set
-  `ALLOWED_ORIGIN = "https://admin.quickserve.global"` and
+  `ALLOWED_ORIGIN = "https://admin.quickserve.group"` and
   `wrangler deploy`. (Leaving it `*` keeps the old GitHub-Pages inbox working
   too — set a single origin only if you want to retire that.)
 

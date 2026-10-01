@@ -112,6 +112,18 @@ button{font:inherit; cursor:pointer; color:inherit}
 .lrow .lk{color:var(--ink-2)} .lrow .lk small{display:block; color:var(--faint); font-size:11px}
 .lrow .lv{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:14.5px; white-space:nowrap}
 .lrow.total{border-top:1.5px solid var(--rule); border-bottom:none; margin-top:3px; padding-top:11px}
+.lrow.sub{padding:5px 0 5px 14px; border-bottom:1px dashed var(--line-2)}
+.lrow.sub .lk{font-size:12.5px; color:var(--ink-2)} .lrow.sub .lv{font-size:13px; color:var(--ink-2)}
+/* bank accounts */
+.acctgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:16px; margin-bottom:16px}
+.acard{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px; display:flex; flex-direction:column; gap:10px}
+.acard .aname{font-weight:600; font-size:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.acard .asub{font-family:var(--mono); font-size:11.5px; color:var(--muted)}
+.acard .abal{font-family:var(--mono); font-size:24px; font-weight:600; letter-spacing:-.01em}
+.acard.total{background:var(--surface-2); justify-content:center}
+.acard .drawer-actions{margin:0}
+.recres{margin-top:4px; padding:11px 13px; border-radius:7px; border:1px solid var(--line); background:var(--surface-2); font-size:13px; line-height:1.5}
+.recres.ok{border-color:var(--good); background:var(--good-soft)} .recres.warn{border-color:var(--warn); background:var(--warn-soft)}
 .lrow.total .lk{font-weight:600; color:var(--ink)} .lrow.total .lv{font-weight:600; font-size:17px}
 .lrow.memo{padding-top:12px} .lrow.memo .lk{color:var(--muted)} .lrow.memo .lv{color:var(--ink-2)}
 
@@ -327,6 +339,7 @@ td.r,th.r{text-align:right}
       <div class="sect">Overview</div>
       <button class="navitem" data-route="dashboard"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>Dashboard</button>
       <button class="navitem" data-route="applications"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>Applications<span class="badge hidden" id="appsBadge"></span></button>
+      <button class="navitem" data-route="accounts"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 20h18"/></svg>Accounts</button>
       <div class="sect">Loan book</div>
       <button class="navitem" data-route="clients"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="4"/><path d="M3 21a6 6 0 0 1 12 0"/><path d="M16 11a4 4 0 0 0 0-6"/></svg>Clients</button>
       <button class="navitem" data-route="loans"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>Loans</button>
@@ -376,11 +389,11 @@ td.r,th.r{text-align:right}
   var OWNER_KEY = "qs_owner_token";
 
   var $ = function(id){ return document.getElementById(id); };
-  var state = { clients:[], loans:[], payments:[], expenses:[], capital:[], settings:{}, updatedAt:"" };
+  var state = { clients:[], loans:[], payments:[], expenses:[], capital:[], accounts:[], transfers:[], settings:{}, updatedAt:"" };
   var rows = [];
   var apps = null;
   var route = "dashboard";
-  var ui = { loanFilter:"open", clientQ:"", loanQ:"", payQ:"", expQ:"" };
+  var ui = { loanFilter:"open", clientQ:"", loanQ:"", payQ:"", expQ:"", lastAccount:"" };
 
   // ---- format helpers ----
   function num(v){ return Math.round((Number(v||0)+Number.EPSILON)*100)/100; }
@@ -405,21 +418,28 @@ td.r,th.r{text-align:right}
   // ---- analysis engine (mirrors the phone app's money maths) ----
   function analyse(){
     var today = todayISO(), byLoan={};
-    (state.payments||[]).forEach(function(p){ byLoan[p.loanId]=(byLoan[p.loanId]||0)+num(p.amount); });
+    (state.payments||[]).forEach(function(p){ byLoan[p.loanId]=num((byLoan[p.loanId]||0)+num(p.amount)); });
     rows = (state.loans||[]).map(function(l){
-      var rev = num(l.principal)*(num(l.interestRate)/100)+num(l.serviceFee);
-      var totalDue = num(l.principal)+rev;
-      var paid = byLoan[l.id]||0;
-      var outstanding = Math.max(0, num(totalDue-paid));
+      // Same terms as the phone app's loanTerms(): each rollover adds another
+      // interest cycle to what is due, without moving any cash.
+      var principal = num(l.principal);
+      var interest = num(principal*num(l.interestRate)/100);
+      var extensions = Array.isArray(l.extensions) ? l.extensions : [];
+      var extInt = num(extensions.reduce(function(s,e){ return s+Number(e.addedInterest||0); },0));
+      var rev = num(interest+num(l.serviceFee)+extInt);
+      var totalDue = num(principal+rev);
+      var paid = num(byLoan[l.id]||0);
+      var outstanding = num(Math.max(0, totalDue-paid));
       var revenueCollected = Math.min(paid, rev);
-      var principalRecovered = Math.max(0, paid-rev);
-      var principalOutstanding = Math.max(0, num(l.principal)-principalRecovered);
+      var principalRecovered = Math.min(principal, Math.max(0, paid-rev));
+      var principalOutstanding = num(Math.max(0, principal-principalRecovered));
       var status;
-      if (l.status==="written-off") status="written-off";
-      else if (outstanding<=0.009) status="paid";
+      // A settled loan stays settled even if it was once written off (app.js order).
+      if (outstanding<=0) status="paid";
+      else if (l.status==="written-off") status="written-off";
       else if (l.dueDate < today) status="overdue";
       else status="active";
-      return { loan:l, rev:rev, totalDue:totalDue, paid:paid, outstanding:outstanding,
+      return { loan:l, rev:rev, extInt:extInt, extensions:extensions, totalDue:totalDue, paid:paid, outstanding:outstanding,
         revenueCollected:revenueCollected, principalOutstanding:principalOutstanding, status:status };
     });
   }
@@ -439,11 +459,75 @@ td.r,th.r{text-align:right}
     var revenueAll=rows.reduce(function(s,r){return s+r.revenueCollected;},0);
     var activeClients=new Set(open.map(function(r){return r.loan.clientId;})).size;
     var overdue=open.filter(function(r){return r.status==="overdue";});
-    return { cash:cash, outOnLoan:outOnLoan, totalFunds:cash+outOnLoan, receivable:receivable,
+    var bal=accountBalances();
+    var accounts=accountsList().map(function(a){ return Object.assign({},a,{balance:bal[a.id]||0}); });
+    return { cash:cash, accounts:accounts, outOnLoan:outOnLoan, totalFunds:cash+outOnLoan, receivable:receivable,
       collectedMo:collectedMo, advancedMo:advancedMo, newLoansMo:newLoansMo, revenueAll:revenueAll,
       activeClients:activeClients, overdueN:overdue.length, overdueAmt:overdue.reduce(function(s,r){return s+r.outstanding;},0),
       open:open, capIn:capIn, advanced:advanced, collected:collected };
   }
+  // ---- bank accounts ----
+  // The float is spread over the business's bank accounts. Every cash movement
+  // belongs to one account and transfers move money between them, so the
+  // accounts always add up to the same cash-on-hand figure as before. Records
+  // saved before accounts existed belong to the original account (acct_main).
+  var MAIN_ACCOUNT_ID="acct_main";
+  function savedAccounts(){ return (state.accounts||[]).filter(function(x){ return x&&x.id; }); }
+  function accountsList(){
+    var a=savedAccounts();
+    return a.length ? a : [{ id:MAIN_ACCOUNT_ID, name:"Main account", bank:"", number:"", isDefault:true }];
+  }
+  function multiAccounts(){ return accountsList().length>1; }
+  function findAccount(id){ return accountsList().find(function(x){ return x.id===id; })||null; }
+  // Untagged (older) records stay with the original account even if the
+  // default for new entries changes later.
+  function legacyAccountId(){ var a=accountsList(); return (a.find(function(x){return x.id===MAIN_ACCOUNT_ID;})||a.find(function(x){return x.isDefault;})||a[0]).id; }
+  function defaultAccountId(){ var a=accountsList(); return (a.find(function(x){return x.isDefault;})||a[0]).id; }
+  function preferredAccountId(){ return (ui.lastAccount&&findAccount(ui.lastAccount)) ? ui.lastAccount : defaultAccountId(); }
+  function acctOf(rec){ var id=rec&&rec.accountId; return (id&&findAccount(id)) ? id : legacyAccountId(); }
+  function accountDigits(a){ return String((a&&a.number)||"").replace(/\s/g,""); }
+  function accountLabel(a){ if(!a) return "—"; var d=accountDigits(a); return (a.name||"Account")+(d?" ··"+d.slice(-4):""); }
+  function accountNameById(id){ return accountLabel(findAccount(id)); }
+  // Every cash movement, signed (+ in, − out), with the account it went through.
+  function cashMovements(){
+    var out=[];
+    (state.capital||[]).forEach(function(c){ var inn=c.direction==="in";
+      out.push({date:c.date, accountId:acctOf(c), amount:inn?num(c.amount):-num(c.amount), kind:"capital", text:(inn?"Money in":"Money out")+(c.note?" — "+c.note:""), id:c.id, created:c.createdAt||""}); });
+    (state.loans||[]).forEach(function(l){
+      out.push({date:l.issueDate, accountId:acctOf(l), amount:-num(l.principal), kind:"loan", text:"Loan paid out — "+clientName(l.clientId), id:l.id, created:l.createdAt||""}); });
+    (state.payments||[]).forEach(function(p){ var l=(state.loans||[]).find(function(x){return x.id===p.loanId;});
+      out.push({date:p.date, accountId:acctOf(p), amount:num(p.amount), kind:"payment", text:"Repayment — "+(l?clientName(l.clientId):"—")+(p.reference?" · "+p.reference:""), id:p.id, created:p.createdAt||""}); });
+    (state.expenses||[]).forEach(function(e){
+      out.push({date:e.date, accountId:acctOf(e), amount:-num(e.amount), kind:"expense", text:(e.category||"Expense")+(e.note?" — "+e.note:""), id:e.id, created:e.createdAt||""}); });
+    (state.transfers||[]).forEach(function(t){
+      var from=acctOf({accountId:t.fromAccountId}), to=acctOf({accountId:t.toAccountId}), ref=t.reference?" · "+t.reference:"";
+      out.push({date:t.date, accountId:from, amount:-num(t.amount), kind:"transfer", text:"Transfer to "+accountNameById(to)+ref, id:t.id, created:t.createdAt||""});
+      out.push({date:t.date, accountId:to, amount:num(t.amount), kind:"transfer", text:"Transfer from "+accountNameById(from)+ref, id:t.id, created:t.createdAt||""});
+    });
+    return out;
+  }
+  // Ledger balance of every account, optionally as at the end of a date.
+  function accountBalances(asOf){
+    var bal={}; accountsList().forEach(function(a){ bal[a.id]=0; });
+    cashMovements().forEach(function(m){ if(asOf && String(m.date||"")>asOf) return; bal[m.accountId]=num((bal[m.accountId]||0)+m.amount); });
+    return bal;
+  }
+  function accountInUse(id){ return cashMovements().some(function(m){ return m.accountId===id; }) || (state.transfers||[]).some(function(t){ return t.fromAccountId===id||t.toAccountId===id; }); }
+  function accountSelectHtml(fieldId, sel, label){
+    var a=accountsList();
+    if(a.length<2) return '<input type="hidden" id="'+fieldId+'" value="'+esc(a[0].id)+'">';
+    return '<div class="field"><label>'+esc(label)+'</label><select id="'+fieldId+'">'
+      + a.map(function(x){ return '<option value="'+esc(x.id)+'"'+(x.id===sel?" selected":"")+'>'+esc(accountLabel(x))+'</option>'; }).join("")
+      + '</select></div>';
+  }
+  // Saving the very first account record writes the implicit main account too.
+  function ensureAccounts(data){
+    if(!Array.isArray(data.accounts)) data.accounts=[];
+    if(!data.accounts.length) data.accounts.push({ id:MAIN_ACCOUNT_ID, name:"Main account", bank:"", number:"", isDefault:true, createdAt:new Date().toISOString() });
+    if(!Array.isArray(data.transfers)) data.transfers=[];
+    return data.accounts;
+  }
+
   function statusCounts(){ var c={active:0,overdue:0,paid:0,"written-off":0}; rows.forEach(function(r){ c[r.status]=(c[r.status]||0)+1; }); return c; }
   function concentration(){
     var t=totals(), by={};
@@ -572,14 +656,14 @@ td.r,th.r{text-align:right}
         if(res.error) return {error:res.error};
         if(!res.row) return {error:"no ledger"};
         var fresh=JSON.parse(JSON.stringify(res.row.data||{}));
-        ["clients","loans","payments","capital","expenses"].forEach(function(k){ if(!Array.isArray(fresh[k])) fresh[k]=[]; });
+        ["clients","loans","payments","capital","expenses","accounts","transfers"].forEach(function(k){ if(!Array.isArray(fresh[k])) fresh[k]=[]; });
         mutate(fresh);
         fresh.updatedAt=new Date().toISOString();
         return patchLedger(fresh, res.row.rev||0).then(function(w){
           if(w.auth===false) return {auth:false};
           if(w.conflict){ return n<3 ? attempt(n+1) : {error:"busy"}; }
           if(w.error) return {error:w.error};
-          state=Object.assign({clients:[],loans:[],payments:[],expenses:[],capital:[],settings:{},updatedAt:""}, w.row.data);
+          state=Object.assign({clients:[],loans:[],payments:[],expenses:[],capital:[],accounts:[],transfers:[],settings:{},updatedAt:""}, w.row.data);
           ledgerRev=w.row.rev; analyse();
           return {ok:true};
         });
@@ -596,7 +680,7 @@ td.r,th.r{text-align:right}
   }
 
   // ---- routing ----
-  var TITLES={dashboard:"Dashboard",applications:"Applications",clients:"Clients",loans:"Loans",payments:"Payments",expenses:"Expenses",reports:"Reports",projections:"Projections",settings:"Settings"};
+  var TITLES={dashboard:"Dashboard",accounts:"Accounts",applications:"Applications",clients:"Clients",loans:"Loans",payments:"Payments",expenses:"Expenses",reports:"Reports",projections:"Projections",settings:"Settings"};
   function go(r){
     route=r; if(location.hash!=="#"+r) location.hash=r;
     Array.prototype.forEach.call(document.querySelectorAll(".navitem"),function(b){ b.classList.toggle("active", b.dataset.route===r); });
@@ -609,6 +693,7 @@ td.r,th.r{text-align:right}
   function render(){
     var c=$("content");
     if(route==="dashboard") return renderDashboard(c);
+    if(route==="accounts") return renderAccounts(c);
     if(route==="clients") return renderClients(c);
     if(route==="loans") return renderLoans(c);
     if(route==="payments") return renderPayments(c);
@@ -636,7 +721,8 @@ td.r,th.r{text-align:right}
     h+='<div class="grid2">';
     // Position statement
     h+='<div class="card"><div class="ch"><h3>Statement of Position</h3><span class="asat">'+fmtDate(todayISO())+'</span></div><div class="ledger">'
-      + lrow("Cash on hand", money(t.cash), "in the float")
+      + lrow("Cash on hand", money(t.cash), multiAccounts() ? "across "+t.accounts.length+" bank accounts" : "in the float")
+      + (multiAccounts() ? t.accounts.map(function(a){ return '<div class="lrow sub"><span class="lk">'+esc(accountLabel(a))+'</span><span class="lv">'+money(a.balance)+'</span></div>'; }).join("") : "")
       + lrow("Out on loan", money(t.outOnLoan), "principal deployed")
       + '<div class="lrow total"><span class="lk">Total funds</span><span class="lv">'+money(t.totalFunds)+'</span></div>'
       + '<div class="lrow memo"><span class="lk">Receivable <small>incl. interest &amp; fees</small></span><span class="lv">'+money(t.receivable)+'</span></div>'
@@ -686,6 +772,227 @@ td.r,th.r{text-align:right}
   function mrow(k,v){ return '<div class="mrow"><span class="mk">'+esc(k)+'</span><span class="mv">'+v+'</span></div>'; }
   function stat(k,v,d){ return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div><div class="d">'+esc(d)+'</div></div>'; }
   function tile(k,v,d,cls){ return '<div class="tile '+(cls||"")+'"><div class="k">'+esc(k)+'</div><div class="v num">'+esc(v)+'</div><div class="d">'+esc(d)+'</div></div>'; }
+
+  // ---- accounts ----
+  function renderAccounts(c){
+    var t=totals(), list=t.accounts, many=list.length>1;
+    setSub(list.length+" account"+(list.length===1?"":"s")+" · "+money(t.cash)+" cash on hand");
+    var h='<div class="toolbar"><span style="flex:1;color:var(--muted);font-size:12.5px">Balances are what the ledger expects to be in each bank account. Reconcile them against your bank statements.</span>'
+      + (many?'<button class="btn sm" id="acTransfer">Transfer between accounts</button>':'')
+      + '<button class="btn ghost sm" id="acCapital">Money in / out</button>'
+      + '<button class="btn ghost sm" id="acAdd">+ Add account</button></div>';
+    if(!savedAccounts().length){
+      h+='<div class="card" style="margin-bottom:16px"><div class="ch"><h3>One account so far</h3></div><div style="padding:14px 18px;font-size:13px;line-height:1.6;max-width:720px">'
+        + 'Everything in the ledger currently sits in a single account. Opened another bank account? Choose <b>+ Add account</b>: name your current account and the new one, and record the money you moved across as a transfer. Total funds stay the same; each account gets its own balance.</div></div>';
+    }
+    h+='<div class="acctgrid">'
+      + list.map(function(a){
+          var d=accountDigits(a);
+          return '<div class="acard"><div><div class="aname">'+esc(a.name||"Account")+(a.isDefault&&many?' <span class="tag info">Default</span>':'')+'</div>'
+            + '<div class="asub">'+esc([a.bank, d?"··"+d.slice(-4):""].filter(Boolean).join(" · ")||"No bank details yet")+'</div></div>'
+            + '<div class="abal">'+money(a.balance)+'</div>'
+            + '<div class="drawer-actions"><button class="btn ghost sm" data-astmt="'+esc(a.id)+'">Statement</button><button class="btn ghost sm" data-arec="'+esc(a.id)+'">Reconcile</button><button class="btn ghost sm" data-aedit="'+esc(a.id)+'">Edit</button></div></div>';
+        }).join("")
+      + (many?'<div class="acard total"><div class="eyebrow">Cash on hand · all accounts</div><div class="abal">'+money(t.cash)+'</div><div class="asub">equals the dashboard figure</div></div>':'')
+      + '</div>';
+    var xf=(state.transfers||[]).slice().sort(function(a,b){ return String(b.date).localeCompare(String(a.date))||String(b.createdAt||"").localeCompare(String(a.createdAt||"")); });
+    h+='<div class="panel"><div class="ph"><h3>Transfers</h3><span class="n">'+xf.length+'</span></div><div class="table-scroll"><table><thead><tr><th>Date</th><th>From → to</th><th>Reference</th><th class="r">Amount</th></tr></thead><tbody>'
+      + (xf.map(function(x){ return '<tr class="rowlink" data-xedit="'+esc(x.id)+'"><td class="num">'+fmtDate(x.date)+'</td><td>'+esc(accountNameById(acctOf({accountId:x.fromAccountId})))+' → '+esc(accountNameById(acctOf({accountId:x.toAccountId})))+(x.note?'<div style="color:var(--muted);font-size:11.5px">'+esc(x.note)+'</div>':'')+'</td><td class="mono">'+esc(x.reference||"—")+'</td><td class="r num">'+money(x.amount)+'<button class="pdel" data-xdel="'+esc(x.id)+'" title="Delete transfer">×</button></td></tr>'; }).join("")
+        || '<tr><td colspan="4" class="empty">No transfers yet.</td></tr>')
+      + '</tbody></table></div></div>';
+    var cap=(state.capital||[]).slice().sort(function(a,b){ return String(b.date).localeCompare(String(a.date)); });
+    h+='<div class="panel" style="margin-top:16px"><div class="ph"><h3>Money in &amp; out</h3><span class="n">capital you put in or took out</span></div><div class="table-scroll"><table><thead><tr><th>Date</th><th>Type</th>'+(many?'<th>Account</th>':'')+'<th>Note</th><th class="r">Amount</th></tr></thead><tbody>'
+      + (cap.map(function(x){ var inn=x.direction==="in"; return '<tr class="rowlink" data-cedit="'+esc(x.id)+'"><td class="num">'+fmtDate(x.date)+'</td><td><span class="tag '+(inn?"good":"warn")+'">'+(inn?"In":"Out")+'</span></td>'+(many?'<td>'+esc(accountNameById(acctOf(x)))+'</td>':'')+'<td>'+esc(x.note||(x.origin==="starting-capital"?"Starting capital":"—"))+'</td><td class="r num">'+(inn?"":"−")+money(x.amount)+'<button class="pdel" data-cdel="'+esc(x.id)+'" title="Delete entry">×</button></td></tr>'; }).join("")
+        || '<tr><td colspan="'+(many?5:4)+'" class="empty">No capital entries.</td></tr>')
+      + '</tbody></table></div></div>';
+    c.innerHTML=h;
+    var b;
+    if((b=$("acTransfer"))) b.addEventListener("click",function(){ openTransferForm(); });
+    $("acCapital").addEventListener("click",function(){ openCapitalForm(); });
+    $("acAdd").addEventListener("click",function(){ openAccountForm(); });
+    wireRows(c,"astmt",openAccount); wireRows(c,"arec",openReconcileForm); wireRows(c,"aedit",function(id){ openAccountForm(findAccount(id)); });
+    Array.prototype.forEach.call(c.querySelectorAll("[data-xedit]"),function(tr){ tr.addEventListener("click",function(){ openTransferForm((state.transfers||[]).find(function(x){return x.id===tr.getAttribute("data-xedit");})); }); });
+    Array.prototype.forEach.call(c.querySelectorAll("[data-cedit]"),function(tr){ tr.addEventListener("click",function(){ openCapitalForm((state.capital||[]).find(function(x){return x.id===tr.getAttribute("data-cedit");})); }); });
+    Array.prototype.forEach.call(c.querySelectorAll("[data-xdel]"),function(btn){ btn.addEventListener("click",function(ev){ ev.stopPropagation(); deleteTransfer(btn.getAttribute("data-xdel")); }); });
+    Array.prototype.forEach.call(c.querySelectorAll("[data-cdel]"),function(btn){ btn.addEventListener("click",function(ev){ ev.stopPropagation(); deleteCapital(btn.getAttribute("data-cdel")); }); });
+  }
+  function accountFieldsHtml(prefix, a, title){
+    a=a||{};
+    return (title?'<div class="eyebrow" style="margin:4px 0 8px">'+esc(title)+'</div>':'')
+      +'<div class="field"><label>Account name</label><input id="'+prefix+'name" value="'+esc(a.name||"")+'" placeholder="e.g. FNB Business Cheque"></div>'
+      +'<div class="field row"><div><label>Bank</label><input id="'+prefix+'bank" value="'+esc(a.bank||"")+'" placeholder="e.g. FNB Namibia"></div><div><label>Account number <small style="text-transform:none;letter-spacing:0">(last 4 digits are enough)</small></label><input id="'+prefix+'num" class="num" inputmode="numeric" value="'+esc(a.number||"")+'" placeholder="e.g. 4471"></div></div>';
+  }
+  function readAccountFields(prefix){ return { name:cleanText(fval(prefix+"name")), bank:cleanText(fval(prefix+"bank")), number:cleanText(fval(prefix+"num")).replace(/[^\d\s-]/g,"") }; }
+  function openAccountForm(acct){
+    closeDrawer();
+    var first=!savedAccounts().length && !acct;
+    if(first){
+      // First time: name the account everything has been in so far, add the new one,
+      // and optionally record the money moved across in the same save.
+      var body0='<p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">All '+money(totals().cash)+' of cash on hand is in your current account until you record what you moved.</p>'
+        + accountFieldsHtml("f_m_", {name:"FNB Main account", bank:"FNB Namibia"}, "Your current account")
+        + accountFieldsHtml("f_n_", {bank:"FNB Namibia"}, "The new account")
+        + '<div class="eyebrow" style="margin:4px 0 8px">Money moved to the new account (optional)</div>'
+        + '<div class="field row"><div><label>Amount (N$)</label><input id="f_x_amt" class="num" type="number" min="0" step="0.01" placeholder="0.00"></div><div><label>Date moved</label><input id="f_x_date" type="date" value="'+todayISO()+'"></div></div>'
+        + '<div class="field"><label>Reference</label><input id="f_x_ref" placeholder="Optional — e.g. FNB transfer ref"></div>'
+        + '<div class="formerr" id="f_err"></div>';
+      openModal("Set up bank accounts", body0, "Save accounts", function(){
+        var m=readAccountFields("f_m_"), n=readAccountFields("f_n_"), amt=num(fval("f_x_amt")), dt=fval("f_x_date");
+        if(!m.name||!n.name){ ferr("Give both accounts a name."); return; }
+        if(m.name.toLowerCase()===n.name.toLowerCase()){ ferr("Use two different names so you can tell them apart."); return; }
+        if(amt<0){ ferr("The amount can't be negative."); return; }
+        if(amt>0 && (!dt||dt>todayISO())){ ferr("Pick the date the money was moved (not in the future)."); return; }
+        var newId=uid("acct");
+        commit(function(data){
+          var list=ensureAccounts(data);
+          Object.assign(list[0], m, { isDefault:true });
+          list.push(Object.assign({ id:newId, isDefault:false, createdAt:new Date().toISOString() }, n));
+          if(amt>0) data.transfers.push({ id:uid("transfer"), date:dt, fromAccountId:list[0].id, toAccountId:newId, amount:amt, reference:cleanText(fval("f_x_ref")), note:"Opening transfer to the new account", createdAt:new Date().toISOString() });
+        }, amt>0?"Accounts saved and transfer recorded.":"Accounts saved.");
+      });
+      return;
+    }
+    var a=acct||{};
+    var others=accountsList().filter(function(x){ return !acct || x.id!==acct.id; });
+    var canDelete=acct && accountsList().length>1 && !accountInUse(acct.id);
+    var body=accountFieldsHtml("f_a_", a, "")
+      +'<label style="display:flex;gap:9px;align-items:center;font-size:13px;margin:0 0 12px"><input type="checkbox" id="f_a_def" style="width:17px;height:17px"'+(a.isDefault?" checked":"")+'> Pre-select this account for new loans, payments and expenses</label>'
+      +(acct?'':'<div class="eyebrow" style="margin:4px 0 8px">Opening money (optional)</div><div class="field row"><div><label>Moved from</label><select id="f_a_from">'+others.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(accountLabel(x))+'</option>';}).join("")+'</select></div><div><label>Amount (N$)</label><input id="f_a_amt" class="num" type="number" min="0" step="0.01" placeholder="0.00"></div></div><div class="field"><label>Date moved</label><input id="f_a_date" type="date" value="'+todayISO()+'"></div>')
+      +(acct?'<p style="font-size:12px;color:var(--muted);margin:0">'+(canDelete?'<a href="#" id="f_a_del" style="color:var(--bad)">Delete this account</a> — it has no transactions.':'Accounts with transactions can\'t be deleted; their history must stay intact.')+'</p>':'')
+      +'<div class="formerr" id="f_err"></div>';
+    openModal(acct?"Edit account":"Add account", body, acct?"Save changes":"Add account", function(){
+      var f=readAccountFields("f_a_"), def=$("f_a_def").checked;
+      if(!f.name){ ferr("Give the account a name."); return; }
+      if(accountsList().some(function(x){ return (!acct||x.id!==acct.id) && String(x.name||"").toLowerCase()===f.name.toLowerCase(); })){ ferr("Another account already has that name."); return; }
+      var amt=acct?0:num(fval("f_a_amt")), from=acct?"":fval("f_a_from"), dt=acct?"":fval("f_a_date");
+      if(amt<0){ ferr("The amount can't be negative."); return; }
+      if(amt>0 && (!dt||dt>todayISO())){ ferr("Pick the date the money was moved (not in the future)."); return; }
+      var id=acct?acct.id:uid("acct");
+      commit(function(data){
+        var list=ensureAccounts(data);
+        var x=list.find(function(y){return y.id===id;});
+        if(!x){ x={ id:id, createdAt:new Date().toISOString() }; list.push(x); }
+        Object.assign(x, f);
+        if(def) list.forEach(function(y){ y.isDefault=(y.id===id); });
+        else if(x.isDefault && !list.some(function(y){ return y.id!==id && y.isDefault; })) x.isDefault=true; // always keep one default
+        if(amt>0) data.transfers.push({ id:uid("transfer"), date:dt, fromAccountId:from, toAccountId:id, amount:amt, reference:"", note:"Opening transfer", createdAt:new Date().toISOString() });
+      }, acct?"Account updated.":"Account added.");
+    });
+    var del=$("f_a_del");
+    if(del) del.addEventListener("click",function(e){ e.preventDefault();
+      if(!confirm("Delete the account “"+accountLabel(acct)+"”?")) return;
+      commit(function(data){ var list=ensureAccounts(data); var was=list.find(function(y){return y.id===acct.id;}); data.accounts=list.filter(function(y){return y.id!==acct.id;}); if(was&&was.isDefault&&data.accounts[0]) data.accounts[0].isDefault=true; }, "Account deleted.");
+    });
+  }
+  function openTransferForm(xf){
+    closeDrawer();
+    var list=accountsList();
+    if(list.length<2){ toast("Add your second account first.","err"); openAccountForm(); return; }
+    var e=xf||{};
+    var from=xf?acctOf({accountId:e.fromAccountId}):defaultAccountId();
+    var to=xf?acctOf({accountId:e.toAccountId}):(list.find(function(x){return x.id!==from;})||list[1]).id;
+    function opts(sel){ return list.map(function(x){ return '<option value="'+esc(x.id)+'"'+(x.id===sel?" selected":"")+'>'+esc(accountLabel(x))+'</option>'; }).join(""); }
+    var body='<div class="field row"><div><label>From</label><select id="f_tfrom">'+opts(from)+'</select></div><div><label>To</label><select id="f_tto">'+opts(to)+'</select></div></div>'
+      +'<div class="field row"><div><label>Amount (N$)</label><input id="f_tamt" class="num" type="number" min="0" step="0.01" value="'+esc(e.amount!=null?e.amount:"")+'" placeholder="0.00"></div><div><label>Date</label><input id="f_tdate" type="date" value="'+esc(e.date||todayISO())+'"></div></div>'
+      +'<div class="field row"><div><label>Reference</label><input id="f_tref" value="'+esc(e.reference||"")+'" placeholder="Optional"></div><div><label>Note</label><input id="f_tnote" value="'+esc(e.note||"")+'" placeholder="Optional"></div></div>'
+      +'<p style="font-size:12px;color:var(--muted);margin:0">A transfer only moves money between your own accounts — total funds don\'t change.</p>'
+      +'<div class="formerr" id="f_err"></div>';
+    openModal(xf?"Edit transfer":"Transfer between accounts", body, xf?"Save changes":"Record transfer", function(){
+      var f=fval("f_tfrom"), t=fval("f_tto"), amt=num(fval("f_tamt")), dt=fval("f_tdate");
+      if(f===t){ ferr("Choose two different accounts."); return; }
+      if(!(amt>0)){ ferr("Enter the amount moved."); return; }
+      if(!dt||dt>todayISO()){ ferr("Pick the date of the transfer (not in the future)."); return; }
+      var bal=accountBalances()[f]||0; if(xf && acctOf({accountId:xf.fromAccountId})===f) bal=num(bal+num(xf.amount));
+      if(amt>bal+0.005 && !confirm("This takes "+accountNameById(f)+" below zero in the ledger ("+money(bal-amt)+"). Save anyway?")) return;
+      var rec={ date:dt, fromAccountId:f, toAccountId:t, amount:amt, reference:cleanText(fval("f_tref")), note:cleanText(fval("f_tnote")) };
+      commit(function(data){
+        ensureAccounts(data);
+        if(xf){ var x=data.transfers.find(function(y){return y.id===xf.id;}); if(x) Object.assign(x, rec); }
+        else data.transfers.push(Object.assign({ id:uid("transfer"), createdAt:new Date().toISOString() }, rec));
+      }, xf?"Transfer updated.":"Transfer recorded.");
+    });
+  }
+  function deleteTransfer(id){
+    if(!confirm("Delete this transfer? Both account balances change back.")) return;
+    runDelete(function(data){ data.transfers=(data.transfers||[]).filter(function(x){return x.id!==id;}); }, "Transfer deleted.");
+  }
+  function openCapitalForm(cap){
+    closeDrawer();
+    var e=cap||{ direction:"in" };
+    var body='<div class="field"><label>Type</label><select id="f_cdir"><option value="in"'+(e.direction!=="out"?" selected":"")+'>Money in — you put money into the business</option><option value="out"'+(e.direction==="out"?" selected":"")+'>Money out — you took money out (e.g. paying yourself)</option></select></div>'
+      +'<div class="field row"><div><label>Amount (N$)</label><input id="f_camt" class="num" type="number" min="0" step="0.01" value="'+esc(e.amount!=null?e.amount:"")+'" placeholder="0.00"></div><div><label>Date</label><input id="f_cdate" type="date" value="'+esc(e.date||todayISO())+'"></div></div>'
+      + accountSelectHtml("f_cacct", cap?acctOf(cap):preferredAccountId(), "Account")
+      +'<div class="field"><label>Note</label><input id="f_cnote" value="'+esc(e.note||"")+'" placeholder="Where is it from / what is it for?"></div>'
+      +'<div class="formerr" id="f_err"></div>';
+    openModal(cap?"Edit capital entry":"Money in / out", body, cap?"Save changes":"Save", function(){
+      var amt=num(fval("f_camt")), dt=fval("f_cdate");
+      if(!(amt>0)){ ferr("Enter an amount."); return; }
+      if(!dt){ ferr("Pick a date."); return; }
+      var rec={ direction:fval("f_cdir")==="out"?"out":"in", amount:amt, date:dt, note:cleanText(fval("f_cnote")), accountId:fval("f_cacct") };
+      ui.lastAccount=rec.accountId;
+      commit(function(data){
+        if(!Array.isArray(data.capital)) data.capital=[];
+        if(cap){ var x=data.capital.find(function(y){return y.id===cap.id;}); if(x) Object.assign(x, rec); }
+        else data.capital.push(Object.assign({ id:uid("capital"), createdAt:new Date().toISOString() }, rec));
+      }, cap?"Entry updated.":(rec.direction==="in"?"Capital added.":"Withdrawal saved."));
+    });
+  }
+  function deleteCapital(id){
+    if(!confirm("Delete this capital entry? Cash on hand changes.")) return;
+    runDelete(function(data){ data.capital=(data.capital||[]).filter(function(x){return x.id!==id;}); }, "Entry deleted.");
+  }
+  function accountStatement(id){
+    var mv=cashMovements().filter(function(m){ return m.accountId===id; })
+      .sort(function(a,b){ return String(a.date||"").localeCompare(String(b.date||""))||String(a.created).localeCompare(String(b.created))||(b.amount-a.amount); });
+    var bal=0; mv.forEach(function(m){ bal=num(bal+m.amount); m.balance=bal; });
+    return mv;
+  }
+  function openAccount(id){
+    var a=findAccount(id); if(!a) return;
+    var mv=accountStatement(id), bal=mv.length?mv[mv.length-1].balance:0;
+    var tin=mv.filter(function(m){return m.amount>0;}).reduce(function(s,m){return s+m.amount;},0);
+    var tout=mv.filter(function(m){return m.amount<0;}).reduce(function(s,m){return s-m.amount;},0);
+    drawerHead("Account statement", accountLabel(a));
+    var h='<div class="drawer-actions"><button class="btn sm" id="daRec">Reconcile</button><button class="btn ghost sm" id="daEdit">Edit</button>'+(multiAccounts()?'<button class="btn ghost sm" id="daXfer">Transfer</button>':'')+'</div>'
+      + '<div class="dsect">Summary</div>'
+      + frow("Ledger balance", money(bal), "num")
+      + frow("Money in", money(tin), "num")
+      + frow("Money out", money(tout), "num")
+      + frow("Bank", esc(a.bank||"—"))
+      + frow("Transactions", String(mv.length), "num")
+      + '<div class="dsect">Transactions (newest first)</div>';
+    h+= mv.length ? '<table class="dtable"><thead><tr><th>Date</th><th>Details</th><th class="r">Amount</th><th class="r">Balance</th></tr></thead><tbody>'
+      + mv.slice().reverse().map(function(m){ return '<tr><td class="num">'+fmtDate(m.date)+'</td><td>'+esc(m.text)+'</td><td class="r num" style="color:'+(m.amount<0?"var(--bad)":"var(--good)")+'">'+(m.amount<0?"−":"+")+money(Math.abs(m.amount)).replace("N$ ","")+'</td><td class="r num">'+money(m.balance).replace("N$ ","")+'</td></tr>'; }).join("")
+      + '</tbody></table>' : '<p style="font-size:12.5px;color:var(--muted)">No transactions in this account yet.</p>';
+    $("drawerBody").innerHTML=h; $("drawerBody").scrollTop=0;
+    $("daRec").addEventListener("click",function(){ openReconcileForm(id); });
+    $("daEdit").addEventListener("click",function(){ openAccountForm(a); });
+    var dx=$("daXfer"); if(dx) dx.addEventListener("click",function(){ openTransferForm(); });
+    openDrawer();
+  }
+  function openReconcileForm(id){
+    var a=findAccount(id); if(!a) return;
+    closeDrawer();
+    var body='<p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">Enter the balance shown on your bank statement or banking app for <b>'+esc(accountLabel(a))+'</b>. The ledger works out what it expects on the same date.</p>'
+      +'<div class="field row"><div><label>Bank balance (N$)</label><input id="f_rbal" class="num" type="number" step="0.01" placeholder="0.00"></div><div><label>As at</label><input id="f_rdate" type="date" value="'+todayISO()+'"></div></div>'
+      +'<div id="f_recres"></div>'
+      +'<div class="formerr" id="f_err"></div>';
+    openModal("Reconcile "+(a.name||"account"), body, "Compare", function(){
+      var raw=fval("f_rbal"), dt=fval("f_rdate");
+      if(raw===""||!isFinite(Number(raw))){ ferr("Enter the balance from the bank."); return; }
+      if(!dt){ ferr("Pick the date of that balance."); return; }
+      ferr("");
+      var bank=num(raw), ledger=accountBalances(dt)[id]||0, diff=num(ledger-bank);
+      var box=$("f_recres"), html;
+      if(Math.abs(diff)<0.005){ html='<div class="recres ok"><b>Balanced.</b> The ledger and the bank both show '+money(bank)+' at '+fmtDate(dt)+'.</div>'; }
+      else if(diff>0){ html='<div class="recres warn">The ledger expects <b>'+money(ledger)+'</b>; the bank shows <b>'+money(bank)+'</b>. The bank has <b>'+money(diff)+' less</b> — usually bank charges, a loan paid from this account but recorded against another, or money out that isn\'t in the ledger yet.'
+          +'<div style="margin-top:10px"><button class="btn sm" id="f_recfix" type="button">Record '+money(diff)+' as bank charges</button></div></div>'; }
+      else { html='<div class="recres warn">The ledger expects <b>'+money(ledger)+'</b>; the bank shows <b>'+money(bank)+'</b>. The bank has <b>'+money(-diff)+' more</b> — usually a repayment, deposit or transfer into this account that isn\'t recorded yet (or was recorded against another account).</div>'; }
+      box.innerHTML=html;
+      var fix=$("f_recfix");
+      if(fix) fix.addEventListener("click",function(){ closeModal(); openExpenseForm(null,{ amount:diff, date:dt, category:"Bank charges", note:"Reconciliation difference — "+accountLabel(a), accountId:id }); });
+    });
+  }
 
   // ---- clients ----
   function renderClients(c){
@@ -749,7 +1056,7 @@ td.r,th.r{text-align:right}
     setSub(list.length+" payment"+(list.length===1?"":"s"));
     var total=list.reduce(function(s,x){return s+num(x.p.amount);},0);
     var body=list.map(function(x){
-      return '<tr'+(x.loan?' class="rowlink" data-loan="'+esc(x.loan.id)+'"':'')+'><td class="who-cell"><b>'+esc(x.name)+'</b><span>'+esc(x.p.method||"—")+(x.p.reference?" · "+esc(x.p.reference):"")+'</span></td>'
+      return '<tr'+(x.loan?' class="rowlink" data-loan="'+esc(x.loan.id)+'"':'')+'><td class="who-cell"><b>'+esc(x.name)+'</b><span>'+esc(x.p.method||"—")+(x.p.reference?" · "+esc(x.p.reference):"")+(multiAccounts()?" · into "+esc(accountNameById(acctOf(x.p))):"")+'</span></td>'
         +'<td class="num">'+fmtDate(x.p.date)+'</td>'
         +'<td class="r num">'+money(x.p.amount)+'</td></tr>';
     }).join("");
@@ -780,7 +1087,7 @@ td.r,th.r{text-align:right}
     var moTotal=(state.expenses||[]).filter(function(e){return monthKey(e.date)===mo;}).reduce(function(s,e){return s+num(e.amount);},0);
     var avg=averageMonthlyExpenses();
     var body=list.map(function(e){
-      return '<tr class="rowlink" data-eedit="'+esc(e.id)+'"><td class="who-cell"><b>'+esc(e.category||"Expense")+'</b><span>'+esc(e.note||"—")+'</span></td>'
+      return '<tr class="rowlink" data-eedit="'+esc(e.id)+'"><td class="who-cell"><b>'+esc(e.category||"Expense")+'</b><span>'+esc(e.note||"—")+(multiAccounts()?" · from "+esc(accountNameById(acctOf(e))):"")+'</span></td>'
         +'<td class="num">'+fmtDate(e.date)+'</td>'
         +'<td class="r num">'+money(e.amount)+'<button class="pdel" data-edel="'+esc(e.id)+'" title="Delete expense">×</button></td></tr>';
     }).join("");
@@ -798,18 +1105,20 @@ td.r,th.r{text-align:right}
     Array.prototype.forEach.call(c.querySelectorAll("[data-eedit]"),function(tr){ tr.addEventListener("click",function(){ openExpenseForm((state.expenses||[]).find(function(x){return x.id===tr.getAttribute("data-eedit");})); }); });
     Array.prototype.forEach.call(c.querySelectorAll("[data-edel]"),function(btn){ btn.addEventListener("click",function(ev){ ev.stopPropagation(); deleteExpense(btn.getAttribute("data-edel")); }); });
   }
-  function openExpenseForm(exp){
-    var e=exp||{};
+  function openExpenseForm(exp, prefill){
+    var e=exp||prefill||{};
     var opts=EXPENSE_CATEGORIES.map(function(cat){ return '<option'+((e.category===cat)?" selected":"")+'>'+esc(cat)+'</option>'; }).join("");
     var body=''
       +'<div class="field row"><div><label>Amount (N$)</label><input id="f_eamount" class="num" type="number" min="0" step="0.01" value="'+esc(e.amount!=null?e.amount:"")+'" placeholder="0.00"></div><div><label>Date</label><input id="f_edate" type="date" value="'+esc(e.date||todayISO())+'"></div></div>'
       +'<div class="field"><label>Category</label><select id="f_ecat">'+opts+'</select></div>'
       +'<div class="field"><label>Note</label><input id="f_enote" value="'+esc(e.note||"")+'" placeholder="What was this for?"></div>'
+      + accountSelectHtml("f_eacct", exp?acctOf(exp):(e.accountId||preferredAccountId()), "Paid from")
       +'<div class="formerr" id="f_err"></div>';
     openModal(exp?"Edit expense":"Record expense", body, exp?"Save changes":"Save expense", function(){
       var amount=num(fval("f_eamount"));
       if(!(amount>0)){ ferr("Enter the expense amount."); return; }
-      var rec={ date:fval("f_edate"), amount:amount, category:cleanText(fval("f_ecat"))||"Other", note:cleanText(fval("f_enote")) };
+      var rec={ date:fval("f_edate"), amount:amount, category:cleanText(fval("f_ecat"))||"Other", note:cleanText(fval("f_enote")), accountId:fval("f_eacct") };
+      ui.lastAccount=rec.accountId;
       if(exp) commit(function(data){ if(!Array.isArray(data.expenses)) data.expenses=[]; var x=data.expenses.find(function(y){return y.id===exp.id;}); if(x) Object.assign(x, rec); }, "Expense updated.");
       else commit(function(data){ if(!Array.isArray(data.expenses)) data.expenses=[]; data.expenses.push(Object.assign({ id:uid("expense"), createdAt:new Date().toISOString() }, rec)); }, "Expense saved.");
     });
@@ -911,7 +1220,7 @@ td.r,th.r{text-align:right}
         + frowS("Projection · recovery", (proj.recoveryRate!=null?proj.recoveryRate+"%":"—"))
         + frowS("Projection · redeploy", (proj.redeployRate!=null?proj.redeployRate+"%":"—"))
         + frowS("Projection · horizon", (proj.months!=null?proj.months+" months":"—"))
-        + '<div class="lrow"><span class="lk" style="color:var(--faint);font-size:11.5px">Managed in the phone app — shown here for reference.</span></div>'
+        + '<div class="lrow"><span class="lk" style="color:var(--faint);font-size:11.5px">Projection assumptions can be adjusted on the Projections page.</span></div>'
         + '</div></div>'
       + '<div class="card"><div class="ch"><h3>Cloud ledger</h3></div><div class="ledger">'
         + frowS("Provider","Supabase")
@@ -930,17 +1239,19 @@ td.r,th.r{text-align:right}
       + '</div>'
       + '<div class="card" style="margin-top:16px"><div class="ch"><h3>Export &amp; backup</h3><span class="asat">'+state.clients.length+' clients · '+state.loans.length+' loans · '+state.payments.length+' payments</span></div>'
         + '<div style="padding:14px 18px">'
-        + '<p style="color:var(--muted);font-size:12.5px;margin:0 0 12px;max-width:640px">Download the live loan book. The JSON is a complete backup in the same format as the phone app, so it can be re-imported there. Keep a copy off-device regularly.</p>'
+        + '<p style="color:var(--muted);font-size:12.5px;margin:0 0 12px;max-width:640px">Download the live loan book. The JSON is a complete backup of everything — clients, loans, payments, expenses, bank accounts and transfers. Keep a copy off-device regularly.</p>'
         + '<div class="drawer-actions" style="max-width:620px">'
         + '<button class="btn sm" id="expJson">Download backup (.json)</button>'
         + '<button class="btn ghost sm" id="expClients">Clients (.csv)</button>'
         + '<button class="btn ghost sm" id="expLoans">Loans (.csv)</button>'
         + '<button class="btn ghost sm" id="expPay">Payments (.csv)</button>'
+        + '<button class="btn ghost sm" id="expXfer">Transfers (.csv)</button>'
         + '</div></div></div>';
     $("expJson").addEventListener("click",exportBackup);
     $("expClients").addEventListener("click",exportClientsCSV);
     $("expLoans").addEventListener("click",exportLoansCSV);
     $("expPay").addEventListener("click",exportPaymentsCSV);
+    $("expXfer").addEventListener("click",exportTransfersCSV);
   }
   function downloadFile(name, text, type){
     try{
@@ -956,7 +1267,7 @@ td.r,th.r{text-align:right}
     var payload={ exportedAt:new Date().toISOString(), app:"Quickserve Cashloan Ledger", data:state };
     if(downloadFile("quickserve-backup-"+todayISO()+".json", JSON.stringify(payload,null,2), "application/json")) toast("Backup downloaded.");
   }
-  function csvCell(v){ v=String(v==null?"":v); return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+  function csvCell(v){ v=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(v) && !/^-?\d+(\.\d+)?$/.test(v)) v="'"+v; return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
   function toCSV(headers, rowsArr){ return [headers.map(csvCell).join(",")].concat(rowsArr.map(function(r){return r.map(csvCell).join(",");})).join("\r\n"); }
   function exportClientsCSV(){
     var body=state.clients.map(function(c){ var ag=clientAgg(c.id); return [c.name,c.phone,c.nationalId,c.employer,c.address,c.nextOfKin,ag.openCount,num(ag.borrowed),num(ag.repaid),num(ag.outstanding)]; });
@@ -967,8 +1278,12 @@ td.r,th.r{text-align:right}
     if(downloadFile("quickserve-loans-"+todayISO()+".csv", toCSV(["Client","Principal","Interest %","Service fee","Interest+fees","Total repayable","Issued","Due","Status","Paid","Outstanding","Purpose"], body),"text/csv")) toast("Loans CSV downloaded.");
   }
   function exportPaymentsCSV(){
-    var body=(state.payments||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}).map(function(p){ var loan=(state.loans||[]).find(function(l){return l.id===p.loanId;}); return [p.date, loan?clientName(loan.clientId):"—", num(p.amount), p.method||"", p.reference||""]; });
-    if(downloadFile("quickserve-payments-"+todayISO()+".csv", toCSV(["Date","Client","Amount","Method","Reference"], body),"text/csv")) toast("Payments CSV downloaded.");
+    var body=(state.payments||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}).map(function(p){ var loan=(state.loans||[]).find(function(l){return l.id===p.loanId;}); return [p.date, loan?clientName(loan.clientId):"—", num(p.amount), p.method||"", p.reference||"", accountNameById(acctOf(p))]; });
+    if(downloadFile("quickserve-payments-"+todayISO()+".csv", toCSV(["Date","Client","Amount","Method","Reference","Account"], body),"text/csv")) toast("Payments CSV downloaded.");
+  }
+  function exportTransfersCSV(){
+    var body=(state.transfers||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}).map(function(t){ return [t.date, accountNameById(acctOf({accountId:t.fromAccountId})), accountNameById(acctOf({accountId:t.toAccountId})), num(t.amount), t.reference||"", t.note||""]; });
+    if(downloadFile("quickserve-transfers-"+todayISO()+".csv", toCSV(["Date","From","To","Amount","Reference","Note"], body),"text/csv")) toast("Transfers CSV downloaded.");
   }
   function frowS(k,v){ return '<div class="lrow"><span class="lk">'+esc(k)+'</span><span class="lv" style="font-family:var(--sans);font-size:13px;text-align:right">'+esc(v)+'</span></div>'; }
   function frowRaw(k,v){ return '<div class="lrow"><span class="lk">'+esc(k)+'</span><span>'+v+'</span></div>'; }
@@ -1030,18 +1345,25 @@ td.r,th.r{text-align:right}
     var days=daysUntil(l.dueDate);
     var termNote = r.status==="paid" ? "settled" : (days<0 ? (-days)+" days overdue" : days+" days remaining");
     var isOpen=(r.status==="active"||r.status==="overdue");
+    var remind=isOpen && cl ? waReminderLink(cl, r) : "";
     var h='<div class="drawer-actions">'
       + (isOpen?'<button class="btn sm" id="dlPay">Record payment</button>':'')
+      + (isOpen||r.status==="written-off"?'<button class="btn ghost sm" id="dlRoll">Roll over</button>':'')
+      + (remind?'<a class="btn ghost sm" id="dlRemind" href="'+esc(remind)+'" target="_blank" rel="noopener">WhatsApp reminder</a>':'')
       + '<button class="btn ghost sm" id="dlEdit">Edit</button>'
+      + (isOpen?'<button class="btn ghost sm" id="dlWriteOff">Write off</button>':'')
+      + (r.status==="written-off"?'<button class="btn ghost sm" id="dlReopen">Reopen</button>':'')
       + '<button class="btn ghost sm danger" id="dlDelete">Delete</button>'
       + '</div>'
       + '<div class="dsect">Terms</div>'
       + frow("Principal", money(l.principal), "num")
       + frow("Interest rate", (num(l.interestRate))+"%", "num")
       + frow("Service fee", money(l.serviceFee), "num")
+      + (r.extInt>0 ? frow("Rollover interest", money(r.extInt), "num") : "")
       + frow("Interest + fees", money(r.rev), "num")
       + frow("Total repayable", money(r.totalDue), "num")
-      + frow("Purpose", esc(l.purpose||"—"));
+      + frow("Purpose", esc(l.purpose||"—"))
+      + (multiAccounts() ? frow("Paid out from", esc(accountNameById(acctOf(l)))) : "");
     h+='<div class="dsect">Schedule</div>'
       + frow("Issued", fmtDate(l.issueDate), "num")
       + frow("Due", fmtDate(l.dueDate), "num")
@@ -1050,6 +1372,12 @@ td.r,th.r{text-align:right}
       + frow("Paid to date", money(r.paid), "num")
       + frow("Outstanding", money(r.outstanding), "num")
       + frow("Revenue earned", money(r.revenueCollected), "num");
+    if(r.extensions.length){
+      h+='<div class="dsect">Rollovers ('+r.extensions.length+')</div>'
+        + '<table class="dtable"><thead><tr><th>Date</th><th>Due moved</th><th class="r">Interest</th></tr></thead><tbody>'
+        + r.extensions.slice().reverse().map(function(e){ return '<tr><td class="num">'+fmtDate(e.date)+'</td><td class="num">'+fmtDate(e.previousDueDate)+' → '+fmtDate(e.newDueDate)+(e.note?'<br><span style="color:var(--muted);font-family:var(--sans)">'+esc(e.note)+'</span>':'')+'</td><td class="r num">'+money(e.addedInterest)+'</td></tr>'; }).join("")
+        + '</tbody></table>';
+    }
     if(cl){ h+='<div class="dsect">Borrower</div>'
       + frow("Name", '<a class="calllink" href="#" id="toClient">'+esc(cl.name||"—")+'</a>')
       + frow("Phone", String(cl.phone||"").trim()?'<a class="calllink" href="tel:'+esc(String(cl.phone).replace(/[^\d+]/g,""))+'">'+esc(cl.phone)+'</a>':'—'); }
@@ -1061,11 +1389,63 @@ td.r,th.r{text-align:right}
     } else h+='<p style="font-size:12.5px;color:var(--muted)">No payments recorded against this loan.</p>';
     $("drawerBody").innerHTML=h; $("drawerBody").scrollTop=0;
     if(isOpen){ var dp=$("dlPay"); if(dp) dp.addEventListener("click",function(){ openPaymentForm(id); }); }
+    var dr=$("dlRoll"); if(dr) dr.addEventListener("click",function(){ openRolloverForm(id); });
+    var dw=$("dlWriteOff"); if(dw) dw.addEventListener("click",function(){ setLoanStatus(id,"written-off"); });
+    var dro=$("dlReopen"); if(dro) dro.addEventListener("click",function(){ setLoanStatus(id,"active"); });
     $("dlEdit").addEventListener("click",function(){ openLoanForm(l); });
     $("dlDelete").addEventListener("click",function(){ deleteLoan(id); });
     Array.prototype.forEach.call($("drawerBody").querySelectorAll("[data-pdel]"),function(b){ b.addEventListener("click",function(){ deletePayment(b.getAttribute("data-pdel"), id); }); });
     var tc=$("toClient"); if(tc) tc.addEventListener("click",function(e){ e.preventDefault(); openClient(l.clientId); });
     openDrawer();
+  }
+
+  // ---- rollovers, write-offs, reminders (same rules as the phone app) ----
+  function openRolloverForm(loanId){
+    var r=rows.find(function(x){return x.loan.id===loanId;}); if(!r) return;
+    if(r.outstanding<=0){ toast("This loan is already settled.","err"); return; }
+    closeDrawer();
+    var l=r.loan;
+    var suggested=num(r.principalOutstanding*num(l.interestRate)/100);
+    // Roll from today when the loan is already late, so the new date is never in the past.
+    var rollFrom=l.dueDate>todayISO()?l.dueDate:todayISO();
+    var rounds=r.extensions.length;
+    var body='<p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">'+esc(clientName(l.clientId))+' still owes '+money(r.outstanding)+' ('+money(r.principalOutstanding)+' principal). Rolling over moves the due date and charges another interest cycle. No cash changes hands.'+(rounds?' Already rolled over '+rounds+' time'+(rounds===1?'':'s')+'.':'')+'</p>'
+      +'<div class="field row"><div><label>Interest to add (N$)</label><input id="f_rint" class="num" type="number" min="0" step="0.01" value="'+esc(suggested)+'"></div><div><label>New due date</label><input id="f_rdue" type="date" value="'+esc(addDays(rollFrom,30))+'"></div></div>'
+      +'<div class="field"><label>Note</label><input id="f_rnote" placeholder="Optional"></div>'
+      +'<div class="formerr" id="f_err"></div>';
+    openModal("Roll over loan", body, "Roll over", function(){
+      var added=num(fval("f_rint")), newDue=fval("f_rdue");
+      if(!(added>=0)){ ferr("Interest can't be negative."); return; }
+      if(!newDue||newDue<=l.dueDate){ ferr("Pick a due date after the current one ("+fmtDate(l.dueDate)+")."); return; }
+      commit(function(data){
+        var x=data.loans.find(function(y){return y.id===loanId;}); if(!x) return;
+        if(!Array.isArray(x.extensions)) x.extensions=[];
+        x.extensions.push({ id:uid("ext"), date:todayISO(), addedInterest:added, previousDueDate:x.dueDate, newDueDate:newDue, note:cleanText(fval("f_rnote")), createdAt:new Date().toISOString() });
+        x.dueDate=newDue;
+        if(x.status==="written-off") x.status="active";
+      }, "Loan rolled over.");
+    });
+  }
+  function setLoanStatus(loanId, status){
+    if(status==="written-off" && !confirm("Mark this loan as written off? You can reopen it later.")) return;
+    runDelete(function(data){ var x=data.loans.find(function(y){return y.id===loanId;}); if(x) x.status=status; }, status==="written-off"?"Loan written off.":"Loan reopened.");
+  }
+  // Numbers are usually saved locally (081…); WhatsApp needs the international form.
+  function waPhone(raw){
+    var t=String(raw||"").trim(); if(!t) return "";
+    var plus=t.charAt(0)==="+", d=t.replace(/\D/g,""); if(!d) return "";
+    if(plus) return d; if(d.indexOf("00")===0) return d.slice(2); if(d.indexOf("264")===0) return d;
+    if(d.charAt(0)==="0") return "264"+d.slice(1); return "264"+d;
+  }
+  function waReminderLink(cl, r){
+    var phone=waPhone(cl.phone); if(!phone) return "";
+    var first=String(cl.name||"").split(" ")[0]||cl.name||"";
+    var late=daysUntil(r.loan.dueDate)<0;
+    var text=["Hi "+first+",","",
+      late ? "Your loan was due on "+fmtLong(r.loan.dueDate)+" and "+money(r.outstanding)+" is still outstanding."
+           : "A reminder that "+money(r.outstanding)+" is due on "+fmtLong(r.loan.dueDate)+".",
+      "","Please let me know when you can settle it. Thank you.","QuickServe Cashloan"].join("\n");
+    return "https://wa.me/"+phone+"?text="+encodeURIComponent(text);
   }
 
   // ---- toast ----
@@ -1128,6 +1508,7 @@ td.r,th.r{text-align:right}
       +'<div class="field row"><div><label>Amount given (N$)</label><input id="f_principal" class="num" type="number" min="0" step="0.01" value="'+esc(e.principal!=null?e.principal:"")+'" placeholder="0.00"></div><div><label>Interest rate (%)</label><input id="f_rate" class="num" type="number" min="0" step="0.01" value="'+esc(rateV)+'"></div></div>'
       +'<div class="field row"><div><label>Service fee (N$)</label><input id="f_fee" class="num" type="number" min="0" step="0.01" value="'+esc(feeV)+'"></div><div><label>Purpose</label><input id="f_purpose" value="'+esc(e.purpose||"")+'" placeholder="Optional"></div></div>'
       +'<div class="field row"><div><label>Issue date</label><input id="f_issue" type="date" value="'+esc(issue)+'"></div><div><label>Due date</label><input id="f_due" type="date" value="'+esc(due)+'"></div></div>'
+      + accountSelectHtml("f_lacct", loan?acctOf(loan):preferredAccountId(), "Paid out from")
       +'<div class="formerr" id="f_err"></div>';
     openModal(loan?"Edit loan":"New loan", body, loan?"Save changes":"Create loan", function(){
       var clientId=fval("f_client");
@@ -1141,7 +1522,8 @@ td.r,th.r{text-align:right}
       if(issue2>todayISO()){ ferr("Issue date can't be in the future."); return; }
       if(dueD<=issue2){ ferr("Due date must be after the issue date."); return; }
       if(principal*(rate/100)+fee > principal*0.3+0.001){ ferr("Interest + fees are above the 30% cost-of-credit cap for this loan."); return; }
-      var rec={ clientId:clientId, principal:principal, interestRate:rate, serviceFee:fee, issueDate:issue2, dueDate:dueD, purpose:cleanText(fval("f_purpose")) };
+      var rec={ clientId:clientId, principal:principal, interestRate:rate, serviceFee:fee, issueDate:issue2, dueDate:dueD, purpose:cleanText(fval("f_purpose")), accountId:fval("f_lacct") };
+      ui.lastAccount=rec.accountId;
       if(loan) commit(function(data){ var l=data.loans.find(function(x){return x.id===loan.id;}); if(l) Object.assign(l, rec); }, "Loan updated.");
       else commit(function(data){ data.loans.push(Object.assign({ id:uid("loan"), createdAt:new Date().toISOString(), status:"active" }, rec)); }, "Loan created.");
     });
@@ -1157,13 +1539,15 @@ td.r,th.r{text-align:right}
       +'<div class="field row"><div><label>Amount paid (N$)</label><input id="f_amount" class="num" type="number" min="0" step="0.01" placeholder="0.00"></div><div><label>Date</label><input id="f_date" type="date" value="'+todayISO()+'"></div></div>'
       +'<div class="field row"><div><label>Method</label><select id="f_method"><option>Cash</option><option>Bank transfer</option><option>E-wallet</option><option>Other</option></select></div><div><label>Reference</label><input id="f_ref" placeholder="Optional"></div></div>'
       +'<div class="field"><label>Notes</label><textarea id="f_pnotes" placeholder="Optional"></textarea></div>'
+      + accountSelectHtml("f_pacct", preferredAccountId(), "Received into")
       +'<div class="formerr" id="f_err"></div>';
     openModal("Record payment", body, "Save payment", function(){
       var loanId=fval("f_loan"), amount=num(fval("f_amount"));
       var r=rows.find(function(x){return x.loan.id===loanId;});
       if(!r||!(amount>0)){ ferr("Select a loan and enter an amount."); return; }
       if(amount>r.outstanding+0.01 && !confirm("This payment ("+money(amount)+") is more than the outstanding "+money(r.outstanding)+". Save it anyway?")){ return; }
-      var rec={ id:uid("payment"), loanId:loanId, amount:amount, date:fval("f_date"), method:fval("f_method"), reference:cleanText(fval("f_ref")), notes:cleanText(fval("f_pnotes")), createdAt:new Date().toISOString() };
+      var rec={ id:uid("payment"), loanId:loanId, amount:amount, date:fval("f_date"), method:fval("f_method"), reference:cleanText(fval("f_ref")), notes:cleanText(fval("f_pnotes")), accountId:fval("f_pacct"), createdAt:new Date().toISOString() };
+      ui.lastAccount=rec.accountId;
       commit(function(data){ data.payments.push(rec); }, "Payment recorded.");
     });
   }
@@ -1326,7 +1710,7 @@ td.r,th.r{text-align:right}
       if(res.auth===false){ signOut(); return; }
       if(res.error){ $("content").innerHTML='<div class="empty">Could not load the ledger ('+esc(res.error)+'). Try Refresh.</div>'; return; }
       var data=(res.row&&res.row.data)||{clients:[],loans:[],payments:[],capital:[],settings:{}};
-      state=Object.assign({clients:[],loans:[],payments:[],expenses:[],capital:[],settings:{},updatedAt:""},data);
+      state=Object.assign({clients:[],loans:[],payments:[],expenses:[],capital:[],accounts:[],transfers:[],settings:{},updatedAt:""},data);
       ledgerRev=(res.row&&res.row.rev)||0;
       analyse();
       var r=(location.hash||"#dashboard").replace("#",""); if(!TITLES[r]) r="dashboard";
@@ -1356,9 +1740,16 @@ td.r,th.r{text-align:right}
   Array.prototype.forEach.call(document.querySelectorAll(".navitem"),function(b){ b.addEventListener("click",function(){ go(b.dataset.route); }); });
   window.addEventListener("hashchange",function(){ var r=(location.hash||"").replace("#",""); if(TITLES[r]&&r!==route) go(r); });
 
+  // The phone app is retired from the website. Its old offline worker also
+  // covered this page's address, so remove it and its caches on any device.
+  try{
+    if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister(); }); }).catch(function(){});
+    if(window.caches&&caches.keys) caches.keys().then(function(ks){ ks.filter(function(k){ return /^quickserve-cashloan/.test(k); }).forEach(function(k){ caches.delete(k); }); }).catch(function(){});
+  }catch(e){}
+
   if((session()||{}).access_token) showApp(); else $("email").focus();
 
-  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});} };
+  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV };
 })();
 </script>
 </body>
