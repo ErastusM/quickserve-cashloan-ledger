@@ -8,8 +8,10 @@ compatibility_date = "2024-11-01"
 
 [vars]
 # The origin your apply.html / inbox.html are served from (for CORS).
-# For GitHub Pages this is your Pages origin, e.g. https://erastusm.github.io
-ALLOWED_ORIGIN = "https://erastusm.github.io"
+# The console now lives at https://admin.quickserve.group (GitHub Pages with a
+# custom domain; the old github.io address redirects there). Run
+# `npx wrangler deploy` after changing this.
+ALLOWED_ORIGIN = "https://admin.quickserve.group"
 
 [[d1_databases]]
 binding = "DB"

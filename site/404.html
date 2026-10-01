@@ -11,7 +11,11 @@
 <main>
 <h1>This page is no longer available</h1>
 <p>QuickServe Cashloan now runs from the admin console only.</p>
-<a href="/quickserve-cashloan-ledger/admin/">Open the console</a>
+<a id="home" href="/">Open the console</a>
 </main>
+<script>
+  // On the old github.io address the site lives under the repository path.
+  if (/\.github\.io$/.test(location.hostname)) document.getElementById("home").href = "/quickserve-cashloan-ledger/";
+</script>
 </body>
 </html>
