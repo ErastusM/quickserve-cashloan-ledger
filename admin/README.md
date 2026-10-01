@@ -45,6 +45,20 @@ screen:
   interest cycle and moves the due date, exactly like the phone app did),
   write a loan off or reopen it, and open a prefilled WhatsApp payment
   reminder. Rollover interest is included in every balance.
+- **Collections** — arrears ageing (not yet due, 1–30, 31–60, 61–90, 90+ days)
+  with a provision for doubtful loans (editable rates, shown on the dashboard
+  as "total funds after provision"), a work list of overdue loans, a contact
+  log per loan and **promises to pay** that show as due today / kept / broken.
+- **Profit & loss** — monthly, cash basis: interest and fees collected
+  (repayments pay interest first, like the phone app), expenses by category,
+  bad debts written off, net profit and margin; last 12 months, by year or all
+  time; CSV and print.
+- **History & backups** — every save is recorded by the database (who, when,
+  exactly what changed, full details of anything deleted) and the book from
+  before each of the last 300 saves can be downloaded or restored. Restore from
+  a backup file, a reminder when no backup has been downloaded for 7 days, and
+  automatic sign-out after 20 minutes without activity. Needs
+  `supabase/migrations/010_ledger_history.sql` run once (see below).
 - **Expenses** — record, edit and delete business expenses (category, amount,
   date, note), with this-month / monthly-average / total tiles. Expenses net
   off cash on hand and set the default *monthly costs* in Projections.
@@ -162,3 +176,11 @@ build. Everything else (data, logins, applications) is untouched.
 The config block near the top of `index.html` holds the public Supabase URL,
 the publishable key, and the Worker base URL. Change those only if you move
 projects.
+
+## Switching on history (once)
+
+In Supabase: **SQL Editor → New query**, paste the whole of
+[`../supabase/migrations/010_ledger_history.sql`](../supabase/migrations/010_ledger_history.sql)
+and press **Run**. It adds the version history and the change log and doesn't
+touch any loan-book data; running it again is harmless. Until it's run, the
+History page shows these instructions and everything else works as before.

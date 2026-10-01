@@ -46,3 +46,13 @@ people you tell can sign up, since they need the app.)
   push to the cloud when there's a connection.
 - Because the book now includes client IDs, access is limited to your logins by
   row-level security. Keep your passwords private and rotate the secret key.
+
+## Version history and change log (`migrations/010_ledger_history.sql`)
+
+Run once in the SQL Editor (safe to re-run). It keeps a full copy of the ledger
+from before each of the last 300 saves (`ledger_versions`) and an append-only
+log of every save — who (from the login token), when, and the records added,
+removed and changed (`ledger_changes`). Both are read-only for signed-in users
+and written only by a trigger; the log can't be edited or deleted by anyone.
+The admin console's **History & backups** page reads them and can restore any
+kept version.
