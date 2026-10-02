@@ -50,6 +50,19 @@ screen:
   under Collections → Provision rates; when above zero it shows on the dashboard
   as "total funds after provision"), a work list of overdue loans, a contact
   log per loan and **promises to pay** that show as due today / kept / broken.
+- **Credit score** — every client gets a score out of 100 and a grade
+  (A excellent · B good · C fair · D weak · E high risk; *New* when there is no
+  history yet), worked out from how they have repaid QuickServe: loans repaid
+  on time or late, rollovers, broken promises to pay, loans overdue now and
+  write-offs, with anything older than 12 months counting half. The client
+  drawer shows each reason and its points plus a **suggested next loan**
+  (based on the largest loan they repaid within 30 days of the due date, scaled
+  by grade, less what they still owe). The new-loan form shows the grade and
+  asks for confirmation above the suggestion; Reports shows the open book by
+  grade; the clients CSV includes score, grade and suggestion. It is a guide
+  only — it never blocks a loan, uses nothing personal (age, gender, employer,
+  address), and is worked out from the book each time (nothing is stored).
+  *How the score works* in the console lists every rule.
 - **Profit & loss** — monthly, cash basis: interest and fees collected
   (repayments pay interest first, like the phone app), expenses by category,
   bad debts written off, net profit and margin; last 12 months, by year or all
