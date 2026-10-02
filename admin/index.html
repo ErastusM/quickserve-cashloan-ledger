@@ -157,6 +157,19 @@ button{font:inherit; cursor:pointer; color:inherit}
 .arow.none{color:var(--muted)}
 .tag{font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; padding:2px 7px; border-radius:4px; border:1px solid currentColor; flex:none; line-height:1.5}
 .tag.warn{color:var(--warn)} .tag.bad{color:var(--bad)} .tag.info{color:var(--steel)} .tag.good{color:var(--good)}
+.grade{display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:20px; padding:0 5px; border-radius:4px; border:1px solid currentColor; font-family:var(--mono); font-size:11.5px; font-weight:700; line-height:1; vertical-align:middle; box-sizing:border-box}
+.grade.good{color:var(--good); background:var(--good-soft)} .grade.good.top{color:var(--surface); background:var(--good); border-color:var(--good)}
+.grade.info{color:var(--steel); background:var(--steel-soft)} .grade.warn{color:var(--warn); background:var(--warn-soft)} .grade.bad{color:var(--bad); background:var(--bad-soft)}
+.grade.new{color:var(--muted); font-size:9.5px; font-weight:600; letter-spacing:.05em; text-transform:uppercase}
+.grade.big{min-width:46px; height:46px; font-size:22px; border-radius:8px} .grade.big.new{font-size:11px}
+.gscore{margin-left:6px; font-family:var(--mono); font-size:12px; color:var(--muted)}
+.scorehead{display:flex; gap:12px; align-items:center; padding:8px 0 6px}
+.scorehead b{display:block; font-size:14px} .scorehead span{font-size:12.5px; color:var(--muted)}
+.scoresub{font-family:var(--sans); font-size:11.5px; color:var(--muted); margin-top:2px; text-align:right}
+.scorenote{font-size:11.5px; color:var(--muted); margin:8px 0 0} .scorenote a{color:var(--accent)}
+.scorehint{font-size:12px; color:var(--ink-2); margin:-4px 0 12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.scorehint.over{color:var(--warn)}
+.scorehelp{font-size:13px; line-height:1.55} .scorehelp p{margin:0 0 10px} .scorehelp table{margin:0 0 12px}
 
 /* ---------- toolbar / tables ---------- */
 .toolbar{display:flex; gap:10px; align-items:center; margin:0 0 14px; flex-wrap:wrap}
@@ -1016,17 +1029,18 @@ td.r,th.r{text-align:right}
       .sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
     setSub(list.length+" of "+state.clients.length);
     var body=list.map(function(cl){
-      var ag=clientAgg(cl.id);
+      var ag=clientAgg(cl.id), sc=clientScore(cl.id);
       var idcell = String(cl.nationalId||"").trim() ? '<span class="mono">'+esc(cl.nationalId)+'</span>' : '<span class="miss">Missing</span>';
       return '<tr class="rowlink" data-client="'+esc(cl.id)+'"><td class="who-cell"><b>'+esc(cl.name||"—")+'</b><span>'+esc(cl.phone||"no phone")+'</span></td>'
+        +'<td style="white-space:nowrap">'+gradeBadge(sc)+(sc&&!sc.isNew?'<span class="gscore">'+sc.score+'</span>':'')+'</td>'
         +'<td>'+idcell+'</td><td>'+esc(cl.employer||"—")+'</td>'
         +'<td class="r num">'+ag.openCount+'</td>'
         +'<td class="r num">'+(ag.outstanding>0?money(ag.outstanding):"—")+'</td></tr>';
     }).join("");
     c.innerHTML=searchbar("clientQ","Search name, phone, ID, employer…",'<button class="btn sm" id="newClientBtn">+ New client</button>')
       + '<div class="panel"><div class="ph"><h3>Clients</h3><span class="n">'+list.length+'</span></div>'
-      + '<div class="table-scroll"><table><thead><tr><th>Client</th><th>National ID</th><th>Employer</th><th class="r">Open</th><th class="r">Outstanding</th></tr></thead><tbody>'
-      + (body||'<tr><td colspan="5" class="empty">No clients match.</td></tr>') + '</tbody></table></div></div>';
+      + '<div class="table-scroll"><table><thead><tr><th>Client</th><th>Score</th><th>National ID</th><th>Employer</th><th class="r">Open</th><th class="r">Outstanding</th></tr></thead><tbody>'
+      + (body||'<tr><td colspan="6" class="empty">No clients match.</td></tr>') + '</tbody></table></div></div>';
     wireSearch("clientQ");
     wireRows(c,"client",openClient);
     var ncb=$("newClientBtn"); if(ncb) ncb.addEventListener("click",function(){ openClientForm(); });
@@ -1205,12 +1219,22 @@ td.r,th.r{text-align:right}
       + (moBody||'<tr><td colspan="5" class="empty">No activity yet.</td></tr>')
       + '</tbody></table></div></div>';
     h+='<div style="height:16px"></div>';
+    var bg=bookByGrade(), bgTot=bg.reduce(function(s,b){ return s+b.outstanding; },0);
+    h+='<div class="panel"><div class="ph"><h3>Open book by credit grade</h3><a href="#" class="n" data-scorehelp style="color:var(--accent)">How the score works</a></div>'
+      + '<div class="table-scroll"><table><thead><tr><th>Grade</th><th class="r">Clients</th><th class="r">Loans</th><th class="r">Outstanding</th><th class="r">Share</th></tr></thead><tbody>'
+      + (bgTot>0 ? bg.filter(function(b){ return b.loans; }).map(function(b){
+          var lbl=b.key==="New"?"No history yet":GRADES.find(function(g){ return g.g===b.key; }).label;
+          return '<tr><td><span class="grade '+(b.key==="New"?"new":GRADES.find(function(g){ return g.g===b.key; }).cls)+'">'+esc(b.key)+'</span> <span style="margin-left:6px">'+esc(lbl)+'</span></td><td class="r num">'+b.clients+'</td><td class="r num">'+b.loans+'</td><td class="r num">'+money(b.outstanding)+'</td><td class="r num">'+pct(b.outstanding/bgTot)+'</td></tr>'; }).join("")
+        : '<tr><td colspan="5" class="empty">No open loans.</td></tr>')
+      + '</tbody></table></div></div>';
+    h+='<div style="height:16px"></div>';
     h+='<div class="panel"><div class="ph"><h3>Borrower concentration</h3><span class="n">top '+concTop.length+'</span></div>'
       + '<div class="table-scroll"><table><thead><tr><th>Borrower</th><th class="r">Outstanding</th><th class="r">Share</th><th></th></tr></thead><tbody>'
       + (concBody||'<tr><td colspan="4" class="empty">No open loans.</td></tr>')
       + '</tbody></table></div></div>';
     c.innerHTML=h;
     wireRows(c,"client",openClient);
+    wireScoreHelp(c);
   }
 
   // ---- settings ----
@@ -1294,8 +1318,8 @@ td.r,th.r{text-align:right}
   function csvCell(v){ v=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(v) && !/^-?\d+(\.\d+)?$/.test(v)) v="'"+v; return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
   function toCSV(headers, rowsArr){ return [headers.map(csvCell).join(",")].concat(rowsArr.map(function(r){return r.map(csvCell).join(",");})).join("\r\n"); }
   function exportClientsCSV(){
-    var body=state.clients.map(function(c){ var ag=clientAgg(c.id); return [c.name,c.phone,c.nationalId,c.employer,c.address,c.nextOfKin,ag.openCount,num(ag.borrowed),num(ag.repaid),num(ag.outstanding)]; });
-    if(downloadFile("quickserve-clients-"+todayISO()+".csv", toCSV(["Name","Phone","National ID","Employer","Address","Next of kin","Open loans","Total borrowed","Total repaid","Outstanding"], body),"text/csv")) toast("Clients CSV downloaded.");
+    var body=state.clients.map(function(c){ var ag=clientAgg(c.id), sc=clientScore(c.id)||{}; return [c.name,c.phone,c.nationalId,c.employer,c.address,c.nextOfKin,ag.openCount,num(ag.borrowed),num(ag.repaid),num(ag.outstanding),sc.isNew?"":sc.score,sc.isNew?"New":(sc.grade?sc.grade.g:""),sc.available==null?"":sc.available]; });
+    if(downloadFile("quickserve-clients-"+todayISO()+".csv", toCSV(["Name","Phone","National ID","Employer","Address","Next of kin","Open loans","Total borrowed","Total repaid","Outstanding","Credit score","Grade","Suggested next loan"], body),"text/csv")) toast("Clients CSV downloaded.");
   }
   function exportLoansCSV(){
     var body=rows.map(function(r){ var l=r.loan; return [clientName(l.clientId),num(l.principal),num(l.interestRate),num(l.serviceFee),num(r.rev),num(r.totalDue),l.issueDate,l.dueDate,pillTxt(r.status),num(r.paid),num(r.outstanding),l.purpose||""]; });
@@ -1329,6 +1353,7 @@ td.r,th.r{text-align:right}
       + '<button class="btn ghost sm" id="dcNewLoan">New loan</button>'
       + '<button class="btn ghost sm danger" id="dcDelete">Delete</button>'
       + '</div>'
+      + '<div class="dsect">Credit score</div>' + scoreBlock(clientScore(id))
       + '<div class="dsect">Financial summary</div>'
       + frow("Total borrowed", money(ag.borrowed), "num")
       + frow("Total repaid", money(ag.repaid), "num")
@@ -1358,6 +1383,7 @@ td.r,th.r{text-align:right}
     $("dcEdit").addEventListener("click",function(){ openClientForm(cl); });
     $("dcNewLoan").addEventListener("click",function(){ openLoanForm(null, id); });
     $("dcDelete").addEventListener("click",function(){ deleteClient(id); });
+    wireScoreHelp($("drawerBody"));
     openDrawer();
   }
 
@@ -1938,6 +1964,167 @@ td.r,th.r{text-align:right}
       else commit(function(data){ data.clients.push(Object.assign({ id:uid("client"), createdAt:new Date().toISOString() }, rec)); }, "Client added.");
     });
   }
+  // ---- credit score: how a client has repaid us ----
+  // A points scorecard built only from the client's own record with QuickServe:
+  // repayments, lateness, rollovers, promises to pay and write-offs. Nothing
+  // personal (age, gender, employer, address) is used. It is worked out from the
+  // book every time (nothing is stored) and it never blocks a loan.
+  var SCORE={ base:50, grace:3, onTime:10, slightlyLate:3, repaidCap:40, veryLate:-10,
+    rollover:-4, rolloverCap:-20, broken:-6, brokenCap:-24,
+    overdue:[[1,30,-15],[31,60,-30],[61,Infinity,-45]], overdueCap:-60, writtenOff:-60,
+    tenure:[[12,3,10],[6,2,5]], halfAfterDays:365, maxLimit:100000, limitStep:50 };
+  var GRADES=[
+    {g:"A", min:80, label:"Excellent", mult:1.5,  cls:"good top"},
+    {g:"B", min:65, label:"Good",      mult:1.25, cls:"good"},
+    {g:"C", min:50, label:"Fair",      mult:1,    cls:"info"},
+    {g:"D", min:35, label:"Weak",      mult:0.5,  cls:"warn"},
+    {g:"E", min:0,  label:"High risk", mult:0,    cls:"bad"}];
+  function dayDiff(a,b){ return Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000); }
+  function plural(n,one,many){ return n+" "+(n===1?one:(many||one+"s")); }
+  // The day a loan was fully repaid: when its payments first covered what was due.
+  function settledOn(r, pays){
+    var run=0, last="";
+    for(var i=0;i<pays.length;i++){ run=num(run+num(pays[i].amount)); last=pays[i].date; if(run>=r.totalDue-0.005) return last; }
+    return last;
+  }
+  function scoreClient(list, paysBy, today){
+    function wt(d){ return d && dayDiff(d,today)>SCORE.halfAfterDays ? 0.5 : 1; }
+    var onT=0,onTp=0, sl=0,slp=0, vl=0,vlp=0, ro=0,rop=0, br=0,brp=0, od=[],odp=0, wo=0;
+    var anyOld=false, settled=[], openPrincipal=0, worstLate=0, firstIssue="";
+    function seen(d){ if(wt(d)<1) anyOld=true; return wt(d); }
+    list.forEach(function(r){
+      var l=r.loan, pays=paysBy[l.id]||[];
+      if(!(num(l.principal)>0)) return;
+      if(l.issueDate && (!firstIssue || l.issueDate<firstIssue)) firstIssue=l.issueDate;
+      r.extensions.forEach(function(e){ ro++; rop+=SCORE.rollover*seen(e.date); });
+      var on = r.status==="paid" ? (settledOn(r,pays)||l.dueDate) : "";
+      loanCollections(l).forEach(function(e){
+        if(!e.promiseDate || e.promiseDate>=today || !(num(e.promiseAmount)>0)) return;
+        if(on && on<=e.promiseDate) return;
+        var paid=num(pays.filter(function(p){ return String(p.date)>=String(e.date) && String(p.date)<=e.promiseDate; }).reduce(function(s,p){ return s+num(p.amount); },0));
+        if(paid < num(e.promiseAmount)-0.005){ br++; brp+=SCORE.broken*seen(e.promiseDate); }
+      });
+      if(r.status==="paid"){
+        var late=dayDiff(l.dueDate, on);
+        settled.push({r:r, late:late});
+        if(late<=SCORE.grace){ onT++; onTp+=SCORE.onTime*seen(on); }
+        else if(late<=30){ sl++; slp+=SCORE.slightlyLate*seen(on); }
+        else { vl++; vlp+=SCORE.veryLate*seen(on); }
+      } else if(r.status==="written-off"){ wo++; }
+      else {
+        openPrincipal=num(openPrincipal+r.principalOutstanding);
+        if(r.status==="overdue"){
+          var d=daysLate(r), b=SCORE.overdue.find(function(x){ return d>=x[0]&&d<=x[1]; })||SCORE.overdue[0];
+          worstLate=Math.max(worstLate,d); od.push(d); odp+=b[2];
+        }
+      }
+    });
+    var isNew = !settled.length && !ro && !br && !od.length && !wo;
+    var months = firstIssue ? Math.max(0, dayDiff(firstIssue,today))/30.44 : 0, ten=0;
+    SCORE.tenure.some(function(t){ if(months>=t[0] && settled.length>=t[1]){ ten=t[2]; return true; } return false; });
+
+    var factors=[{pts:SCORE.base, txt:"Starting point"}];
+    if(onT) factors.push({pts:onTp, txt:plural(onT,"loan")+" repaid on time"});
+    if(sl) factors.push({pts:slp, txt:plural(sl,"loan")+" repaid 4–30 days late"});
+    if(onTp+slp>SCORE.repaidCap) factors.push({pts:SCORE.repaidCap-(onTp+slp), txt:"Repayment credit is capped at +"+SCORE.repaidCap});
+    if(vl) factors.push({pts:vlp, txt:plural(vl,"loan")+" repaid more than 30 days late"});
+    if(ro) factors.push({pts:Math.max(SCORE.rolloverCap,rop), txt:plural(ro,"rollover")});
+    if(br) factors.push({pts:Math.max(SCORE.brokenCap,brp), txt:plural(br,"broken promise")+" to pay"});
+    if(od.length) factors.push({pts:Math.max(SCORE.overdueCap,odp), txt:(od.length===1?"A loan is":plural(od.length,"loan")+" are")+" overdue now ("+od.map(function(d){ return plural(d,"day"); }).join(", ")+")"});
+    if(wo) factors.push({pts:wo*SCORE.writtenOff, txt:plural(wo,"loan")+" written off and not repaid"});
+    if(ten) factors.push({pts:ten, txt:"Client for "+plural(Math.floor(months),"month")});
+    var raw=factors.reduce(function(s,f){ return s+f.pts; },0);
+    var score=Math.max(0,Math.min(100,Math.round(raw)));
+    if(score!==Math.round(raw)) factors.push({pts:score-Math.round(raw), txt:"Kept within 0–100"});
+    var hold = wo ? [34,"a written-off loan is unpaid"] : (worstLate>60 ? [49,"a loan is more than 60 days overdue"] : null);
+    if(hold && score>hold[0]){ factors.push({pts:hold[0]-score, txt:"Held at "+hold[0]+" while "+hold[1]}); score=hold[0]; }
+    var grade=GRADES.find(function(g){ return score>=g.min; });
+
+    // Suggested next loan: the largest loan repaid within 30 days of its due date,
+    // scaled by grade, less principal still out on open loans.
+    var good=settled.filter(function(s){ return s.late<=30; });
+    var basis=(good.length?good:settled).reduce(function(m,s){ return Math.max(m,num(s.r.loan.principal)); },0);
+    var limit=null, why;
+    if(isNew) why="No repayment history yet — decide on affordability.";
+    else if(wo){ limit=0; why="a written-off loan is unpaid."; }
+    else if(od.length){ limit=0; why="clear the overdue loan first."; }
+    else if(!settled.length) why="No loan repaid yet — decide on affordability.";
+    else if(!grade.mult){ limit=0; why="grade E."; }
+    else {
+      limit=Math.min(SCORE.maxLimit, Math.floor(basis*grade.mult/SCORE.limitStep)*SCORE.limitStep);
+      why=(grade.mult===1?"":grade.mult+" × ")+money0(basis)+", the largest loan "+(good.length?"repaid within 30 days of its due date":"repaid so far")+".";
+    }
+    return { isNew:isNew, score:isNew?null:score, grade:isNew?null:grade, factors:factors, anyOld:anyOld,
+      limit:limit, available:limit==null?null:Math.max(0,num(limit-openPrincipal)), openPrincipal:openPrincipal,
+      basis:basis, why:why, settled:settled.length };
+  }
+  var scoreCache={rows:null, today:"", map:{}};
+  function creditScores(){
+    var today=todayISO();
+    if(scoreCache.rows===rows && scoreCache.today===today) return scoreCache.map;
+    var paysBy={}, byClient={}, map={};
+    (state.payments||[]).forEach(function(p){ (paysBy[p.loanId]=paysBy[p.loanId]||[]).push(p); });
+    Object.keys(paysBy).forEach(function(k){ paysBy[k].sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); }); });
+    rows.forEach(function(r){ (byClient[r.loan.clientId]=byClient[r.loan.clientId]||[]).push(r); });
+    (state.clients||[]).forEach(function(c){ map[c.id]=scoreClient(byClient[c.id]||[], paysBy, today); });
+    scoreCache={rows:rows, today:today, map:map};
+    return map;
+  }
+  function clientScore(id){ return creditScores()[id]||null; }
+  function fmtPts(v){ var r=Math.round(v*10)/10; return (r>0?"+":r<0?"−":"")+Math.abs(r); }
+  function gradeBadge(s, big){
+    if(!s) return '<span style="color:var(--muted)">—</span>';
+    if(s.isNew) return '<span class="grade new'+(big?" big":"")+'" title="No repayment history yet">New</span>';
+    return '<span class="grade '+s.grade.cls+(big?" big":"")+'" title="'+esc(s.grade.label)+' · '+s.score+'/100">'+s.grade.g+'</span>';
+  }
+  function limitText(s){
+    if(s.limit==null) return '<span style="color:var(--muted)">'+esc(s.why)+'</span>';
+    if(s.limit===0) return '<span style="color:var(--bad)">None for now — '+esc(s.why)+'</span>';
+    var h = s.available>0 ? '<span class="num">Up to '+money0(s.available)+'</span>' : '<span style="color:var(--warn)">None until more is repaid</span>';
+    if(s.openPrincipal>0) h+='<div class="scoresub">'+money0(s.limit)+' limit, less '+money0(s.openPrincipal)+' still out</div>';
+    return h+'<div class="scoresub">'+esc(s.why)+'</div>';
+  }
+  function scoreBlock(s){
+    if(!s) return "";
+    var head = s.isNew ? '<b>New client</b><span>No repayment history with us yet</span>'
+      : '<b>'+s.score+' / 100 · '+esc(s.grade.label)+'</b><span>Grade '+s.grade.g+'</span>';
+    var h='<div class="scorehead">'+gradeBadge(s,true)+'<div>'+head+'</div></div>'
+      + frow("Suggested next loan", limitText(s));
+    if(!s.isNew) h+=s.factors.map(function(f){ return frow(f.txt, fmtPts(f.pts), "num"); }).join("");
+    return h+'<p class="scorenote">'+(s.anyOld?"Anything older than 12 months counts half. ":"")+'Based only on how this client has repaid QuickServe. <a href="#" data-scorehelp>How the score works</a></p>';
+  }
+  function wireScoreHelp(el){ Array.prototype.forEach.call(el.querySelectorAll("[data-scorehelp]"),function(a){ a.addEventListener("click",function(ev){ ev.preventDefault(); openScoreHelp(); }); }); }
+  function openScoreHelp(back){
+    function li(pts,txt){ return '<tr><td class="r num" style="white-space:nowrap;padding-right:12px">'+pts+'</td><td>'+txt+'</td></tr>'; }
+    var body='<div class="scorehelp"><p>Every client starts at <b>50</b>. Points are added or taken off for how they have repaid QuickServe:</p>'
+      + '<table class="dtable"><tbody>'
+      + li("+10","each loan repaid on time (up to 3 days after the due date)")
+      + li("+3","each loan repaid 4–30 days late")
+      + li("","(repayment credit is capped at +40)")
+      + li("−10","each loan repaid more than 30 days late")
+      + li("−4","each rollover (at most −20)")
+      + li("−6","each broken promise to pay (at most −24)")
+      + li("−15 / −30 / −45","each loan overdue now: 1–30 / 31–60 / over 60 days (at most −60)")
+      + li("−60","each loan written off and not repaid")
+      + li("+5 / +10","a client for 6+ months with 2+ loans repaid / 12+ months with 3+")
+      + '</tbody></table>'
+      + '<p>Anything older than 12 months counts half, so a client can rebuild their record. The score stays at 34 or below while a written-off loan is unpaid, and at 49 or below while a loan is more than 60 days overdue.</p>'
+      + '<p><b>Grades:</b> A 80+ excellent · B 65–79 good · C 50–64 fair · D 35–49 weak · E below 35 high risk. A client with no history yet shows <b>New</b>.</p>'
+      + '<p><b>Suggested next loan:</b> the largest loan they repaid within 30 days of the due date, × 1.5 for A, × 1.25 for B, the same for C and half for D, less any principal they still owe, rounded down to N$ 50 (at most N$ 100,000). None for E, while a loan is overdue or while a write-off is unpaid.</p>'
+      + '<p>The score is a guide: it never blocks a loan, and a new loan still needs the affordability check (payslip and bank statement). It uses nothing personal — not age, gender, employer or where someone lives.</p></div>';
+    openModal("How the credit score works", body, back?"Back to the loan":"Close", function(){ if(back) back(); else closeModal(); });
+  }
+  function bookByGrade(){
+    var sc=creditScores(), keys=["A","B","C","D","E","New"], out={}, seen={};
+    keys.forEach(function(k){ out[k]={key:k, clients:0, loans:0, outstanding:0}; });
+    rows.forEach(function(r){
+      if(r.status!=="active"&&r.status!=="overdue") return;
+      var s=sc[r.loan.clientId], b=out[!s||s.isNew?"New":s.grade.g];
+      b.loans++; b.outstanding=num(b.outstanding+r.outstanding);
+      if(!seen[r.loan.clientId]){ seen[r.loan.clientId]=1; b.clients++; }
+    });
+    return keys.map(function(k){ return out[k]; });
+  }
   function clientOptionsHtml(sel){
     return state.clients.slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"");})
       .map(function(c){ return '<option value="'+esc(c.id)+'"'+(c.id===sel?" selected":"")+'>'+esc(c.name||"—")+'</option>'; }).join("");
@@ -1952,6 +2139,7 @@ td.r,th.r{text-align:right}
     var rateV=(e.interestRate!=null?e.interestRate:30), feeV=(e.serviceFee!=null?e.serviceFee:0);
     var body=''
       +'<div class="field"><label>Client</label><select id="f_client">'+clientOptionsHtml(sel)+'</select></div>'
+      +(loan?'':'<div class="scorehint" id="f_scorehint"></div>')
       +'<div class="field row"><div><label>Amount given (N$)</label><input id="f_principal" class="num" type="number" min="0" step="0.01" value="'+esc(e.principal!=null?e.principal:"")+'" placeholder="0.00"></div><div><label>Interest rate (%)</label><input id="f_rate" class="num" type="number" min="0" step="0.01" value="'+esc(rateV)+'"></div></div>'
       +'<div class="field row"><div><label>Service fee (N$)</label><input id="f_fee" class="num" type="number" min="0" step="0.01" value="'+esc(feeV)+'"></div><div><label>Purpose</label><input id="f_purpose" value="'+esc(e.purpose||"")+'" placeholder="Optional"></div></div>'
       +'<div class="field row"><div><label>Issue date</label><input id="f_issue" type="date" value="'+esc(issue)+'"></div><div><label>Due date</label><input id="f_due" type="date" value="'+esc(due)+'"></div></div>'
@@ -1969,11 +2157,27 @@ td.r,th.r{text-align:right}
       if(issue2>todayISO()){ ferr("Issue date can't be in the future."); return; }
       if(dueD<=issue2){ ferr("Due date must be after the issue date."); return; }
       if(principal*(rate/100)+fee > principal*0.3+0.001){ ferr("Interest + fees are above the 30% cost-of-credit cap for this loan."); return; }
+      var sc=loan?null:clientScore(clientId);
+      if(sc && sc.limit!=null && principal>sc.available+0.001 && !confirm(money(principal)+" is above the suggested amount for "+clientName(clientId)+" ("+money0(sc.available)+", grade "+(sc.grade?sc.grade.g:"—")+"). Create the loan anyway?")) return;
       var rec={ clientId:clientId, principal:principal, interestRate:rate, serviceFee:fee, issueDate:issue2, dueDate:dueD, purpose:cleanText(fval("f_purpose")), accountId:fval("f_lacct") };
       ui.lastAccount=rec.accountId;
       if(loan) commit(function(data){ var l=data.loans.find(function(x){return x.id===loan.id;}); if(l) Object.assign(l, rec); }, "Loan updated.");
       else commit(function(data){ data.loans.push(Object.assign({ id:uid("loan"), createdAt:new Date().toISOString(), status:"active" }, rec)); }, "Loan created.");
     });
+    if(!loan){
+      var hint=function(){
+        var box=$("f_scorehint"); if(!box) return;
+        var sc=clientScore(fval("f_client")), amt=num(fval("f_principal"));
+        if(!sc){ box.innerHTML=""; return; }
+        var over = sc.limit!=null && amt>sc.available+0.001;
+        var txt = sc.isNew ? "New client — no repayment history yet. Check affordability."
+          : sc.score+"/100 · "+sc.grade.label+" · "+(sc.limit==null ? "no loan repaid yet — check affordability" : (sc.limit===0 ? "no new loan suggested ("+sc.why.replace(/\.$/,"")+")" : "suggested up to "+money0(sc.available)));
+        box.className="scorehint"+(over?" over":"");
+        box.innerHTML=gradeBadge(sc)+'<span>'+esc(txt)+(over&&amt>0&&sc.limit>0?" — "+esc(money0(amt))+" is above that":"")+'</span> <a href="#" data-scorehelp style="color:var(--accent)">How?</a>';
+        Array.prototype.forEach.call(box.querySelectorAll("[data-scorehelp]"),function(a){ a.addEventListener("click",function(ev){ ev.preventDefault(); var c=fval("f_client"), a=fval("f_principal"); openScoreHelp(function(){ openLoanForm(null,c); var pe=$("f_principal"); if(pe){ pe.value=a; pe.dispatchEvent(new Event("input")); } }); }); });
+      };
+      $("f_client").addEventListener("change",hint); $("f_principal").addEventListener("input",hint); hint();
+    }
   }
   function openPaymentForm(forcedLoanId){
     var open=rows.filter(function(r){return r.status==="active"||r.status==="overdue";}).sort(function(a,b){return String(a.loan.dueDate).localeCompare(String(b.loan.dueDate));});
@@ -2214,7 +2418,7 @@ td.r,th.r{text-align:right}
     try{ if(sessionStorage.getItem("qs_idle_signout")){ sessionStorage.removeItem("qs_idle_signout"); msg("Signed out after 20 minutes without activity.",""); } }catch(e){}
   }
 
-  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm };
+  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm, creditScores:creditScores, clientScore:clientScore, bookByGrade:bookByGrade, openScoreHelp:openScoreHelp };
 })();
 </script>
 </body>
