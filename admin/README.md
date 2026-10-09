@@ -50,6 +50,14 @@ screen:
   under Collections → Provision rates; when above zero it shows on the dashboard
   as "total funds after provision"), a work list of overdue loans, a contact
   log per loan and **promises to pay** that show as due today / kept / broken.
+- **Company letterhead** — the QuickServe Cashloan logo on the console header
+  and sign-in page, and a full letterhead on every printout (statement of
+  position, portfolio report, profit & loss): logo, legal name, CC and NAMFISA
+  registration numbers, physical and postal address, cell, WhatsApp and email,
+  with a "printed on … by …" footer. Printouts always use the light palette,
+  even when the screen is in dark mode. The details live under **Settings →
+  Company details → Edit** (saved in the book, so every device prints the
+  same); add the NAMFISA registration number there once you have it.
 - **Credit score** — every client gets a score out of 100 and a grade
   (A excellent · B good · C fair · D weak · E high risk; *New* when there is no
   history yet), worked out from how they have repaid QuickServe: loans repaid
