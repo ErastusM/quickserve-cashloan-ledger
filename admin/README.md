@@ -1,14 +1,18 @@
 # QuickServe Admin Console
 
-**Where it lives:** **https://admin.quickserve.group** — GitHub Pages with a
-custom domain (repository Settings → Pages → Custom domain, plus a DNS
-`CNAME admin → erastusm.github.io` record at Hostinger). Pages publishes **only
-this console**, at the site root and at `/admin/` for older links; the old
-`erastusm.github.io/quickserve-cashloan-ledger/…` addresses redirect to the new
-domain automatically. The phone app, apply form and old inbox stay in the
-repository but are no longer online; to publish one again, add it to the
-"Assemble the site" step in `.github/workflows/pages.yml`. (The Hostinger
-upload steps further down are only needed if you ever move off GitHub Pages.)
+**Where it lives:** **https://admin.quickserve.group**, served by **Hostinger**
+like the rest of quickserve.group (see *1. Hosting on Hostinger* below). Every push
+to `main` publishes the console to two places:
+
+- the **`hostinger` branch**, which Hostinger's Git deployment pulls into the
+  `admin` subdomain (this is the address to use, on Wi-Fi and mobile data); and
+- **GitHub Pages** at `https://erastusm.github.io/quickserve-cashloan-ledger/`,
+  kept as a backup address. Some mobile networks block or intercept
+  `*.github.io`, which shows as "connection is not secure" on mobile data only,
+  so don't rely on it away from Wi-Fi.
+
+Only the console is published (`site/assemble.sh`); the phone app, apply form
+and old inbox stay in the repository but are not online.
 
 A single self-contained web page (`index.html`) — no build step, no server, no
 framework, and no external dependencies (the typeface is embedded). It signs in
@@ -121,27 +125,34 @@ You already have these from setting up the phone app — reuse them:
 
 No new accounts, no new keys. The console is already pointed at your project.
 
-## 1. Upload the file to Hostinger
+## 1. Hosting on Hostinger (works on mobile data)
 
-You are putting one file on a subdomain. In **hPanel**:
+The `hostinger` branch always holds the latest published console (index.html,
+404.html, sw.js and an `.htaccess` that forces https, blocks the `.git` folder
+and stops browsers caching an old version). Connect it once in **hPanel**:
 
-1. **Domains → Subdomains → Create.** Subdomain: `admin`, domain:
-   `quickserve.group`. Note the **document root** it creates, usually
-   `public_html/admin`.
-2. **Files → File Manager**, open that `admin` folder.
-3. Upload **`index.html`** from this folder into it. That's the whole app.
+1. **If you pointed `admin` at GitHub before:** in **Domains → DNS**, delete
+   the `CNAME admin → erastusm.github.io` record; in GitHub **Settings → Pages**,
+   remove the custom domain (the github.io address then keeps working as a
+   backup).
+2. **Domains → Subdomains → Create** `admin` for `quickserve.group` (skip if it
+   exists). Open its folder (usually `public_html/admin`) in **File Manager**
+   and delete anything Hostinger put there; Git needs an empty folder.
+3. **Websites → quickserve.group → Advanced → GIT → Create a new repository:**
+   repository `https://github.com/ErastusM/quickserve-cashloan-ledger.git`,
+   branch `hostinger`, directory `admin` (the subdomain's folder). **Create**,
+   then **Deploy**.
+4. Same page → **Auto Deployment → copy the Webhook URL**. In GitHub
+   **Settings → Webhooks → Add webhook**, paste it as the Payload URL and save
+   (push events only). From then on every console update reaches Hostinger by
+   itself within a minute.
+5. **Security → SSL:** check `admin.quickserve.group` has a certificate (free;
+   install it if not), then open **https://admin.quickserve.group** on mobile
+   data.
 
-Hostinger issues a free SSL certificate for the subdomain automatically
-(**Security → SSL** if it doesn't appear within a few minutes). Wait for it —
-the console needs `https://` to talk to Supabase.
-
-> **DNS:** because the subdomain is created inside Hostinger and the domain's
-> nameservers point at Hostinger, the record is added for you — nothing to type.
-> If `quickserve.group` uses external nameservers (e.g. Cloudflare), add a
-> **CNAME** `admin → your-hostinger-target` (hPanel shows the target), or the
-> **A** record Hostinger lists for the subdomain.
-
-Open **https://admin.quickserve.group** — you should see the sign-in card.
+If Git deployment isn't available on your plan, upload the files from the
+`hostinger` branch (GitHub → branch `hostinger` → Code → Download ZIP) into the
+subdomain folder with **File Manager** instead; repeat after updates.
 
 ## 2. Sign in
 
@@ -176,9 +187,9 @@ Two services must accept requests coming from `https://admin.quickserve.group`:
 
 ## Updating the console later
 
-Re-upload `index.html`, replacing the old one. There is no cache-busting to
-worry about — it's one file; a hard refresh (Ctrl/Cmd-Shift-R) shows the new
-build. Everything else (data, logins, applications) is untouched.
+Nothing to do: merging a change into `main` republishes both copies (GitHub
+Pages and, through the `hostinger` branch and its webhook, Hostinger). Reload
+the page to get the new build. Data, logins and applications are untouched.
 
 ## Security notes
 

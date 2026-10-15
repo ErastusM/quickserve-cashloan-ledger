@@ -45,19 +45,10 @@ jobs:
         with:
           enablement: true
 
-      # Only the admin console is published. The phone app, apply form, old
-      # inbox and documents stay in the repository but are no longer online.
-      # The console is served at the site root (https://admin.quickserve.group/,
-      # set under Settings -> Pages -> Custom domain) and at /admin/ so older
-      # links keep working. site/ holds the 404 page and the service worker
-      # that retires the phone app's offline cache.
+      # Only the admin console is published (see site/assemble.sh).
       - name: Assemble the site (admin console only)
         run: |
-          rm -rf _site
-          mkdir -p _site/admin
-          cp admin/index.html _site/index.html
-          cp admin/index.html _site/admin/index.html
-          cp site/404.html site/sw.js _site/
+          sh site/assemble.sh
           touch _site/.nojekyll
           find _site -type f | sort
 
@@ -69,3 +60,30 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # The same console for Hostinger, so admin.quickserve.group is served from
+  # the same host as the rest of quickserve.group. Some mobile networks block or
+  # intercept *.github.io (the "connection is not secure" error on mobile data
+  # only); Hostinger is not affected. This job commits the published files to
+  # the `hostinger` branch; Hostinger's Git deployment (hPanel -> Advanced ->
+  # Git, auto-deploy webhook) pulls it into the subdomain's folder.
+  hostinger:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble the site for Hostinger
+        run: |
+          sh site/assemble.sh
+          cp site/.htaccess _site/.htaccess
+          find _site -type f | sort
+
+      - name: Publish to the hostinger branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          sh site/publish-hostinger.sh
