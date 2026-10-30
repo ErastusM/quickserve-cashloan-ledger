@@ -65,13 +65,16 @@ screen:
 - **Paid-up letters** — **Paid-up letter** in the loan drawer (or in the
   client drawer, which asks which loan if there are several). If the book
   doesn't show the loan as fully repaid yet, it says how much is still owed and
-  offers to record the payment; for a fully repaid loan it opens a one-page A4 settlement letter on the letterhead: letter reference,
+  offers to record the payment. For a fully repaid loan it opens a one-page A4
+  settlement letter on the letterhead, inside the console (no new tab, so it
+  also works when the console is added to the home screen): letter reference,
   client name, ID number and client reference, the loan's figures, the date of
   the final payment, "balance now outstanding N$ 0.00", the no-security clause
-  and the company stamp, with a line to sign by hand. Print it or save it as a
-  PDF. The first issue gives the loan a permanent number (QS-PUL-YYYY-NNNN,
-  saved in the book and shown in the loan drawer), so a re-issued letter keeps
-  the same reference.
+  and the company stamp, with your saved signature (cropped to the ink) or a
+  line to sign by hand. **Print / Save as PDF** prints only the letter; **Close**
+  returns to the console. The first issue gives the loan a permanent number
+  (QS-PUL-YYYY-NNNN, saved in the book and shown in the loan drawer), so a
+  re-issued letter keeps the same reference.
 - **Credit score** — every client gets a score out of 100 and a grade
   (A excellent · B good · C fair · D weak · E high risk; *New* when there is no
   history yet), worked out from how they have repaid QuickServe: loans repaid
