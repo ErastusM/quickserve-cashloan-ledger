@@ -1469,6 +1469,7 @@ td.r,th.r{text-align:right}
     var h='<div class="drawer-actions">'
       + '<button class="btn sm" id="dcEdit">Edit</button>'
       + '<button class="btn ghost sm" id="dcNewLoan">New loan</button>'
+      + (ag.loans.some(function(r){ return r.status==="paid"; })?'<button class="btn ghost sm" id="dcPaidUp">Paid-up letter</button>':'')
       + '<button class="btn ghost sm danger" id="dcDelete">Delete</button>'
       + '</div>'
       + '<div class="dsect">Credit score</div>' + scoreBlock(clientScore(id))
@@ -1488,7 +1489,7 @@ td.r,th.r{text-align:right}
     h+='<div class="dsect">Loans ('+ag.loans.length+')</div>';
     if(ag.loans.length){
       h+='<table class="dtable"><thead><tr><th>Issued</th><th class="r">Principal</th><th class="r">Outstanding</th><th>Status</th></tr></thead><tbody>'
-        + ag.loans.map(function(r){ return '<tr><td class="num">'+fmtDate(r.loan.issueDate)+'</td><td class="r num">'+money(r.loan.principal)+'</td><td class="r num">'+(r.outstanding>0?money(r.outstanding):"—")+'</td><td><span class="pill '+pillCls(r.status)+'">'+pillTxt(r.status)+'</span></td></tr>'; }).join("")
+        + ag.loans.map(function(r){ return '<tr class="rowlink" data-dloan="'+esc(r.loan.id)+'"><td class="num">'+fmtDate(r.loan.issueDate)+'</td><td class="r num">'+money(r.loan.principal)+'</td><td class="r num">'+(r.outstanding>0?money(r.outstanding):"—")+'</td><td><span class="pill '+pillCls(r.status)+'">'+pillTxt(r.status)+'</span></td></tr>'; }).join("")
         + '</tbody></table>';
     } else h+='<p style="font-size:12.5px;color:var(--muted)">No loans on record.</p>';
     h+='<div class="dsect">Payments ('+ag.payments.length+')</div>';
@@ -1500,6 +1501,8 @@ td.r,th.r{text-align:right}
     $("drawerBody").innerHTML=h; $("drawerBody").scrollTop=0;
     $("dcEdit").addEventListener("click",function(){ openClientForm(cl); });
     $("dcNewLoan").addEventListener("click",function(){ openLoanForm(null, id); });
+    var dcp=$("dcPaidUp"); if(dcp) dcp.addEventListener("click",function(){ openClientPaidUp(id); });
+    wireRows($("drawerBody"),"dloan",openLoan);
     $("dcDelete").addEventListener("click",function(){ deleteClient(id); });
     wireScoreHelp($("drawerBody"));
     openDrawer();
@@ -1519,6 +1522,7 @@ td.r,th.r{text-align:right}
       + (isOpen||r.status==="written-off"?'<button class="btn ghost sm" id="dlRoll">Roll over</button>':'')
       + (remind?'<a class="btn ghost sm" id="dlRemind" href="'+esc(remind)+'" target="_blank" rel="noopener">WhatsApp reminder</a>':'')
       + (isOpen?'<button class="btn ghost sm" id="dlContact">Log contact</button>':'')
+      + (r.status==="paid"?'<button class="btn sm" id="dlPaidUp">Paid-up letter</button>':'')
       + '<button class="btn ghost sm" id="dlEdit">Edit</button>'
       + (isOpen?'<button class="btn ghost sm" id="dlWriteOff">Write off</button>':'')
       + (r.status==="written-off"?'<button class="btn ghost sm" id="dlReopen">Reopen</button>':'')
@@ -1540,7 +1544,9 @@ td.r,th.r{text-align:right}
     h+='<div class="dsect">Position</div>'
       + frow("Paid to date", money(r.paid), "num")
       + frow("Outstanding", money(r.outstanding), "num")
-      + frow("Revenue earned", money(r.revenueCollected), "num");
+      + frow("Revenue earned", money(r.revenueCollected), "num")
+      + (r.status==="paid" ? frow("Settled on", fmtDate(loanSettledOn(r)), "num") : "")
+      + (l.paidUpRef ? frow("Paid-up letter", esc(l.paidUpRef)+(l.paidUpIssuedAt?' · first issued '+fmtDate(l.paidUpIssuedAt):''), "num") : "");
     var cols=loanCollections(l).slice().sort(function(a,b){ return String(b.date).localeCompare(String(a.date))||String(b.createdAt||"").localeCompare(String(a.createdAt||"")); });
     if(cols.length||isOpen){
       var ps=promiseStatus(r);
@@ -1573,6 +1579,7 @@ td.r,th.r{text-align:right}
     Array.prototype.forEach.call($("drawerBody").querySelectorAll("[data-cdel2]"),function(b){ b.addEventListener("click",function(){ deleteContact(id, b.getAttribute("data-cdel2")); }); });
     var dw=$("dlWriteOff"); if(dw) dw.addEventListener("click",function(){ setLoanStatus(id,"written-off"); });
     var dro=$("dlReopen"); if(dro) dro.addEventListener("click",function(){ setLoanStatus(id,"active"); });
+    var dpu=$("dlPaidUp"); if(dpu) dpu.addEventListener("click",function(){ openPaidUpLetter(id); });
     $("dlEdit").addEventListener("click",function(){ openLoanForm(l); });
     $("dlDelete").addEventListener("click",function(){ deleteLoan(id); });
     Array.prototype.forEach.call($("drawerBody").querySelectorAll("[data-pdel]"),function(b){ b.addEventListener("click",function(){ deletePayment(b.getAttribute("data-pdel"), id); }); });
@@ -1882,7 +1889,8 @@ td.r,th.r{text-align:right}
       if(k==="extensions"){ out.push("rolled over"); return; }
       if(k==="collections"){ out.push("collection note "+((Array.isArray(b)?b.length:0)>(Array.isArray(a)?a.length:0)?"added":"removed")); return; }
       if(k==="status"){ out.push(b==="written-off"?"written off":(a==="written-off"?"reopened":"status "+fieldVal(k,a)+" → "+fieldVal(k,b))); return; }
-      if(k==="writtenOffAt"||k==="reopenedAt"||k==="ref") return;
+      if(k==="paidUpRef"){ out.push("paid-up letter "+fieldVal(k,b)+" issued"); return; }
+      if(k==="writtenOffAt"||k==="reopenedAt"||k==="ref"||k==="paidUpIssuedAt") return;
       out.push((FIELD_NAMES[k]||k)+" "+fieldVal(k,a)+" → "+fieldVal(k,b));
     });
     return out;
@@ -1905,7 +1913,7 @@ td.r,th.r{text-align:right}
       var SETTING_NAMES={provisionRates:"provision rates",projection:"projection settings",currency:"currency",companyName:"company name",company:"company details",signatureDataUrl:"signature",startingCapital:"starting capital"};
       var backupOnly=ks.length && ks.every(function(k){ return k==="lastBackupAt"||k==="lastBackupCount"; });
       if(backupOnly && !d.lastRestore && sa.lastBackupAt) lines.push("Backup downloaded");
-      else if(!backupOnly && ks.length){ var named=ks.filter(function(k){ return k!=="lastBackupAt"&&k!=="lastBackupCount"; }).map(function(k){ return SETTING_NAMES[k]||k; });
+      else if(!backupOnly && ks.length){ var named=ks.filter(function(k){ return k!=="lastBackupAt"&&k!=="lastBackupCount"&&k!=="paidUpLetterSeq"; }).map(function(k){ return SETTING_NAMES[k]||k; });
         if(named.length) lines.push((named.length===1&&named[0]==="provision rates"?"Provision rates":"Settings")+" changed"+(named.length===1&&named[0]==="provision rates"?"":": "+named.join(", "))); }
     }
     return lines.length?lines:["Saved with no visible change"];
@@ -2243,6 +2251,128 @@ td.r,th.r{text-align:right}
     });
     return keys.map(function(k){ return out[k]; });
   }
+
+  // ---- paid-up letter ----
+  // A print-ready settlement letter for a fully repaid loan, on the company
+  // letterhead, straight from the book (the same letter the phone app issued).
+  // The first issue gives the loan a permanent reference (QS-PUL-YYYY-NNNN),
+  // saved in the book, so a re-issued letter keeps the same number.
+  function loanRef(l){ return l.ref || "QSL-"+String(l.id).replace(/[^a-z0-9]/gi,"").slice(-6).toUpperCase(); }
+  function loanSettledOn(r){
+    var pays=(state.payments||[]).filter(function(p){ return p.loanId===r.loan.id; }).sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+    return settledOn(r,pays)||r.loan.dueDate;
+  }
+  function stampSvg(co){
+    var top=esc(co.legalName.toUpperCase()), bottom=esc((co.town||"").toUpperCase()+" · NAMIBIA");
+    return '<svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" style="width:96px;height:96px">'
+      + '<defs><path id="stTop" d="M 52,160 A 108,108 0 0 1 268,160"/><path id="stBot" d="M 56,160 A 104,104 0 0 0 264,160"/></defs>'
+      + '<g transform="rotate(-7 160 160)" fill="#0a5b54" stroke="#0a5b54">'
+      + '<circle cx="160" cy="160" r="146" fill="none" stroke-width="5"/><circle cx="160" cy="160" r="120" fill="none" stroke-width="2.5"/>'
+      + '<text font-family="Arial, sans-serif" font-weight="700" font-size="15.5" letter-spacing="0.5" stroke="none"><textPath href="#stTop" startOffset="50%" text-anchor="middle">'+top+'</textPath></text>'
+      + '<text font-family="Arial, sans-serif" font-weight="700" font-size="16.5" letter-spacing="2" stroke="none"><textPath href="#stBot" startOffset="50%" text-anchor="middle">'+bottom+'</textPath></text>'
+      + '<circle cx="30.5" cy="160" r="3.2" stroke="none"/><circle cx="289.5" cy="160" r="3.2" stroke="none"/>'
+      + '<g stroke="none" text-anchor="middle" font-family="Arial, sans-serif">'
+      + '<line x1="92" y1="132" x2="228" y2="132" stroke="#0a5b54" stroke-width="2"/>'
+      + '<text x="160" y="152" font-weight="700" font-size="15.5">t/a QUICKSERVE</text><text x="160" y="171" font-weight="700" font-size="15.5">CASHLOAN</text>'
+      + '<text x="160" y="192" font-weight="600" font-size="12.5">Reg. '+esc(co.cc)+'</text>'
+      + '<line x1="92" y1="204" x2="228" y2="204" stroke="#0a5b54" stroke-width="2"/></g></g></svg>';
+  }
+  function paidUpLetterHtml(r){
+    var co=company(), l=r.loan, cl=client(l.clientId), today=todayISO(), settled=loanSettledOn(r);
+    var ref=l.paidUpRef||"(not yet issued)", name=cl?cl.name:"the client named below";
+    var sig=String((state.settings||{}).signatureDataUrl||"");
+    if(!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/.test(sig)) sig="";
+    function row(k,v){ return '<tr><td class="k">'+esc(k)+'</td><td>'+v+'</td></tr>'; }
+    function row2(k1,v1,k2,v2){ return '<tr><td class="k">'+esc(k1)+'</td><td>'+v1+'</td><td class="k">'+esc(k2)+'</td><td>'+v2+'</td></tr>'; }
+    var biz=[ '<div><strong>'+esc(co.legalName)+'</strong>'+(co.cc?' · Reg. No. '+esc(co.cc):'')+'</div>' ];
+    if(co.namfisa) biz.push('<div>NAMFISA Reg. No. '+esc(co.namfisa)+'</div>');
+    var addr=[co.address,co.postal].filter(Boolean).join(" · "); if(addr) biz.push('<div>'+esc(addr)+'</div>');
+    var con=[co.cell?"Cell "+co.cell:"", co.whatsapp?"WhatsApp "+co.whatsapp:"", co.email].filter(Boolean).join(" · "); if(con) biz.push('<div>'+esc(con)+'</div>');
+    var verifyOn=co.whatsapp||co.cell||co.email;
+    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+      + '<title>Paid-up letter — '+esc(cl?cl.name:"Client")+'</title><style>'
+      + '@page{size:A4;margin:13mm 15mm 11mm}*{box-sizing:border-box}'
+      + 'body{font-family:Georgia,"Times New Roman",serif;color:#222;font-size:10.3pt;line-height:1.42;margin:0;background:#eef0ee}'
+      + '.sheet{background:#fff;max-width:190mm;margin:12px auto;padding:14mm 15mm;box-shadow:0 2px 14px rgba(0,0,0,.14)}'
+      + '.head{display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:1.5px solid #9a9a9a;padding-bottom:7px}'
+      + '.qs-logo{display:block;height:46px;width:auto}.qs-logo .k{fill:#053437}.qs-logo .g{fill:#12b84f}.qs-logo .m{fill:#243437}.qs-logo .r{stroke:#053437}'
+      + '.biz{text-align:right;font-size:8pt;color:#555;line-height:1.6}.biz strong{color:#1a1a1a;font-size:8.8pt}'
+      + 'h1{text-align:center;font-size:13.5pt;letter-spacing:.3px;margin:13px 0 2px;text-transform:uppercase}'
+      + '.whom{font-weight:700;margin:9px 0 5px}'
+      + 'table{width:100%;border-collapse:collapse;margin:4px 0 8px;font-size:9.8pt}td{border:.8px solid #cfcfcf;padding:3px 8px;vertical-align:top}td.k{width:42%;color:#333}table.four td.k{width:21%}table.four td{width:29%}'
+      + 'h2{font-size:10.6pt;margin:11px 0 4px;border-bottom:1px solid #bbb;padding-bottom:2px;break-after:avoid}p{margin:0 0 5px}'
+      + '.sign{margin-top:14px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;break-inside:avoid}.sign .who{min-width:230px}'
+      + '.sig-img{height:50px;display:block;margin:0 0 -6px 4px}.sig-line{width:230px;height:40px}.muted{color:#666;font-size:9pt}'
+      + '.foot{margin-top:8px;font-style:italic;color:#444;font-size:9pt}'
+      + '.bar{position:sticky;top:0;background:#0a1c14;color:#fff;padding:10px 14px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;font-family:system-ui,sans-serif}'
+      + '.bar button{font:inherit;font-size:13px;background:#12b84f;color:#06302e;font-weight:700;border:0;border-radius:8px;padding:9px 18px;cursor:pointer}.bar span{font-size:12px;opacity:.85}'
+      + '@media print{body{background:#fff}.bar{display:none}.sheet{box-shadow:none;margin:0;max-width:none;padding:0}}'
+      + '</style></head><body>'
+      + '<div class="bar"><button onclick="window.print()">Print / Save as PDF</button><span>Print it, sign it by hand, or choose “Save as PDF”.</span></div>'
+      + '<div class="sheet">'
+      + '<div class="head"><div>'+logoSvg()+'</div><div class="biz">'+biz.join("")+'</div></div>'
+      + '<h1>Paid-up letter and confirmation of settlement</h1>'
+      + '<p class="whom">TO WHOM IT MAY CONCERN</p>'
+      + '<table class="four">'+row2("Letter reference",'<strong>'+esc(ref)+'</strong>',"Date of issue",esc(fmtLong(today)))
+        + row2("Issued at",esc(co.town||"")+", Namibia","Issued by",esc(co.officer)+(co.officerCapacity?", "+esc(co.officerCapacity):""))+'</table>'
+      + '<h2>1. What this letter confirms</h2>'
+      + '<p>This letter confirms that <strong>'+esc(name)+'</strong> has repaid, in full, the loan granted by '+esc(co.legalName)+(co.tradingAs?' trading as '+esc(co.tradingAs):'')+', and that the account is closed. Everything stated here is taken directly from our loan records as at the date of issue.</p>'
+      + '<h2>2. The client this letter is about</h2>'
+      + '<table>'+row("Full name",esc(cl?cl.name:""))+row("Namibian identity number",esc(cl&&cl.nationalId?cl.nationalId:"—"))+row("Client reference",esc(cl&&cl.ref?cl.ref:"—"))+'</table>'
+      + '<h2>3. The loan</h2>'
+      + '<table class="four">'+row2("Loan reference",esc(loanRef(l)),"Money paid out on",esc(fmtLong(l.issueDate)))
+        + row2("Principal advanced",esc(money(l.principal)),"Total amount payable",esc(money(r.totalDue)))
+        + row2("Total amount paid",esc(money(r.paid)),"Final payment on",esc(fmtLong(settled)))+'</table>'
+      + '<h2>4. Settlement in full</h2>'
+      + '<table>'+row("Balance now outstanding",'<strong>'+esc(money(0))+'</strong>')+'</table>'
+      + '<p>No principal, no interest, no service fee, no default interest, no collection charge and no other amount of any kind remains payable by the client to '+esc(co.tradingAs||co.legalName)+' on this loan. The account is <strong>closed with effect from '+esc(fmtLong(settled))+'</strong>.</p>'
+      + '<h2>5. No security or collateral is held</h2>'
+      + '<p>'+esc(co.tradingAs||co.legalName)+' does not take any collateral or security for its loans, and did not take any for this loan. We do not hold this client\'s bank card, PIN, or any original identity document — this is prohibited by the Microlending Act 7 of 2018.</p>'
+      + '<h2>6. How to verify this letter</h2>'
+      + '<p>Any person given this letter may verify it by contacting '+esc(co.tradingAs||co.legalName)+(verifyOn?' on '+esc(verifyOn):'')+' and quoting the letter reference above. A genuine letter carries the reference number, a signature, and the stamp below.</p>'
+      + '<div class="sign"><div class="who">'+(sig?'<img class="sig-img" src="'+sig+'" alt="Signature">':'<div class="sig-line"></div>')
+        + '<div style="border-top:1px solid #555;padding-top:4px"><strong>'+esc(co.officer)+'</strong><br><span class="muted">'+esc([co.officerCapacity,co.legalName].filter(Boolean).join(" · "))+'</span><br>'
+        + '<span class="muted">Date: '+esc(fmtLong(today))+' · '+esc(co.town||"")+'</span></div></div><div>'+stampSvg(co)+'</div></div>'
+      + '<p class="foot">This letter is not valid unless it is signed and stamped.</p>'
+      + '</div></body></html>';
+  }
+  function openPaidUpLetter(loanId){
+    var r=rows.find(function(x){ return x.loan.id===loanId; }); if(!r) return;
+    if(r.status!=="paid"){ toast("This loan isn't fully repaid yet, so a paid-up letter can't be issued.","err"); return; }
+    var cl=client(r.loan.clientId), slug=String(cl?cl.name:"client").replace(/[^a-z0-9]+/gi,"-").toLowerCase();
+    // Open the tab during the click so pop-up blockers allow it; fill it once ready.
+    var w=null; try{ w=window.open("","_blank"); }catch(e){ w=null; }
+    if(w){ try{ w.document.write('<p style="font:14px system-ui,sans-serif;padding:24px">Preparing the paid-up letter…</p>'); }catch(e){} }
+    function show(){
+      var rr=rows.find(function(x){ return x.loan.id===loanId; })||r, html=paidUpLetterHtml(rr);
+      if(w&&!w.closed){ w.document.open(); w.document.write(html); w.document.close(); }
+      else if(downloadFile("paid-up-letter-"+slug+".html", html, "text/html")) toast("Pop-up blocked — the letter was downloaded. Open it and print or save as PDF.");
+    }
+    if(r.loan.paidUpRef){ show(); return; }
+    toast("Issuing letter…");
+    saveLedger(function(data){
+      var x=data.loans.find(function(y){ return y.id===loanId; }); if(!x||x.paidUpRef) return;
+      if(!data.settings||typeof data.settings!=="object") data.settings={};
+      var seq=(Number(data.settings.paidUpLetterSeq)||0)+1; data.settings.paidUpLetterSeq=seq;
+      x.paidUpRef="QS-PUL-"+todayISO().slice(0,4)+"-"+String(seq).padStart(4,"0");
+      x.paidUpIssuedAt=todayISO();
+    }).then(function(res){
+      if(res.auth===false){ if(w) w.close(); signOut(); return; }
+      if(res.error){ if(w) w.close(); toast(res.error==="busy"?"Someone changed the book just now — try again.":"Couldn't issue the letter ("+esc(res.error)+").","err"); return; }
+      toast("Paid-up letter "+((rows.find(function(x){ return x.loan.id===loanId; })||{loan:{}}).loan.paidUpRef||"")+" issued.");
+      render(); show();
+    });
+  }
+  // From a client: the only settled loan, or a choice when there are several.
+  function openClientPaidUp(clientId){
+    var settled=rows.filter(function(r){ return r.loan.clientId===clientId && r.status==="paid"; })
+      .sort(function(a,b){ return String(loanSettledOn(b)).localeCompare(String(loanSettledOn(a))); });
+    if(!settled.length){ toast("This client has no fully repaid loan yet.","err"); return; }
+    if(settled.length===1){ openPaidUpLetter(settled[0].loan.id); return; }
+    var body='<p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">'+esc(clientName(clientId))+' has repaid '+settled.length+' loans. Choose the loan the letter is for.</p>'
+      + '<div class="field"><label>Loan</label><select id="f_pul">'+settled.map(function(r){ return '<option value="'+esc(r.loan.id)+'">'+esc(loanRef(r.loan))+' · '+esc(money(r.loan.principal))+' · paid out '+esc(fmtDate(r.loan.issueDate))+' · settled '+esc(fmtDate(loanSettledOn(r)))+(r.loan.paidUpRef?' · '+esc(r.loan.paidUpRef):'')+'</option>'; }).join("")+'</select></div>';
+    openModal("Paid-up letter", body, "Open letter", function(){ var id=fval("f_pul"); closeModal(); openPaidUpLetter(id); });
+  }
   function clientOptionsHtml(sel){
     return state.clients.slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"");})
       .map(function(c){ return '<option value="'+esc(c.id)+'"'+(c.id===sel?" selected":"")+'>'+esc(c.name||"—")+'</option>'; }).join("");
@@ -2536,7 +2666,7 @@ td.r,th.r{text-align:right}
     try{ if(sessionStorage.getItem("qs_idle_signout")){ sessionStorage.removeItem("qs_idle_signout"); msg("Signed out after 20 minutes without activity.",""); } }catch(e){}
   }
 
-  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm, creditScores:creditScores, clientScore:clientScore, bookByGrade:bookByGrade, openScoreHelp:openScoreHelp, company:company, openCompanyForm:openCompanyForm, printHead:printHead };
+  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm, creditScores:creditScores, clientScore:clientScore, bookByGrade:bookByGrade, openScoreHelp:openScoreHelp, company:company, openCompanyForm:openCompanyForm, printHead:printHead, openPaidUpLetter:openPaidUpLetter, openClientPaidUp:openClientPaidUp, paidUpLetterHtml:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); return r?paidUpLetterHtml(r):""; } };
   paintLetterhead();
 })();
 </script>

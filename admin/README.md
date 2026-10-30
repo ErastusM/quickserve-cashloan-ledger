@@ -62,6 +62,15 @@ screen:
   even when the screen is in dark mode. The details live under **Settings →
   Company details → Edit** (saved in the book, so every device prints the
   same); add the NAMFISA registration number there once you have it.
+- **Paid-up letters** — for a fully repaid loan, **Paid-up letter** in the loan
+  drawer (or in the client drawer, which asks which loan if there are several)
+  opens a one-page A4 settlement letter on the letterhead: letter reference,
+  client name, ID number and client reference, the loan's figures, the date of
+  the final payment, "balance now outstanding N$ 0.00", the no-security clause
+  and the company stamp, with a line to sign by hand. Print it or save it as a
+  PDF. The first issue gives the loan a permanent number (QS-PUL-YYYY-NNNN,
+  saved in the book and shown in the loan drawer), so a re-issued letter keeps
+  the same reference.
 - **Credit score** — every client gets a score out of 100 and a grade
   (A excellent · B good · C fair · D weak · E high risk; *New* when there is no
   history yet), worked out from how they have repaid QuickServe: loans repaid
