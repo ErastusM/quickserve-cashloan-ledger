@@ -2288,7 +2288,7 @@ td.r,th.r{text-align:right}
     if(co.namfisa) biz.push('<div>NAMFISA Reg. No. '+esc(co.namfisa)+'</div>');
     var addr=[co.address,co.postal].filter(Boolean).join(" · "); if(addr) biz.push('<div>'+esc(addr)+'</div>');
     var con=[co.cell?"Cell "+co.cell:"", co.whatsapp?"WhatsApp "+co.whatsapp:"", co.email].filter(Boolean).join(" · "); if(con) biz.push('<div>'+esc(con)+'</div>');
-    var verifyOn=co.whatsapp||co.cell||co.email;
+    var verifyOn=co.cell||co.whatsapp||co.email;   // the owner's cellphone first
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
       + '<title>Paid-up letter — '+esc(cl?cl.name:"Client")+'</title><style>'
       + '@page{size:A4;margin:13mm 15mm 11mm}*{box-sizing:border-box}'
