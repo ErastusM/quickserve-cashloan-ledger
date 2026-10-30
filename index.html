@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<meta name="qs-build" content="2026-10-30-0fa78e7" />
+<meta name="qs-build" content="2026-10-30-d151bf5" />
 <title>QuickServe — Administration Console</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Quickserve"%3E %3Crect width="96" height="96" rx="20" fill="#053437"/%3E %3Cpath d="M14 43h19v5H14zM19 31h25v5H19zM24 55h25v5H24z" fill="#12b84f"/%3E %3Cpath d="M49 22h24c6.5 0 11.7 5.2 11.7 11.7v2.2H70v-.5c0-1.5-1.1-2.6-2.6-2.6H49.6c-8.7 0-15.2 6.6-15.2 15.2s6.5 15.2 15.2 15.2h17.8c1.5 0 2.6-1.1 2.6-2.6v-.5h14.7v2.2C84.7 68.8 79.5 74 73 74H49c-18.1 0-32.8-11.5-32.8-26S30.9 22 49 22z" fill="#fff"/%3E %3Cpath d="M56 42h16l18 32H73L65 59H51z" fill="#fff"/%3E %3Cpath d="M64 22h26L80 37H62c-3.2 0-5.1 1.8-5.1 4s1.9 4 5.1 4h12c12.6 0 20 6.4 20 15.3C94 69 86.2 74 75 74H52l9.8-15h14.1c3.1 0 5.1-1.7 5.1-4s-2-4-5.1-4H64c-12.7 0-20.1-6.3-20.1-15.2C43.9 27.1 51.7 22 64 22z" fill="#12b84f"/%3E %3C/svg%3E" />
 <style>
@@ -688,6 +688,41 @@ body.doc-open{overflow:hidden}
       .sort(function(a,b){ return b.amt-a.amt; });
   }
   function missingKyc(){ return state.clients.filter(function(c){ return !String(c.nationalId||"").trim(); }); }
+  // ---- reference numbers ----
+  // Clients carry QS-0001…, loans QSL-0001… (the phone app's scheme). A number is
+  // stored on the record and never recomputed, so deleting one never renumbers
+  // the others. New records get the next number; any record without one is
+  // numbered in the order it was created.
+  function refNumber(ref){ var m=String(ref||"").match(/(\d+)/); return m?Number(m[1]):0; }
+  function formatRef(prefix,n){ return prefix+"-"+String(n).padStart(4,"0"); }
+  function assignRefs(list, prefix){
+    var top=(list||[]).reduce(function(mx,x){ return Math.max(mx, refNumber(x.ref)); },0), added=[];
+    (list||[]).filter(function(x){ return !x.ref; })
+      .sort(function(a,b){ return String(a.createdAt||a.issueDate||"").localeCompare(String(b.createdAt||b.issueDate||"")); })
+      .forEach(function(x){ x.ref=formatRef(prefix,++top); added.push(x.ref); });
+    return added;
+  }
+  function assignMissingRefs(data){
+    return { clients:assignRefs(data.clients,"QS"), loans:assignRefs(data.loans,"QSL") };
+  }
+  function missingRefCount(){
+    return (state.clients||[]).filter(function(c){ return !c.ref; }).length + (state.loans||[]).filter(function(l){ return !l.ref; }).length;
+  }
+  // Once per sign-in: give numbers to records that were added without one.
+  var refsFilling=false;
+  function fillMissingRefs(){
+    if(refsFilling||!missingRefCount()) return;
+    refsFilling=true;
+    var added=null;
+    saveLedger(function(data){ added=assignMissingRefs(data); }).then(function(res){
+      refsFilling=false;
+      if(!res||!res.ok||!added) return;
+      var n=added.loans.length, m=added.clients.length; if(!n&&!m) return;
+      toast("Reference numbers added to "+[n?n+" loan"+(n===1?"":"s"):"", m?m+" client"+(m===1?"":"s"):""].filter(Boolean).join(" and ")+".");
+      render();
+    });
+  }
+
   function clientAgg(id){
     var mine=rows.filter(function(r){return r.loan.clientId===id;});
     var pays=(state.payments||[]).filter(function(p){ return state.loans.some(function(l){return l.id===p.loanId && l.clientId===id;}); });
@@ -1162,13 +1197,13 @@ body.doc-open{overflow:hidden}
   // ---- clients ----
   function renderClients(c){
     var q=ui.clientQ.toLowerCase();
-    var list=state.clients.filter(function(cl){ return [cl.name,cl.phone,cl.nationalId,cl.employer].join(" ").toLowerCase().indexOf(q)>=0; })
+    var list=state.clients.filter(function(cl){ return [cl.name,cl.ref,cl.phone,cl.nationalId,cl.employer].join(" ").toLowerCase().indexOf(q)>=0; })
       .sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
     setSub(list.length+" of "+state.clients.length);
     var body=list.map(function(cl){
       var ag=clientAgg(cl.id), sc=clientScore(cl.id);
       var idcell = String(cl.nationalId||"").trim() ? '<span class="mono">'+esc(cl.nationalId)+'</span>' : '<span class="miss">Missing</span>';
-      return '<tr class="rowlink" data-client="'+esc(cl.id)+'"><td class="who-cell"><b>'+esc(cl.name||"—")+'</b><span>'+esc(cl.phone||"no phone")+'</span></td>'
+      return '<tr class="rowlink" data-client="'+esc(cl.id)+'"><td class="who-cell"><b>'+esc(cl.name||"—")+'</b><span>'+esc([cl.ref, cl.phone||"no phone"].filter(Boolean).join(" · "))+'</span></td>'
         +'<td style="white-space:nowrap">'+gradeBadge(sc)+(sc&&!sc.isNew?'<span class="gscore">'+sc.score+'</span>':'')+'</td>'
         +'<td>'+idcell+'</td><td>'+esc(cl.employer||"—")+'</td>'
         +'<td class="r num">'+ag.openCount+'</td>'
@@ -1188,12 +1223,12 @@ body.doc-open{overflow:hidden}
     var q=ui.loanQ.toLowerCase(), f=ui.loanFilter;
     var list=rows.filter(function(r){
       var st = f==="all" || r.status===f || (f==="open"&&(r.status==="active"||r.status==="overdue"));
-      var hit=[clientName(r.loan.clientId),r.loan.purpose,r.status,r.loan.principal].join(" ").toLowerCase().indexOf(q)>=0;
+      var hit=[clientName(r.loan.clientId),r.loan.ref,r.loan.purpose,r.status,r.loan.principal].join(" ").toLowerCase().indexOf(q)>=0;
       return st&&hit;
     }).sort(function(a,b){ return String(a.loan.dueDate).localeCompare(String(b.loan.dueDate)); });
     setSub(list.length+" loan"+(list.length===1?"":"s"));
     var body=list.map(function(r){
-      return '<tr class="rowlink" data-loan="'+esc(r.loan.id)+'"><td class="who-cell"><b>'+esc(clientName(r.loan.clientId))+'</b><span>'+esc(r.loan.purpose||"—")+'</span></td>'
+      return '<tr class="rowlink" data-loan="'+esc(r.loan.id)+'"><td class="who-cell"><b>'+esc(clientName(r.loan.clientId))+'</b><span>'+esc([r.loan.ref, r.loan.purpose].filter(Boolean).join(" · ")||"—")+'</span></td>'
         +'<td class="r num">'+money(r.loan.principal)+'</td>'
         +'<td class="num">'+fmtDate(r.loan.issueDate)+'</td>'
         +'<td class="num">'+fmtDate(r.loan.dueDate)+'</td>'
@@ -1480,7 +1515,7 @@ body.doc-open{overflow:hidden}
   function openClient(id){
     var cl=client(id); if(!cl) return;
     var ag=clientAgg(id);
-    drawerHead("Client","" + (cl.name||"—"));
+    drawerHead("Client"+(cl.ref?" · "+cl.ref:""),"" + (cl.name||"—"));
     var phone=String(cl.phone||"").trim();
     var idv = phone.replace(/[^\d+]/g,"");
     var h='<div class="drawer-actions">'
@@ -1529,7 +1564,7 @@ body.doc-open{overflow:hidden}
     var r=rows.find(function(x){return x.loan.id===id;}); if(!r) return;
     var l=r.loan, cl=client(l.clientId);
     var pays=(state.payments||[]).filter(function(p){return p.loanId===id;}).sort(function(a,b){return String(b.date).localeCompare(String(a.date));});
-    drawerHead("Loan · "+pillTxt(r.status), clientName(l.clientId));
+    drawerHead("Loan"+(l.ref?" · "+l.ref:"")+" · "+pillTxt(r.status), clientName(l.clientId));
     var days=daysUntil(l.dueDate);
     var termNote = r.status==="paid" ? "settled" : (days<0 ? (-days)+" days overdue" : days+" days remaining");
     var isOpen=(r.status==="active"||r.status==="overdue");
@@ -1919,6 +1954,13 @@ body.doc-open{overflow:hidden}
     if(row.action==="insert") return ["Loan book created"];
     if(row.action==="delete") return ["Loan book deleted (a full copy was kept as a version)"];
     if(d.lastRestore){ var lr=d.lastRestore; lines.push(lr.from==="file"?"Restored the whole book from a backup file"+(lr.exportedAt?" ("+fmtDateTime(lr.exportedAt)+")":""):"Restored the whole book to version "+lr.rev); }
+    var numbered={};
+    Object.keys(KIND_NOUN).forEach(function(kind){
+      var x=d[kind]; if(!x) return;
+      (x.changed||[]).forEach(function(ch){ if(ch.after&&ch.after.ref&&!(ch.before&&ch.before.ref)) (numbered[kind]=numbered[kind]||[]).push(ch.after.ref); });
+    });
+    var numParts=Object.keys(numbered).map(function(kind){ var r=numbered[kind].slice().sort(); return r.length+" "+KIND_NOUN[kind]+(r.length===1?"":"s")+" ("+(r.length===1?r[0]:r[0]+" to "+r[r.length-1])+")"; });
+    if(numParts.length) lines.push("Reference numbers added: "+numParts.join(", "));
     Object.keys(KIND_NOUN).forEach(function(kind){
       var x=d[kind]; if(!x) return;
       (x.added||[]).forEach(function(r){ lines.push("Added "+KIND_NOUN[kind]+": "+recLabel(kind,r)); });
@@ -2104,7 +2146,7 @@ body.doc-open{overflow:hidden}
       if(nid.replace(/\s/g,"").length<6){ ferr("Enter the client's ID or passport number — it's required."); return; }
       var rec={ name:name, phone:phone, nationalId:nid, employer:cleanText(fval("f_emp")), address:cleanText(fval("f_addr")), nextOfKin:cleanText(fval("f_kin")), notes:cleanText(fval("f_notes")) };
       if(cl) commit(function(data){ var c=data.clients.find(function(x){return x.id===cl.id;}); if(c) Object.assign(c, rec); }, "Client updated.");
-      else commit(function(data){ data.clients.push(Object.assign({ id:uid("client"), createdAt:new Date().toISOString() }, rec)); }, "Client added.");
+      else commit(function(data){ data.clients.push(Object.assign({ id:uid("client"), createdAt:new Date().toISOString() }, rec)); assignMissingRefs(data); }, "Client added.");
     });
   }
   // ---- credit score: how a client has repaid us ----
@@ -2434,6 +2476,7 @@ body.doc-open{overflow:hidden}
     toast("Issuing letter…");
     saveLedger(function(data){
       var x=data.loans.find(function(y){ return y.id===loanId; }); if(!x||x.paidUpRef) return;
+      assignMissingRefs(data);
       if(!data.settings||typeof data.settings!=="object") data.settings={};
       var seq=(Number(data.settings.paidUpLetterSeq)||0)+1; data.settings.paidUpLetterSeq=seq;
       x.paidUpRef="QS-PUL-"+todayISO().slice(0,4)+"-"+String(seq).padStart(4,"0");
@@ -2501,7 +2544,7 @@ body.doc-open{overflow:hidden}
       var rec={ clientId:clientId, principal:principal, interestRate:rate, serviceFee:fee, issueDate:issue2, dueDate:dueD, purpose:cleanText(fval("f_purpose")), accountId:fval("f_lacct") };
       ui.lastAccount=rec.accountId;
       if(loan) commit(function(data){ var l=data.loans.find(function(x){return x.id===loan.id;}); if(l) Object.assign(l, rec); }, "Loan updated.");
-      else commit(function(data){ data.loans.push(Object.assign({ id:uid("loan"), createdAt:new Date().toISOString(), status:"active" }, rec)); }, "Loan created.");
+      else commit(function(data){ data.loans.push(Object.assign({ id:uid("loan"), createdAt:new Date().toISOString(), status:"active" }, rec)); assignMissingRefs(data); }, "Loan created.");
     });
     if(!loan){
       var hint=function(){
@@ -2727,6 +2770,7 @@ body.doc-open{overflow:hidden}
       analyse();
       var r=(location.hash||"#dashboard").replace("#",""); if(!TITLES[r]) r="dashboard";
       go(r);
+      fillMissingRefs();
     });
   }
   function signOut(){
@@ -2779,7 +2823,7 @@ body.doc-open{overflow:hidden}
     try{ if(sessionStorage.getItem("qs_idle_signout")){ sessionStorage.removeItem("qs_idle_signout"); msg("Signed out after 20 minutes without activity.",""); } }catch(e){}
   }
 
-  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm, creditScores:creditScores, clientScore:clientScore, bookByGrade:bookByGrade, openScoreHelp:openScoreHelp, company:company, openCompanyForm:openCompanyForm, printHead:printHead, openPaidUpLetter:openPaidUpLetter, explainNotSettled:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); if(r) explainNotSettled(r); }, showUpdateBar:showUpdateBar, build:function(){ return BUILD; }, openClientPaidUp:openClientPaidUp, paidUpLetterHtml:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); return r?paidUpLetterHtml(r):""; }, trimmedSignature:trimmedSignature, closeDocument:closeDocument };
+  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm, creditScores:creditScores, clientScore:clientScore, bookByGrade:bookByGrade, openScoreHelp:openScoreHelp, assignMissingRefs:function(d){ return assignMissingRefs(d); }, missingRefCount:missingRefCount, company:company, openCompanyForm:openCompanyForm, printHead:printHead, openPaidUpLetter:openPaidUpLetter, explainNotSettled:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); if(r) explainNotSettled(r); }, showUpdateBar:showUpdateBar, build:function(){ return BUILD; }, openClientPaidUp:openClientPaidUp, paidUpLetterHtml:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); return r?paidUpLetterHtml(r):""; }, trimmedSignature:trimmedSignature, closeDocument:closeDocument };
   paintLetterhead();
 })();
 </script>
