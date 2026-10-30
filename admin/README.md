@@ -62,6 +62,11 @@ screen:
   even when the screen is in dark mode. The details live under **Settings →
   Company details → Edit** (saved in the book, so every device prints the
   same); add the NAMFISA registration number there once you have it.
+- **Reference numbers** — every client has a QS- number and every loan a QSL-
+  number (QS-0001…, QSL-0001…, the same scheme as the phone app). New clients
+  and loans get the next number automatically; any record saved without one is
+  numbered once, in the order it was created, the next time the console opens.
+  Numbers show in the lists and drawers and can be searched.
 - **Paid-up letters** — **Paid-up letter** in the loan drawer (or in the
   client drawer, which asks which loan if there are several). If the book
   doesn't show the loan as fully repaid yet, it says how much is still owed and
