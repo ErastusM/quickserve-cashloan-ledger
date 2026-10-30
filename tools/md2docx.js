@@ -282,7 +282,7 @@ function header() {
       }),
       new Paragraph({
         children: [
-          new TextRun({ text: "Cell +264 81 281 9840   ·   WhatsApp +264 81 264 6222", size: 15, color: GREY, font: SERIF })
+          new TextRun({ text: "Cell & WhatsApp +264 81 281 9840", size: 15, color: GREY, font: SERIF })
         ],
         spacing: { after: 14 }
       }),

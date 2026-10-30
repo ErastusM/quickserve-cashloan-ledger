@@ -2439,7 +2439,7 @@ const BUSINESS = {
   postal: "P.O. Box 197, Swakopmund",
   email: "erastusmatheus3@gmail.com",
   cell: "+264 81 281 9840",
-  whatsapp: "+264 81 264 6222",
+  whatsapp: "+264 81 281 9840",
   town: "Swakopmund",
   officer: "Erastus Taapopi Matheus",
   officerCapacity: "Owner and Member"

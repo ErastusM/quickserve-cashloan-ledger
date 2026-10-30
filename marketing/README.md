@@ -18,7 +18,7 @@ under it:
 
 ```html
 <!-- ===== CONTACT NUMBER — edit this one line ===== -->
-<div class="digits">+264 81 264 6222</div>
+<div class="digits">+264 81 281 9840</div>
 ```
 
 Nothing else depends on it.

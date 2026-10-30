@@ -60,8 +60,8 @@ they matter most:
    confirmation, not stated as settled.
 
 Already filled in for you: the registered legal name (**Quickserve Financial Services
-CC**), the CC number (**CC/2026/01904**), and the phone/WhatsApp number
-(**+264 81 264 6222**). Everything still in **[HIGHLIGHTED SQUARE BRACKETS]** is a
+CC**), the CC number (**CC/2026/01904**), and the business phone/WhatsApp number
+(**+264 81 281 9840**). Everything still in **[HIGHLIGHTED SQUARE BRACKETS]** is a
 deliberate fill-in — most importantly the NAMFISA registration number, physical
 address, and email.
 
