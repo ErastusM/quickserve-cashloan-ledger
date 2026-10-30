@@ -62,9 +62,10 @@ screen:
   even when the screen is in dark mode. The details live under **Settings →
   Company details → Edit** (saved in the book, so every device prints the
   same); add the NAMFISA registration number there once you have it.
-- **Paid-up letters** — for a fully repaid loan, **Paid-up letter** in the loan
-  drawer (or in the client drawer, which asks which loan if there are several)
-  opens a one-page A4 settlement letter on the letterhead: letter reference,
+- **Paid-up letters** — **Paid-up letter** in the loan drawer (or in the
+  client drawer, which asks which loan if there are several). If the book
+  doesn't show the loan as fully repaid yet, it says how much is still owed and
+  offers to record the payment; for a fully repaid loan it opens a one-page A4 settlement letter on the letterhead: letter reference,
   client name, ID number and client reference, the loan's figures, the date of
   the final payment, "balance now outstanding N$ 0.00", the no-security clause
   and the company stamp, with a line to sign by hand. Print it or save it as a
@@ -197,8 +198,11 @@ Two services must accept requests coming from `https://admin.quickserve.group`:
 ## Updating the console later
 
 Nothing to do: merging a change into `main` republishes both copies (GitHub
-Pages and, through the `hostinger` branch and its webhook, Hostinger). Reload
-the page to get the new build. Data, logins and applications are untouched.
+Pages and, through the `hostinger` branch and its webhook, Hostinger). Each
+published copy is stamped with its build (date and commit, shown under
+**Settings → Cloud ledger → Console version**). When a newer build is online,
+the console shows "A newer version of the console is ready — Reload". Data,
+logins and applications are untouched.
 
 ## Security notes
 

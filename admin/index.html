@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
+<meta name="qs-build" content="dev" />
 <title>QuickServe — Administration Console</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Quickserve"%3E %3Crect width="96" height="96" rx="20" fill="#053437"/%3E %3Cpath d="M14 43h19v5H14zM19 31h25v5H19zM24 55h25v5H24z" fill="#12b84f"/%3E %3Cpath d="M49 22h24c6.5 0 11.7 5.2 11.7 11.7v2.2H70v-.5c0-1.5-1.1-2.6-2.6-2.6H49.6c-8.7 0-15.2 6.6-15.2 15.2s6.5 15.2 15.2 15.2h17.8c1.5 0 2.6-1.1 2.6-2.6v-.5h14.7v2.2C84.7 68.8 79.5 74 73 74H49c-18.1 0-32.8-11.5-32.8-26S30.9 22 49 22z" fill="#fff"/%3E %3Cpath d="M56 42h16l18 32H73L65 59H51z" fill="#fff"/%3E %3Cpath d="M64 22h26L80 37H62c-3.2 0-5.1 1.8-5.1 4s1.9 4 5.1 4h12c12.6 0 20 6.4 20 15.3C94 69 86.2 74 75 74H52l9.8-15h14.1c3.1 0 5.1-1.7 5.1-4s-2-4-5.1-4H64c-12.7 0-20.1-6.3-20.1-15.2C43.9 27.1 51.7 22 64 22z" fill="#12b84f"/%3E %3C/svg%3E" />
 <style>
@@ -247,6 +248,9 @@ td.r,th.r{text-align:right}
 .repbar{height:6px; background:var(--inset); border-radius:999px; overflow:hidden; min-width:70px}
 .repbar i{display:block; height:100%; background:var(--accent)}
 .pos-print,.pos-foot{display:none}
+#updBar{position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:95; background:var(--accent); color:#fff; padding:10px 12px 10px 16px; border-radius:9px; box-shadow:0 14px 44px rgba(0,0,0,.35); font-size:13px; display:flex; gap:12px; align-items:center; max-width:92vw}
+#updBar button{font:inherit; font-weight:600; background:#fff; color:var(--accent); border:0; border-radius:6px; padding:6px 12px; cursor:pointer}
+@media print{ #updBar{display:none} }
 
 /* ---------- settings ---------- */
 .setgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:16px}
@@ -471,7 +475,7 @@ td.r,th.r{text-align:right}
   var COMPANY_DEFAULTS={
     legalName:"Quickserve Financial Services CC", tradingAs:"QuickServe Cashloan", cc:"CC/2026/01904", namfisa:"",
     address:"3403 Danger Ashipala Street, Swakopmund, Namibia", postal:"P.O. Box 197, Swakopmund", town:"Swakopmund",
-    cell:"+264 81 281 9840", whatsapp:"+264 81 264 6222", email:"erastusmatheus3@gmail.com", website:"",
+    cell:"+264 81 281 9840", whatsapp:"+264 81 281 9840", email:"erastusmatheus3@gmail.com", website:"",
     officer:"Erastus Taapopi Matheus", officerCapacity:"Owner and Member"
   };
   var COMPANY_FIELDS=[
@@ -483,6 +487,12 @@ td.r,th.r{text-align:right}
     Object.keys(COMPANY_DEFAULTS).forEach(function(k){ out[k]=Object.prototype.hasOwnProperty.call(saved,k)?cleanText(saved[k]):COMPANY_DEFAULTS[k]; });
     if(!out.legalName) out.legalName=COMPANY_DEFAULTS.legalName;
     return out;
+  }
+  // "Cell & WhatsApp …" when both are the same business number, else both.
+  function phoneLine(co){
+    var digits=function(v){ return String(v||"").replace(/\D/g,""); };
+    if(co.cell&&co.whatsapp&&digits(co.cell)===digits(co.whatsapp)) return "Cell & WhatsApp "+co.cell;
+    return [co.cell?"Cell "+co.cell:"", co.whatsapp?"WhatsApp "+co.whatsapp:""].filter(Boolean).join(" · ");
   }
   // The QuickServe Cashloan wordmark; colours follow --logo-ink so it reads on
   // the dark console header and prints in brand colours on paper.
@@ -521,7 +531,7 @@ td.r,th.r{text-align:right}
     lines.push('<b>'+esc(co.legalName)+'</b>'+(co.tradingAs?' t/a '+esc(co.tradingAs):''));
     var regs=[co.cc?"Reg. No. "+co.cc:"", co.namfisa?"NAMFISA Reg. No. "+co.namfisa:""].filter(Boolean).join(" · "); if(regs) lines.push(esc(regs));
     var addr=[co.address, co.postal].filter(Boolean).join(" · "); if(addr) lines.push(esc(addr));
-    var con=[co.cell?"Cell "+co.cell:"", co.whatsapp?"WhatsApp "+co.whatsapp:"", co.email, co.website].filter(Boolean).join(" · "); if(con) lines.push(esc(con));
+    var con=[phoneLine(co), co.email, co.website].filter(Boolean).join(" · "); if(con) lines.push(esc(con));
     return '<div class="pos-print"><div class="pp-top">'+logoSvg()+'<div class="pp-biz">'+lines.map(function(l){ return '<div>'+l+'</div>'; }).join("")+'</div></div>'
       + '<div class="pp-title"><h1>'+esc(title)+'</h1><span>'+esc(sub||"")+'</span></div></div>';
   }
@@ -1380,6 +1390,7 @@ td.r,th.r{text-align:right}
         + '</div></div>'
       + '<div class="card"><div class="ch"><h3>Cloud ledger</h3></div><div class="ledger">'
         + frowS("Provider","Supabase")
+        + frowS("Console version", BUILD==="dev"?"development copy":BUILD)
         + frowS("Project", host)
         + frowRaw("Status",'<span class="conn on"><span class="led"></span>Signed in</span>')
         + frowS("User", (session()||{}).email||"—")
@@ -1469,7 +1480,7 @@ td.r,th.r{text-align:right}
     var h='<div class="drawer-actions">'
       + '<button class="btn sm" id="dcEdit">Edit</button>'
       + '<button class="btn ghost sm" id="dcNewLoan">New loan</button>'
-      + (ag.loans.some(function(r){ return r.status==="paid"; })?'<button class="btn ghost sm" id="dcPaidUp">Paid-up letter</button>':'')
+      + (ag.loans.length?'<button class="btn ghost sm" id="dcPaidUp">Paid-up letter</button>':'')
       + '<button class="btn ghost sm danger" id="dcDelete">Delete</button>'
       + '</div>'
       + '<div class="dsect">Credit score</div>' + scoreBlock(clientScore(id))
@@ -1522,7 +1533,7 @@ td.r,th.r{text-align:right}
       + (isOpen||r.status==="written-off"?'<button class="btn ghost sm" id="dlRoll">Roll over</button>':'')
       + (remind?'<a class="btn ghost sm" id="dlRemind" href="'+esc(remind)+'" target="_blank" rel="noopener">WhatsApp reminder</a>':'')
       + (isOpen?'<button class="btn ghost sm" id="dlContact">Log contact</button>':'')
-      + (r.status==="paid"?'<button class="btn sm" id="dlPaidUp">Paid-up letter</button>':'')
+      + '<button class="btn '+(r.status==="paid"?'':'ghost ')+'sm" id="dlPaidUp">Paid-up letter</button>'
       + '<button class="btn ghost sm" id="dlEdit">Edit</button>'
       + (isOpen?'<button class="btn ghost sm" id="dlWriteOff">Write off</button>':'')
       + (r.status==="written-off"?'<button class="btn ghost sm" id="dlReopen">Reopen</button>':'')
@@ -2287,7 +2298,7 @@ td.r,th.r{text-align:right}
     var biz=[ '<div><strong>'+esc(co.legalName)+'</strong>'+(co.cc?' · Reg. No. '+esc(co.cc):'')+'</div>' ];
     if(co.namfisa) biz.push('<div>NAMFISA Reg. No. '+esc(co.namfisa)+'</div>');
     var addr=[co.address,co.postal].filter(Boolean).join(" · "); if(addr) biz.push('<div>'+esc(addr)+'</div>');
-    var con=[co.cell?"Cell "+co.cell:"", co.whatsapp?"WhatsApp "+co.whatsapp:"", co.email].filter(Boolean).join(" · "); if(con) biz.push('<div>'+esc(con)+'</div>');
+    var con=[phoneLine(co), co.email].filter(Boolean).join(" · "); if(con) biz.push('<div>'+esc(con)+'</div>');
     var verifyOn=co.cell||co.whatsapp||co.email;   // the owner's cellphone first
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
       + '<title>Paid-up letter — '+esc(cl?cl.name:"Client")+'</title><style>'
@@ -2336,9 +2347,20 @@ td.r,th.r{text-align:right}
       + '<p class="foot">This letter is not valid unless it is signed and stamped.</p>'
       + '</div></body></html>';
   }
+  // Why there's no letter yet, with the figures and a way to fix it.
+  function explainNotSettled(r){
+    var name=clientName(r.loan.clientId), wo=r.status==="written-off";
+    var body='<p style="font-size:13px;margin:0 0 10px">A paid-up letter can only be issued once a loan is fully repaid in the book. '
+      + esc(name)+'\'s loan '+esc(loanRef(r.loan))+' still shows <b>'+money(r.outstanding)+'</b> owing'+(wo?' and is written off':'')+'.</p>'
+      + '<div class="ledger" style="padding:0">'
+      + frowS("Total payable", money(r.totalDue)) + frowS("Paid so far", money(r.paid)) + frowS("Still owed", money(r.outstanding)) + '</div>'
+      + '<p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">If the client has paid this, record the payment (or correct the loan if its amount, interest or fee was entered wrongly), then tap <b>Paid-up letter</b> again.</p>';
+    if(wo) openModal("Paid-up letter", body, "Close", function(){ closeModal(); });
+    else openModal("Paid-up letter", body, "Record payment", function(){ closeModal(); openPaymentForm(r.loan.id); });
+  }
   function openPaidUpLetter(loanId){
     var r=rows.find(function(x){ return x.loan.id===loanId; }); if(!r) return;
-    if(r.status!=="paid"){ toast("This loan isn't fully repaid yet, so a paid-up letter can't be issued.","err"); return; }
+    if(r.status!=="paid"){ explainNotSettled(r); return; }
     var cl=client(r.loan.clientId), slug=String(cl?cl.name:"client").replace(/[^a-z0-9]+/gi,"-").toLowerCase();
     // Open the tab during the click so pop-up blockers allow it; fill it once ready.
     var w=null; try{ w=window.open("","_blank"); }catch(e){ w=null; }
@@ -2367,7 +2389,16 @@ td.r,th.r{text-align:right}
   function openClientPaidUp(clientId){
     var settled=rows.filter(function(r){ return r.loan.clientId===clientId && r.status==="paid"; })
       .sort(function(a,b){ return String(loanSettledOn(b)).localeCompare(String(loanSettledOn(a))); });
-    if(!settled.length){ toast("This client has no fully repaid loan yet.","err"); return; }
+    if(!settled.length){
+      var mine=rows.filter(function(r){ return r.loan.clientId===clientId; });
+      if(mine.length===1){ explainNotSettled(mine[0]); return; }
+      openModal("Paid-up letter", '<p style="font-size:13px;margin:0 0 10px">A paid-up letter can only be issued for a loan that is fully repaid in the book. None of '+esc(clientName(clientId))+'\'s loans is yet:</p>'
+        + '<table class="dtable"><thead><tr><th>Loan</th><th class="r">Due</th><th class="r">Paid</th><th class="r">Still owed</th></tr></thead><tbody>'
+        + mine.map(function(r){ return '<tr class="rowlink" data-pulloan="'+esc(r.loan.id)+'"><td>'+esc(loanRef(r.loan))+'<br><span style="color:var(--muted);font-size:11.5px">'+esc(pillTxt(r.status))+' · '+esc(fmtDate(r.loan.issueDate))+'</span></td><td class="r num">'+money(r.totalDue)+'</td><td class="r num">'+money(r.paid)+'</td><td class="r num">'+money(r.outstanding)+'</td></tr>'; }).join("")
+        + '</tbody></table><p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Record the final payment on the loan (tap it), then issue the letter.</p>', "Close", function(){ closeModal(); });
+      Array.prototype.forEach.call($("modalBody").querySelectorAll("[data-pulloan]"),function(tr){ tr.addEventListener("click",function(){ closeModal(); openLoan(tr.getAttribute("data-pulloan")); }); });
+      return;
+    }
     if(settled.length===1){ openPaidUpLetter(settled[0].loan.id); return; }
     var body='<p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">'+esc(clientName(clientId))+' has repaid '+settled.length+' loans. Choose the loan the letter is for.</p>'
       + '<div class="field"><label>Loan</label><select id="f_pul">'+settled.map(function(r){ return '<option value="'+esc(r.loan.id)+'">'+esc(loanRef(r.loan))+' · '+esc(money(r.loan.principal))+' · paid out '+esc(fmtDate(r.loan.issueDate))+' · settled '+esc(fmtDate(loanSettledOn(r)))+(r.loan.paidUpRef?' · '+esc(r.loan.paidUpRef):'')+'</option>'; }).join("")+'</select></div>';
@@ -2601,8 +2632,30 @@ td.r,th.r{text-align:right}
   function wireSearch(key){ var el=$("q_"+key); if(!el) return; el.addEventListener("input",function(){ ui[key]=el.value; var pos=el.selectionStart; render(); var n=$("q_"+key); if(n){ n.focus(); try{n.setSelectionRange(pos,pos);}catch(e){} } }); }
   function wireRows(c,attr,fn){ Array.prototype.forEach.call(c.querySelectorAll("[data-"+attr+"]"),function(tr){ tr.addEventListener("click",function(){ fn(tr.getAttribute("data-"+attr)); }); }); }
 
+  // ---- version ----
+  // The published copy carries its build (date + commit) in <meta name="qs-build">.
+  // A phone or browser can keep showing an older copy for a while, so check now
+  // and then for a newer one and offer to reload.
+  var BUILD=((document.querySelector('meta[name="qs-build"]')||{}).content)||"dev", lastUpdateCheck=0;
+  function checkForUpdate(){
+    if(BUILD==="dev"||Date.now()-lastUpdateCheck<5*60*1000) return;
+    lastUpdateCheck=Date.now();
+    fetch(location.pathname+"?v="+Date.now(),{cache:"no-store"}).then(function(r){ return r.ok?r.text():""; }).then(function(t){
+      var m=/<meta name="qs-build" content="([^"]+)"/.exec(t||"");
+      if(m&&m[1]!=="dev"&&m[1]!==BUILD) showUpdateBar();
+    }).catch(function(){});
+  }
+  function showUpdateBar(){
+    if($("updBar")) return;
+    var d=document.createElement("div"); d.id="updBar";
+    d.innerHTML='<span>A newer version of the console is ready.</span><button type="button">Reload</button>';
+    d.querySelector("button").addEventListener("click",function(){ location.reload(); });
+    document.body.appendChild(d);
+  }
+  document.addEventListener("visibilitychange",function(){ if(!document.hidden) checkForUpdate(); });
+
   // ---- boot ----
-  function showApp(){ $("loginView").classList.add("hidden"); $("appView").classList.remove("hidden"); $("whoEmail").textContent=(session()||{}).email||"signed in"; loadData(); }
+  function showApp(){ $("loginView").classList.add("hidden"); $("appView").classList.remove("hidden"); $("whoEmail").textContent=(session()||{}).email||"signed in"; loadData(); checkForUpdate(); }
   function loadData(){
     $("content").innerHTML='<div class="empty">Retrieving ledger…</div>';
     pullLedger().then(function(res){
@@ -2666,7 +2719,7 @@ td.r,th.r{text-align:right}
     try{ if(sessionStorage.getItem("qs_idle_signout")){ sessionStorage.removeItem("qs_idle_signout"); msg("Signed out after 20 minutes without activity.",""); } }catch(e){}
   }
 
-  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm, creditScores:creditScores, clientScore:clientScore, bookByGrade:bookByGrade, openScoreHelp:openScoreHelp, company:company, openCompanyForm:openCompanyForm, printHead:printHead, openPaidUpLetter:openPaidUpLetter, openClientPaidUp:openClientPaidUp, paidUpLetterHtml:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); return r?paidUpLetterHtml(r):""; } };
+  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm, creditScores:creditScores, clientScore:clientScore, bookByGrade:bookByGrade, openScoreHelp:openScoreHelp, company:company, openCompanyForm:openCompanyForm, printHead:printHead, openPaidUpLetter:openPaidUpLetter, explainNotSettled:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); if(r) explainNotSettled(r); }, showUpdateBar:showUpdateBar, build:function(){ return BUILD; }, openClientPaidUp:openClientPaidUp, paidUpLetterHtml:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); return r?paidUpLetterHtml(r):""; } };
   paintLetterhead();
 })();
 </script>
