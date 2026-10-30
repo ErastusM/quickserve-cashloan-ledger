@@ -68,8 +68,9 @@ screen:
   offers to record the payment; for a fully repaid loan it opens a one-page A4 settlement letter on the letterhead: letter reference,
   client name, ID number and client reference, the loan's figures, the date of
   the final payment, "balance now outstanding N$ 0.00", the no-security clause
-  and the company stamp, with a line to sign by hand. Print it or save it as a
-  PDF. The first issue gives the loan a permanent number (QS-PUL-YYYY-NNNN,
+  and the company stamp, with your saved signature (cropped to the ink) or a
+  line to sign by hand. **Print / Save as PDF** prints only the letter; **Close**
+  returns to the console. The first issue gives the loan a permanent number (QS-PUL-YYYY-NNNN,
   saved in the book and shown in the loan drawer), so a re-issued letter keeps
   the same reference.
 - **Credit score** — every client gets a score out of 100 and a grade
