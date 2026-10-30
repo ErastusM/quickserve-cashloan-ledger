@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<meta name="qs-build" content="2026-10-30-3f6e98e" />
+<meta name="qs-build" content="2026-10-30-0fa78e7" />
 <title>QuickServe — Administration Console</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Quickserve"%3E %3Crect width="96" height="96" rx="20" fill="#053437"/%3E %3Cpath d="M14 43h19v5H14zM19 31h25v5H19zM24 55h25v5H24z" fill="#12b84f"/%3E %3Cpath d="M49 22h24c6.5 0 11.7 5.2 11.7 11.7v2.2H70v-.5c0-1.5-1.1-2.6-2.6-2.6H49.6c-8.7 0-15.2 6.6-15.2 15.2s6.5 15.2 15.2 15.2h17.8c1.5 0 2.6-1.1 2.6-2.6v-.5h14.7v2.2C84.7 68.8 79.5 74 73 74H49c-18.1 0-32.8-11.5-32.8-26S30.9 22 49 22z" fill="#fff"/%3E %3Cpath d="M56 42h16l18 32H73L65 59H51z" fill="#fff"/%3E %3Cpath d="M64 22h26L80 37H62c-3.2 0-5.1 1.8-5.1 4s1.9 4 5.1 4h12c12.6 0 20 6.4 20 15.3C94 69 86.2 74 75 74H52l9.8-15h14.1c3.1 0 5.1-1.7 5.1-4s-2-4-5.1-4H64c-12.7 0-20.1-6.3-20.1-15.2C43.9 27.1 51.7 22 64 22z" fill="#12b84f"/%3E %3C/svg%3E" />
 <style>
@@ -248,6 +248,12 @@ td.r,th.r{text-align:right}
 .repbar{height:6px; background:var(--inset); border-radius:999px; overflow:hidden; min-width:70px}
 .repbar i{display:block; height:100%; background:var(--accent)}
 .pos-print,.pos-foot{display:none}
+#docView{position:fixed; inset:0; z-index:85; overflow:auto; -webkit-overflow-scrolling:touch; background:#eef0ee}
+body.doc-open{overflow:hidden}
+@media print{
+  body.doc-open > *:not(#docView){display:none!important}
+  body.doc-open #docView{position:static; overflow:visible; background:#fff}
+}
 #updBar{position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:95; background:var(--accent); color:#fff; padding:10px 12px 10px 16px; border-radius:9px; box-shadow:0 14px 44px rgba(0,0,0,.35); font-size:13px; display:flex; gap:12px; align-items:center; max-width:92vw}
 #updBar button{font:inherit; font-weight:600; background:#fff; color:var(--accent); border:0; border-radius:6px; padding:6px 12px; cursor:pointer}
 @media print{ #updBar{display:none} }
@@ -2288,11 +2294,10 @@ td.r,th.r{text-align:right}
       + '<text x="160" y="192" font-weight="600" font-size="12.5">Reg. '+esc(co.cc)+'</text>'
       + '<line x1="92" y1="204" x2="228" y2="204" stroke="#0a5b54" stroke-width="2"/></g></g></svg>';
   }
-  function paidUpLetterHtml(r){
+  function paidUpLetterParts(r, sig){
     var co=company(), l=r.loan, cl=client(l.clientId), today=todayISO(), settled=loanSettledOn(r);
     var ref=l.paidUpRef||"(not yet issued)", name=cl?cl.name:"the client named below";
-    var sig=String((state.settings||{}).signatureDataUrl||"");
-    if(!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/.test(sig)) sig="";
+    sig=String(sig||""); if(!SIG_RE.test(sig)) sig="";
     function row(k,v){ return '<tr><td class="k">'+esc(k)+'</td><td>'+v+'</td></tr>'; }
     function row2(k1,v1,k2,v2){ return '<tr><td class="k">'+esc(k1)+'</td><td>'+v1+'</td><td class="k">'+esc(k2)+'</td><td>'+v2+'</td></tr>'; }
     var biz=[ '<div><strong>'+esc(co.legalName)+'</strong>'+(co.cc?' · Reg. No. '+esc(co.cc):'')+'</div>' ];
@@ -2300,11 +2305,9 @@ td.r,th.r{text-align:right}
     var addr=[co.address,co.postal].filter(Boolean).join(" · "); if(addr) biz.push('<div>'+esc(addr)+'</div>');
     var con=[phoneLine(co), co.email].filter(Boolean).join(" · "); if(con) biz.push('<div>'+esc(con)+'</div>');
     var verifyOn=co.cell||co.whatsapp||co.email;   // the owner's cellphone first
-    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-      + '<title>Paid-up letter — '+esc(cl?cl.name:"Client")+'</title><style>'
-      + '@page{size:A4;margin:13mm 15mm 11mm}*{box-sizing:border-box}'
-      + 'body{font-family:Georgia,"Times New Roman",serif;color:#222;font-size:10.3pt;line-height:1.42;margin:0;background:#eef0ee}'
-      + '.sheet{background:#fff;max-width:190mm;margin:12px auto;padding:14mm 15mm;box-shadow:0 2px 14px rgba(0,0,0,.14)}'
+    var css='*{box-sizing:border-box}'
+      + '.doc{font-family:Georgia,"Times New Roman",serif;color:#222;font-size:10.3pt;line-height:1.42;margin:0;background:#eef0ee;min-height:100%}'
+      + '.sheet{background:#fff;width:190mm;max-width:none;margin:12px auto;padding:14mm 15mm;box-shadow:0 2px 14px rgba(0,0,0,.14);zoom:var(--fit,1)}'
       + '.head{display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:1.5px solid #9a9a9a;padding-bottom:7px}'
       + '.qs-logo{display:block;height:46px;width:auto}.qs-logo .k{fill:#053437}.qs-logo .g{fill:#12b84f}.qs-logo .m{fill:#243437}.qs-logo .r{stroke:#053437}'
       + '.biz{text-align:right;font-size:8pt;color:#555;line-height:1.6}.biz strong{color:#1a1a1a;font-size:8.8pt}'
@@ -2313,14 +2316,12 @@ td.r,th.r{text-align:right}
       + 'table{width:100%;border-collapse:collapse;margin:4px 0 8px;font-size:9.8pt}td{border:.8px solid #cfcfcf;padding:3px 8px;vertical-align:top}td.k{width:42%;color:#333}table.four td.k{width:21%}table.four td{width:29%}'
       + 'h2{font-size:10.6pt;margin:11px 0 4px;border-bottom:1px solid #bbb;padding-bottom:2px;break-after:avoid}p{margin:0 0 5px}'
       + '.sign{margin-top:14px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;break-inside:avoid}.sign .who{min-width:230px}'
-      + '.sig-img{height:50px;display:block;margin:0 0 -6px 4px}.sig-line{width:230px;height:40px}.muted{color:#666;font-size:9pt}'
+      + '.sig-img{display:block;max-height:56px;max-width:230px;width:auto;height:auto;margin:0 0 -4px 2px}.sig-line{width:230px;height:40px}.muted{color:#666;font-size:9pt}'
       + '.foot{margin-top:8px;font-style:italic;color:#444;font-size:9pt}'
       + '.bar{position:sticky;top:0;background:#0a1c14;color:#fff;padding:10px 14px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;font-family:system-ui,sans-serif}'
       + '.bar button{font:inherit;font-size:13px;background:#12b84f;color:#06302e;font-weight:700;border:0;border-radius:8px;padding:9px 18px;cursor:pointer}.bar span{font-size:12px;opacity:.85}'
-      + '@media print{body{background:#fff}.bar{display:none}.sheet{box-shadow:none;margin:0;max-width:none;padding:0}}'
-      + '</style></head><body>'
-      + '<div class="bar"><button onclick="window.print()">Print / Save as PDF</button><span>Print it, sign it by hand, or choose “Save as PDF”.</span></div>'
-      + '<div class="sheet">'
+      + '@media print{.doc{background:#fff}.bar{display:none}.sheet{box-shadow:none;margin:0;width:auto;max-width:none;padding:0;zoom:1}}';
+    var sheet='<div class="sheet">'
       + '<div class="head"><div>'+logoSvg()+'</div><div class="biz">'+biz.join("")+'</div></div>'
       + '<h1>Paid-up letter and confirmation of settlement</h1>'
       + '<p class="whom">TO WHOM IT MAY CONCERN</p>'
@@ -2345,8 +2346,71 @@ td.r,th.r{text-align:right}
         + '<div style="border-top:1px solid #555;padding-top:4px"><strong>'+esc(co.officer)+'</strong><br><span class="muted">'+esc([co.officerCapacity,co.legalName].filter(Boolean).join(" · "))+'</span><br>'
         + '<span class="muted">Date: '+esc(fmtLong(today))+' · '+esc(co.town||"")+'</span></div></div><div>'+stampSvg(co)+'</div></div>'
       + '<p class="foot">This letter is not valid unless it is signed and stamped.</p>'
-      + '</div></body></html>';
+      + '</div>';
+    return { title:"Paid-up letter — "+(cl?cl.name:"Client"), css:css, sheet:sheet };
   }
+  // The same letter as a standalone page (kept for tests and downloads).
+  function paidUpLetterHtml(r, sig){
+    var d=paidUpLetterParts(r, sig===undefined?(sigTrim.out||(state.settings||{}).signatureDataUrl):sig);
+    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'+esc(d.title)+'</title>'
+      + '<style>@page{size:A4;margin:13mm 15mm 11mm}html,body{margin:0}'+d.css+'</style></head><body><div class="doc">'
+      + '<div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>'+d.sheet+'</div></body></html>';
+  }
+
+  // ---- document viewer ----
+  // Letters open inside the console (no new tab or pop-up, which phones and
+  // home-screen apps often block). The page is drawn in a shadow root so its
+  // styles can't clash with the console's; while it's open, printing prints
+  // only the letter on A4.
+  var SIG_RE=/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/, sigTrim={src:"",out:""};
+  // The saved signature is often a small drawing on a large white image: crop to the ink.
+  function trimmedSignature(){
+    var sig=String((state.settings||{}).signatureDataUrl||"");
+    if(!SIG_RE.test(sig)) return Promise.resolve("");
+    if(sigTrim.src===sig) return Promise.resolve(sigTrim.out);
+    return new Promise(function(resolve){
+      var img=new Image();
+      img.onload=function(){
+        try{
+          var w=img.naturalWidth, h=img.naturalHeight, c=document.createElement("canvas"); c.width=w; c.height=h;
+          var x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,w,h); x.drawImage(img,0,0);
+          var px=x.getImageData(0,0,w,h).data, minX=w, minY=h, maxX=-1, maxY=-1;
+          for(var y=0;y<h;y++){ for(var i=y*w*4, X=0; X<w; X++, i+=4){ if(px[i]+px[i+1]+px[i+2]<600){ if(X<minX)minX=X; if(X>maxX)maxX=X; if(y<minY)minY=y; if(y>maxY)maxY=y; } } }
+          if(maxX<0){ sigTrim={src:sig,out:sig}; resolve(sig); return; }
+          var pad=Math.round(Math.max(maxX-minX,maxY-minY)*0.05)+4;
+          minX=Math.max(0,minX-pad); minY=Math.max(0,minY-pad); maxX=Math.min(w-1,maxX+pad); maxY=Math.min(h-1,maxY+pad);
+          var o=document.createElement("canvas"); o.width=maxX-minX+1; o.height=maxY-minY+1;
+          o.getContext("2d").drawImage(c,minX,minY,o.width,o.height,0,0,o.width,o.height);
+          sigTrim={src:sig,out:o.toDataURL("image/png")}; resolve(sigTrim.out);
+        }catch(e){ resolve(sig); }
+      };
+      img.onerror=function(){ resolve(""); };
+      img.src=sig;
+    });
+  }
+  function fitDocument(){
+    var host=$("docView"); if(!host||!host.shadowRoot) return;
+    var mm=96/25.4, sheetPx=190*mm, avail=Math.max(200, window.innerWidth-16);
+    host.style.setProperty("--fit", String(Math.min(1, avail/sheetPx)));
+  }
+  function showDocument(d){
+    var host=$("docView");
+    if(!host){ host=document.createElement("div"); host.id="docView"; document.body.appendChild(host); host.attachShadow({mode:"open"}); }
+    host.shadowRoot.innerHTML='<style>:host{display:block}'+d.css
+      + '.bar .ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4)}</style>'
+      + '<div class="doc"><div class="bar"><button type="button" data-doc="print">Print / Save as PDF</button><button type="button" class="ghost" data-doc="close">Close</button></div>'+d.sheet+'</div>';
+    host.shadowRoot.querySelector('[data-doc="print"]').addEventListener("click",function(){ window.print(); });
+    host.shadowRoot.querySelector('[data-doc="close"]').addEventListener("click",closeDocument);
+    if(!$("docPage")){ var st=document.createElement("style"); st.id="docPage"; st.textContent="@page{size:A4;margin:13mm 15mm 11mm}"; document.head.appendChild(st); }
+    document.body.classList.add("doc-open"); host.scrollTop=0; fitDocument();
+  }
+  function closeDocument(){
+    var host=$("docView"); if(host) host.remove();
+    var st=$("docPage"); if(st) st.remove();
+    document.body.classList.remove("doc-open");
+  }
+  window.addEventListener("resize",fitDocument);
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&$("docView")) closeDocument(); });
   // Why there's no letter yet, with the figures and a way to fix it.
   function explainNotSettled(r){
     var name=clientName(r.loan.clientId), wo=r.status==="written-off";
@@ -2361,16 +2425,12 @@ td.r,th.r{text-align:right}
   function openPaidUpLetter(loanId){
     var r=rows.find(function(x){ return x.loan.id===loanId; }); if(!r) return;
     if(r.status!=="paid"){ explainNotSettled(r); return; }
-    var cl=client(r.loan.clientId), slug=String(cl?cl.name:"client").replace(/[^a-z0-9]+/gi,"-").toLowerCase();
-    // Open the tab during the click so pop-up blockers allow it; fill it once ready.
-    var w=null; try{ w=window.open("","_blank"); }catch(e){ w=null; }
-    if(w){ try{ w.document.write('<p style="font:14px system-ui,sans-serif;padding:24px">Preparing the paid-up letter…</p>'); }catch(e){} }
     function show(){
-      var rr=rows.find(function(x){ return x.loan.id===loanId; })||r, html=paidUpLetterHtml(rr);
-      if(w&&!w.closed){ w.document.open(); w.document.write(html); w.document.close(); }
-      else if(downloadFile("paid-up-letter-"+slug+".html", html, "text/html")) toast("Pop-up blocked — the letter was downloaded. Open it and print or save as PDF.");
+      var rr=rows.find(function(x){ return x.loan.id===loanId; })||r;
+      trimmedSignature().then(function(sig){ showDocument(paidUpLetterParts(rr, sig)); });
     }
     if(r.loan.paidUpRef){ show(); return; }
+    // First issue: give the letter its permanent number in the book, then show it.
     toast("Issuing letter…");
     saveLedger(function(data){
       var x=data.loans.find(function(y){ return y.id===loanId; }); if(!x||x.paidUpRef) return;
@@ -2379,8 +2439,8 @@ td.r,th.r{text-align:right}
       x.paidUpRef="QS-PUL-"+todayISO().slice(0,4)+"-"+String(seq).padStart(4,"0");
       x.paidUpIssuedAt=todayISO();
     }).then(function(res){
-      if(res.auth===false){ if(w) w.close(); signOut(); return; }
-      if(res.error){ if(w) w.close(); toast(res.error==="busy"?"Someone changed the book just now — try again.":"Couldn't issue the letter ("+esc(res.error)+").","err"); return; }
+      if(res.auth===false){ signOut(); return; }
+      if(res.error){ toast(res.error==="busy"?"Someone changed the book just now — try again.":"Couldn't issue the letter ("+esc(res.error)+").","err"); return; }
       toast("Paid-up letter "+((rows.find(function(x){ return x.loan.id===loanId; })||{loan:{}}).loan.paidUpRef||"")+" issued.");
       render(); show();
     });
@@ -2719,7 +2779,7 @@ td.r,th.r{text-align:right}
     try{ if(sessionStorage.getItem("qs_idle_signout")){ sessionStorage.removeItem("qs_idle_signout"); msg("Signed out after 20 minutes without activity.",""); } }catch(e){}
   }
 
-  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm, creditScores:creditScores, clientScore:clientScore, bookByGrade:bookByGrade, openScoreHelp:openScoreHelp, company:company, openCompanyForm:openCompanyForm, printHead:printHead, openPaidUpLetter:openPaidUpLetter, explainNotSettled:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); if(r) explainNotSettled(r); }, showUpdateBar:showUpdateBar, build:function(){ return BUILD; }, openClientPaidUp:openClientPaidUp, paidUpLetterHtml:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); return r?paidUpLetterHtml(r):""; } };
+  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm, creditScores:creditScores, clientScore:clientScore, bookByGrade:bookByGrade, openScoreHelp:openScoreHelp, company:company, openCompanyForm:openCompanyForm, printHead:printHead, openPaidUpLetter:openPaidUpLetter, explainNotSettled:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); if(r) explainNotSettled(r); }, showUpdateBar:showUpdateBar, build:function(){ return BUILD; }, openClientPaidUp:openClientPaidUp, paidUpLetterHtml:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); return r?paidUpLetterHtml(r):""; }, trimmedSignature:trimmedSignature, closeDocument:closeDocument };
   paintLetterhead();
 })();
 </script>
