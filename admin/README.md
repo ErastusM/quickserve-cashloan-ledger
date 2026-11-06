@@ -62,6 +62,20 @@ screen:
   even when the screen is in dark mode. The details live under **Settings →
   Company details → Edit** (saved in the book, so every device prints the
   same); add the NAMFISA registration number there once you have it.
+- **Members & distributions** — record the CC's members and their interests
+  (shares must total 100%), the date profit sharing started, an optional
+  no-payout (lock-up) date, a tax set-aside and a cash reserve for lending.
+  The page shows each member's share of the profit since that date, what has
+  been paid out, and their share of the business (share of total funds, the
+  usual buy-back basis). **What can be paid out** = profit since the start
+  date, less payouts already made, less the principal on overdue loans, less
+  the tax set-aside; a payout also can't exceed the account's balance.
+  **Record a distribution** splits a total by the members' interests, prints a
+  members' resolution on the letterhead for signing, and records one "money
+  out" entry per member, so cash drops and profit is unchanged. Distributions
+  can be reprinted or deleted. The dashboard reminds you two weeks before the
+  lock-up ends. Member names and shares live only in your book, never in this
+  repository.
 - **Reference numbers** — every client has a QS- number and every loan a QSL-
   number (QS-0001…, QSL-0001…, the same scheme as the phone app). New clients
   and loans get the next number automatically; any record saved without one is
