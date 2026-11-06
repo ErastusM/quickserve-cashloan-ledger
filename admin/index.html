@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<meta name="qs-build" content="2026-10-30-d151bf5" />
+<meta name="qs-build" content="2026-11-06-4efb21c" />
 <title>QuickServe — Administration Console</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Quickserve"%3E %3Crect width="96" height="96" rx="20" fill="#053437"/%3E %3Cpath d="M14 43h19v5H14zM19 31h25v5H19zM24 55h25v5H24z" fill="#12b84f"/%3E %3Cpath d="M49 22h24c6.5 0 11.7 5.2 11.7 11.7v2.2H70v-.5c0-1.5-1.1-2.6-2.6-2.6H49.6c-8.7 0-15.2 6.6-15.2 15.2s6.5 15.2 15.2 15.2h17.8c1.5 0 2.6-1.1 2.6-2.6v-.5h14.7v2.2C84.7 68.8 79.5 74 73 74H49c-18.1 0-32.8-11.5-32.8-26S30.9 22 49 22z" fill="#fff"/%3E %3Cpath d="M56 42h16l18 32H73L65 59H51z" fill="#fff"/%3E %3Cpath d="M64 22h26L80 37H62c-3.2 0-5.1 1.8-5.1 4s1.9 4 5.1 4h12c12.6 0 20 6.4 20 15.3C94 69 86.2 74 75 74H52l9.8-15h14.1c3.1 0 5.1-1.7 5.1-4s-2-4-5.1-4H64c-12.7 0-20.1-6.3-20.1-15.2C43.9 27.1 51.7 22 64 22z" fill="#12b84f"/%3E %3C/svg%3E" />
 <style>
@@ -406,6 +406,7 @@ body.doc-open{overflow:hidden}
       <button class="navitem" data-route="reports"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-3"/></svg>Reports</button>
       <button class="navitem" data-route="pnl"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>Profit &amp; loss</button>
       <button class="navitem" data-route="projections"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M6 15l4-5 3 3 5-7"/></svg>Projections</button>
+      <button class="navitem" data-route="members"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0"/><path d="M14 20a4 4 0 0 1 7.5-1.9"/></svg>Members</button>
       <div class="spacer"></div>
       <button class="navitem" data-route="history"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>History &amp; backups</button>
       <button class="navitem" data-route="settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Settings</button>
@@ -867,7 +868,7 @@ body.doc-open{overflow:hidden}
   }
 
   // ---- routing ----
-  var TITLES={dashboard:"Dashboard",accounts:"Accounts",applications:"Applications",clients:"Clients",loans:"Loans",payments:"Payments",expenses:"Expenses",reports:"Reports",projections:"Projections",settings:"Settings",collections:"Collections",pnl:"Profit & loss",history:"History & backups"};
+  var TITLES={dashboard:"Dashboard",accounts:"Accounts",applications:"Applications",clients:"Clients",loans:"Loans",payments:"Payments",expenses:"Expenses",reports:"Reports",projections:"Projections",settings:"Settings",collections:"Collections",pnl:"Profit & loss",members:"Members & distributions",history:"History & backups"};
   function go(r){
     route=r; if(location.hash!=="#"+r) location.hash=r;
     Array.prototype.forEach.call(document.querySelectorAll(".navitem"),function(b){ b.classList.toggle("active", b.dataset.route===r); });
@@ -891,6 +892,7 @@ body.doc-open{overflow:hidden}
     if(route==="projections") return renderProjections(c);
     if(route==="collections") return renderCollections(c);
     if(route==="pnl") return renderPnl(c);
+    if(route==="members") return renderMembers(c);
     if(route==="history") return renderHistory(c);
     if(route==="settings") return renderSettings(c);
   }
@@ -955,6 +957,9 @@ body.doc-open{overflow:hidden}
     if(pr.today) items.push({tag:"info",label:"Promise",go:function(){ui.colFilter="promises";go("collections");},
       txt:'<b>'+pr.today+' promise'+(pr.today>1?'s':'')+' to pay</b> due today.'});
     var bk=backupAge();
+    var mp=membersCfg();
+    if(mp&&mp.lockUntil){ var dl=daysBetween(todayISO(),mp.lockUntil), paidAfter=distributionsList().some(function(d){ return String(d.date)>=mp.lockUntil; });
+      if(dl<=14&&!paidAfter) items.push({tag:"info",label:"Members",go:function(){go("members");},txt:dl>0?"The profit lock-up ends on "+fmtDate(mp.lockUntil)+" ("+dl+" day"+(dl===1?"":"s")+"). Agree with your members whether to pay out or extend.":"The profit lock-up ended on "+fmtDate(mp.lockUntil)+". Decide on a distribution, or extend it."}); }
     if(bk===null||bk>7) items.push({tag:"warn",label:"Backup",go:function(){go("history");},
       txt: bk===null ? '<b>No backup downloaded yet.</b> Download one and keep it off this computer.' : 'Last backup downloaded <b>'+bk+' days ago</b> — download a fresh one.'});
     if(mk.length) items.push({tag:"warn",label:"KYC",go:function(){ui.clientQ="";go("clients");},
@@ -1969,7 +1974,7 @@ body.doc-open{overflow:hidden}
     });
     if(d.settings){
       var sb=d.settings.before||{}, sa=d.settings.after||{}, ks=Object.keys(Object.assign({},sb,sa)).filter(function(k){ return JSON.stringify(sb[k])!==JSON.stringify(sa[k]); });
-      var SETTING_NAMES={provisionRates:"provision rates",projection:"projection settings",currency:"currency",companyName:"company name",company:"company details",signatureDataUrl:"signature",startingCapital:"starting capital"};
+      var SETTING_NAMES={provisionRates:"provision rates",projection:"projection settings",currency:"currency",companyName:"company name",company:"company details",members:"members and interests",signatureDataUrl:"signature",startingCapital:"starting capital"};
       var backupOnly=ks.length && ks.every(function(k){ return k==="lastBackupAt"||k==="lastBackupCount"; });
       if(backupOnly && !d.lastRestore && sa.lastBackupAt) lines.push("Backup downloaded");
       else if(!backupOnly && ks.length){ var named=ks.filter(function(k){ return k!=="lastBackupAt"&&k!=="lastBackupCount"&&k!=="paidUpLetterSeq"; }).map(function(k){ return SETTING_NAMES[k]||k; });
@@ -2336,18 +2341,17 @@ body.doc-open{overflow:hidden}
       + '<text x="160" y="192" font-weight="600" font-size="12.5">Reg. '+esc(co.cc)+'</text>'
       + '<line x1="92" y1="204" x2="228" y2="204" stroke="#0a5b54" stroke-width="2"/></g></g></svg>';
   }
-  function paidUpLetterParts(r, sig){
-    var co=company(), l=r.loan, cl=client(l.clientId), today=todayISO(), settled=loanSettledOn(r);
-    var ref=l.paidUpRef||"(not yet issued)", name=cl?cl.name:"the client named below";
-    sig=String(sig||""); if(!SIG_RE.test(sig)) sig="";
-    function row(k,v){ return '<tr><td class="k">'+esc(k)+'</td><td>'+v+'</td></tr>'; }
-    function row2(k1,v1,k2,v2){ return '<tr><td class="k">'+esc(k1)+'</td><td>'+v1+'</td><td class="k">'+esc(k2)+'</td><td>'+v2+'</td></tr>'; }
+  // Shared by printed letters and resolutions: the letterhead's company lines
+  // and the A4 page styles.
+  function letterBizLines(co){
     var biz=[ '<div><strong>'+esc(co.legalName)+'</strong>'+(co.cc?' · Reg. No. '+esc(co.cc):'')+'</div>' ];
     if(co.namfisa) biz.push('<div>NAMFISA Reg. No. '+esc(co.namfisa)+'</div>');
     var addr=[co.address,co.postal].filter(Boolean).join(" · "); if(addr) biz.push('<div>'+esc(addr)+'</div>');
     var con=[phoneLine(co), co.email].filter(Boolean).join(" · "); if(con) biz.push('<div>'+esc(con)+'</div>');
-    var verifyOn=co.cell||co.whatsapp||co.email;   // the owner's cellphone first
-    var css='*{box-sizing:border-box}'
+    return biz;
+  }
+  function letterCss(){
+    return '*{box-sizing:border-box}'
       + '.doc{font-family:Georgia,"Times New Roman",serif;color:#222;font-size:10.3pt;line-height:1.42;margin:0;background:#eef0ee;min-height:100%}'
       + '.sheet{background:#fff;width:190mm;max-width:none;margin:12px auto;padding:14mm 15mm;box-shadow:0 2px 14px rgba(0,0,0,.14);zoom:var(--fit,1)}'
       + '.head{display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:1.5px solid #9a9a9a;padding-bottom:7px}'
@@ -2363,6 +2367,16 @@ body.doc-open{overflow:hidden}
       + '.bar{position:sticky;top:0;background:#0a1c14;color:#fff;padding:10px 14px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;font-family:system-ui,sans-serif}'
       + '.bar button{font:inherit;font-size:13px;background:#12b84f;color:#06302e;font-weight:700;border:0;border-radius:8px;padding:9px 18px;cursor:pointer}.bar span{font-size:12px;opacity:.85}'
       + '@media print{.doc{background:#fff}.bar{display:none}.sheet{box-shadow:none;margin:0;width:auto;max-width:none;padding:0;zoom:1}}';
+  }
+  function paidUpLetterParts(r, sig){
+    var co=company(), l=r.loan, cl=client(l.clientId), today=todayISO(), settled=loanSettledOn(r);
+    var ref=l.paidUpRef||"(not yet issued)", name=cl?cl.name:"the client named below";
+    sig=String(sig||""); if(!SIG_RE.test(sig)) sig="";
+    function row(k,v){ return '<tr><td class="k">'+esc(k)+'</td><td>'+v+'</td></tr>'; }
+    function row2(k1,v1,k2,v2){ return '<tr><td class="k">'+esc(k1)+'</td><td>'+v1+'</td><td class="k">'+esc(k2)+'</td><td>'+v2+'</td></tr>'; }
+    var biz=letterBizLines(co);
+    var verifyOn=co.cell||co.whatsapp||co.email;   // the owner's cellphone first
+    var css=letterCss();
     var sheet='<div class="sheet">'
       + '<div class="head"><div>'+logoSvg()+'</div><div class="biz">'+biz.join("")+'</div></div>'
       + '<h1>Paid-up letter and confirmation of settlement</h1>'
@@ -2506,6 +2520,223 @@ body.doc-open{overflow:hidden}
     var body='<p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">'+esc(clientName(clientId))+' has repaid '+settled.length+' loans. Choose the loan the letter is for.</p>'
       + '<div class="field"><label>Loan</label><select id="f_pul">'+settled.map(function(r){ return '<option value="'+esc(r.loan.id)+'">'+esc(loanRef(r.loan))+' · '+esc(money(r.loan.principal))+' · paid out '+esc(fmtDate(r.loan.issueDate))+' · settled '+esc(fmtDate(loanSettledOn(r)))+(r.loan.paidUpRef?' · '+esc(r.loan.paidUpRef):'')+'</option>'; }).join("")+'</select></div>';
     openModal("Paid-up letter", body, "Open letter", function(){ var id=fval("f_pul"); closeModal(); openPaidUpLetter(id); });
+  }
+  // ---- members & profit distributions ----
+  // Who owns the CC and in what shares (settings.members), the profit made
+  // since those shares took effect, and payouts to the members. A payout is
+  // recorded as money out (capital) for each member, tagged with one
+  // distributionId, so cash and the bank account drop but profit is untouched.
+  function membersCfg(){
+    var m=(state.settings&&state.settings.members&&typeof state.settings.members==="object")?state.settings.members:null;
+    if(!m||!Array.isArray(m.list)) return null;
+    var list=m.list.filter(function(x){ return x&&cleanText(x.name); }).map(function(x){ return { id:String(x.id), name:cleanText(x.name), share:Number(x.share)||0 }; });
+    if(!list.length) return null;
+    return { list:list, start:String(m.start||""), lockUntil:String(m.lockUntil||""), taxPct:Math.max(0,Number(m.taxPct)||0), reserve:Math.max(0,Number(m.reserve)||0) };
+  }
+  function distributionsList(){
+    var by={};
+    (state.capital||[]).forEach(function(c){
+      if(c.kind!=="distribution"||c.direction!=="out"||!c.distributionId) return;
+      var g=by[c.distributionId]||(by[c.distributionId]={ id:c.distributionId, date:c.date, total:0, parts:[], accountId:acctOf(c), reference:c.reference||"" });
+      g.total=num(g.total+num(c.amount)); g.parts.push(c); if(String(c.date)<String(g.date)) g.date=c.date;
+    });
+    return Object.keys(by).map(function(k){ return by[k]; }).sort(function(a,b){ return String(b.date).localeCompare(String(a.date)); });
+  }
+  // Cash-basis profit between two dates (interest collected, less expenses and write-offs).
+  function profitBetween(from, to){
+    var rv=revenueByPayment(), rev=0, ex=0, wo=0;
+    function inRange(d){ d=String(d||""); return d && (!from||d>=from) && (!to||d<=to); }
+    (state.payments||[]).forEach(function(p){ if(rv[p.id]&&inRange(p.date)) rev=num(rev+rv[p.id]); });
+    (state.expenses||[]).forEach(function(e){ if(inRange(e.date)) ex=num(ex+num(e.amount)); });
+    rows.forEach(function(r){ if(r.status==="written-off"&&inRange(r.loan.writtenOffAt||r.loan.dueDate)) wo=num(wo+r.principalOutstanding); });
+    return { revenue:rev, expenses:ex, writeoffs:wo, net:num(rev-ex-wo) };
+  }
+  // Split an amount by the members' shares; rounding goes to the largest share.
+  function splitByShare(total, list){
+    var parts=list.map(function(m){ return { id:m.id, name:m.name, share:m.share, amount:Math.floor(total*m.share)/100 }; });
+    var diff=num(total-parts.reduce(function(s,x){ return s+x.amount; },0));
+    if(parts.length){ var big=parts.slice().sort(function(a,b){ return b.share-a.share; })[0]; big.amount=num(big.amount+diff); }
+    return parts;
+  }
+  function memberPosition(){
+    var cfg=membersCfg(); if(!cfg) return null;
+    var t=totals(), p=profitBetween(cfg.start, ""), all=distributionsList();
+    var ds=all.filter(function(d){ return !cfg.start||String(d.date)>=cfg.start; });
+    var paid=num(ds.reduce(function(s,d){ return s+d.total; },0));
+    var holdBack=num(rows.filter(function(r){ return r.status==="overdue"; }).reduce(function(s,r){ return s+r.principalOutstanding; },0));
+    var tax=num(Math.max(0,p.net)*cfg.taxPct/100);
+    var available=num(Math.max(0, p.net-paid-holdBack-tax));
+    var cashFree=num(Math.max(0, t.cash-cfg.reserve));
+    var today=todayISO(), locked=!!(cfg.lockUntil&&today<cfg.lockUntil);
+    var suggested=locked?0:Math.max(0, Math.floor(Math.min(available*0.5, cashFree)/100)*100);
+    return { cfg:cfg, totals:t, profit:p, distributions:ds, all:all, paid:paid, holdBack:holdBack, tax:tax, available:available, cashFree:cashFree, locked:locked, suggested:suggested,
+      members:cfg.list.map(function(m){
+        var got=num(ds.reduce(function(s,d){ return s+d.parts.filter(function(x){ return x.memberId===m.id; }).reduce(function(a,x){ return a+num(x.amount); },0); },0));
+        return { id:m.id, name:m.name, share:m.share, profitShare:num(p.net*m.share/100), received:got, assetShare:num(t.totalFunds*m.share/100) };
+      }) };
+  }
+  function daysBetween(a,b){ return Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000); }
+
+  function renderMembers(c){
+    var pos=memberPosition();
+    if(!pos){
+      setSub("");
+      c.innerHTML='<div class="card"><div class="ch"><h3>Members and profit distributions</h3></div><div style="padding:16px 18px;font-size:13px;line-height:1.6;color:var(--ink-2)">'
+        + '<p style="margin:0 0 10px">Record who owns the business and in what shares, and the date profit sharing started. The console then shows each member\'s share of the profit and of the business, works out what can safely be paid out, and records payouts so cash and profit stay right.</p>'
+        + '<button class="btn sm" id="mSetup">Set up members</button></div></div>';
+      $("mSetup").addEventListener("click",function(){ openMembersForm(); });
+      return;
+    }
+    var cfg=pos.cfg, today=todayISO();
+    setSub("Profit since "+fmtLong(cfg.start||today)+" · cash basis");
+    var lockNote="";
+    if(cfg.lockUntil){
+      lockNote=pos.locked
+        ? '<div class="arow"><span class="tag info">Locked</span><span class="txt">Profit is kept in the business until <b>'+esc(fmtLong(cfg.lockUntil))+'</b> ('+daysBetween(today,cfg.lockUntil)+' days). No payouts before then.</span></div>'
+        : '<div class="arow"><span class="tag good">Open</span><span class="txt">The lock-up ended on '+esc(fmtLong(cfg.lockUntil))+'. Payouts can be made, shared by the members\' interests.</span></div>';
+    }
+    var h='<div class="toolbar"><span style="flex:1"></span><button class="btn ghost sm" id="mEdit">Edit members</button><button class="btn sm" id="mPay"'+(pos.locked?' disabled title="Locked until '+esc(fmtLong(cfg.lockUntil))+'"':'')+'>Record a distribution</button></div>'
+      + '<div class="strip">'
+        + stat("Profit since "+fmtDate(cfg.start||today), money(pos.profit.net), "interest less expenses and write-offs")
+        + stat("Paid out to members", money(pos.paid), pos.distributions.length+" distribution"+(pos.distributions.length===1?"":"s"))
+        + stat("Available to pay out", money(pos.available), "after hold-backs below")
+        + stat("Cash in the bank", money(pos.totals.cash), cfg.reserve?"keeping "+money(cfg.reserve)+" for lending":"")
+      + '</div>'
+      + (lockNote?'<div class="card" style="margin-top:14px">'+lockNote+'</div>':'')
+      + '<div class="grid2" style="margin-top:14px">'
+      + '<div class="panel"><div class="ph"><h3>Members</h3><span class="n">'+pos.members.length+'</span></div><div class="table-scroll"><table><thead><tr><th>Member</th><th class="r">Share</th><th class="r">Share of profit</th><th class="r">Paid out</th><th class="r">Share of the business</th></tr></thead><tbody>'
+        + pos.members.map(function(m){ var nw=' style="white-space:nowrap"'; return '<tr><td><b>'+esc(m.name)+'</b></td><td class="r num"'+nw+'>'+esc(String(m.share))+'%</td><td class="r num"'+nw+'>'+money(m.profitShare)+'</td><td class="r num"'+nw+'>'+money(m.received)+'</td><td class="r num"'+nw+'>'+money(m.assetShare)+'</td></tr>'; }).join("")
+        + '</tbody></table></div><p style="font-size:11.5px;color:var(--muted);margin:10px 18px 14px">Share of the business is the member\'s share of total funds (cash plus money out on loan), the usual basis for a buy-back at net asset value.</p></div>'
+      + '<div class="card"><div class="ch"><h3>What can be paid out</h3></div><div class="ledger">'
+        + '<div class="lrow"><span class="lk">Profit since '+esc(fmtDate(cfg.start||today))+'<small>interest '+esc(money(pos.profit.revenue))+' less expenses '+esc(money(pos.profit.expenses))+(pos.profit.writeoffs?' and write-offs '+esc(money(pos.profit.writeoffs)):'')+'</small></span><span class="lv">'+money(pos.profit.net)+'</span></div>'
+        + '<div class="lrow sub"><span class="lk">Less already paid out</span><span class="lv">−'+money(pos.paid)+'</span></div>'
+        + '<div class="lrow sub"><span class="lk">Less held back for overdue loans<small>principal still out on overdue loans</small></span><span class="lv">−'+money(pos.holdBack)+'</span></div>'
+        + (cfg.taxPct?'<div class="lrow sub"><span class="lk">Less set aside for tax ('+esc(String(cfg.taxPct))+'% of profit)</span><span class="lv">−'+money(pos.tax)+'</span></div>':'')
+        + '<div class="lrow total"><span class="lk">Available to pay out</span><span class="lv">'+money(pos.available)+'</span></div>'
+        + '<div class="lrow memo"><span class="lk">Cash free after the lending reserve</span><span class="lv">'+money(pos.cashFree)+'</span></div>'
+        + (pos.locked?'':'<div class="lrow memo"><span class="lk">Suggested payout (half of what\'s available, within free cash)</span><span class="lv">'+money(pos.suggested)+'</span></div>')
+      + '</div></div></div>'
+      + '<div class="panel" style="margin-top:14px"><div class="ph"><h3>Distributions</h3><span class="n">'+pos.all.length+'</span></div><div class="table-scroll"><table><thead><tr><th>Date</th><th class="r">Total</th>'
+        + cfg.list.map(function(m){ return '<th class="r">'+esc(m.name)+'</th>'; }).join("")+'<th>From</th><th></th></tr></thead><tbody>'
+        + (pos.all.length? pos.all.map(function(d){
+            return '<tr><td class="num" style="white-space:nowrap">'+fmtDate(d.date)+(d.reference?'<br><span style="color:var(--muted);font-size:11.5px">'+esc(d.reference)+'</span>':'')+'</td><td class="r num"><b>'+money(d.total)+'</b></td>'
+              + cfg.list.map(function(m){ var a=d.parts.filter(function(x){ return x.memberId===m.id; }).reduce(function(s,x){ return s+num(x.amount); },0); return '<td class="r num">'+(a?money(a):"—")+'</td>'; }).join("")
+              + '<td>'+esc(accountNameById(d.accountId))+'</td><td class="r" style="white-space:nowrap"><button class="btn ghost sm" data-mres="'+esc(d.id)+'">Resolution</button> <button class="pdel" data-mdel="'+esc(d.id)+'" title="Delete this distribution">×</button></td></tr>';
+          }).join("") : '<tr><td colspan="'+(4+cfg.list.length)+'" class="empty">No distributions yet.</td></tr>')
+        + '</tbody></table></div></div>';
+    c.innerHTML=h;
+    $("mEdit").addEventListener("click",function(){ openMembersForm(); });
+    var pay=$("mPay"); if(pay&&!pos.locked) pay.addEventListener("click",function(){ openDistributionForm(); });
+    Array.prototype.forEach.call(c.querySelectorAll("[data-mres]"),function(b){ b.addEventListener("click",function(){ var d=pos.all.find(function(x){ return x.id===b.getAttribute("data-mres"); }); if(d) showDocument(resolutionParts(d)); }); });
+    Array.prototype.forEach.call(c.querySelectorAll("[data-mdel]"),function(b){ b.addEventListener("click",function(){ deleteDistribution(b.getAttribute("data-mdel")); }); });
+  }
+
+  function openMembersForm(){
+    var cfg=membersCfg(), co=company();
+    var list=cfg?cfg.list.slice():[{ id:uid("member"), name:co.officer||"", share:100 }];
+    while(list.length<4) list.push({ id:uid("member"), name:"", share:"" });
+    var lastMonth=monthKey(addDays(todayISO(),-30)), lent=num((state.loans||[]).filter(function(l){ return monthKey(l.issueDate)===lastMonth; }).reduce(function(s,l){ return s+num(l.principal); },0));
+    var body='<p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">Members and their interest in the CC, as in your founding statement or members\' agreement. Shares must add up to 100%.</p>'
+      + list.map(function(m,i){ return '<div class="field row"><div><label>Member '+(i+1)+'</label><input id="f_mn'+i+'" data-mid="'+esc(m.id)+'" value="'+esc(m.name)+'" placeholder="Full name"></div><div><label>Interest (%)</label><input id="f_ms'+i+'" class="num" type="number" min="0" max="100" step="0.01" value="'+esc(String(m.share))+'"></div></div>'; }).join("")
+      + '<div class="field row"><div><label>Profit sharing starts</label><input id="f_mstart" type="date" value="'+esc(cfg?cfg.start:todayISO())+'"></div><div><label>No payouts until <small style="text-transform:none;letter-spacing:0">(optional)</small></label><input id="f_mlock" type="date" value="'+esc(cfg?cfg.lockUntil:"")+'"></div></div>'
+      + '<div class="field row"><div><label>Set aside for tax (%)</label><input id="f_mtax" class="num" type="number" min="0" max="60" step="0.5" value="'+esc(String(cfg?cfg.taxPct:0))+'"></div><div><label>Keep for lending (N$)</label><input id="f_mres" class="num" type="number" min="0" step="100" value="'+esc(String(cfg?cfg.reserve:0))+'"></div></div>'
+      + '<p style="font-size:11.5px;color:var(--muted);margin:-4px 0 10px">Ask your accountant for the tax rate. As a guide for the reserve, you lent '+esc(money(lent))+' last month.</p>'
+      + '<div class="formerr" id="f_err"></div>';
+    openModal("Members", body, "Save members", function(){
+      var out=[], total=0;
+      for(var i=0;i<list.length;i++){
+        var n=cleanText(fval("f_mn"+i)), sh=Number(fval("f_ms"+i));
+        if(!n&&!(sh>0)) continue;
+        if(!n){ ferr("Enter a name for member "+(i+1)+"."); return; }
+        if(!(sh>0)||sh>100){ ferr("Enter "+n+"'s interest as a percentage."); return; }
+        out.push({ id:$("f_mn"+i).getAttribute("data-mid"), name:n, share:num(sh) }); total=num(total+sh);
+      }
+      if(!out.length){ ferr("Add at least one member."); return; }
+      if(Math.abs(total-100)>0.01){ ferr("The interests add up to "+total+"%; they must make 100%."); return; }
+      var st=fval("f_mstart"), lk=fval("f_mlock");
+      if(!st){ ferr("Pick the date profit sharing starts."); return; }
+      if(lk&&lk<st){ ferr("The no-payout date can't be before profit sharing starts."); return; }
+      var tax=Number(fval("f_mtax"))||0, res=Number(fval("f_mres"))||0;
+      if(tax<0||tax>60){ ferr("Tax set-aside must be between 0 and 60%."); return; }
+      if(res<0){ ferr("The lending reserve can't be negative."); return; }
+      commit(function(data){ if(!data.settings||typeof data.settings!=="object") data.settings={}; data.settings.members={ list:out, start:st, lockUntil:lk||"", taxPct:tax, reserve:num(res), updatedAt:new Date().toISOString() }; }, "Members saved.");
+    });
+  }
+
+  function openDistributionForm(){
+    var pos=memberPosition(); if(!pos) return openMembersForm();
+    if(pos.locked){ toast("Payouts are locked until "+fmtLong(pos.cfg.lockUntil)+".","err"); return; }
+    var bal=accountBalances();
+    var body='<p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">Available to pay out: <b>'+money(pos.available)+'</b> · cash free after the lending reserve: <b>'+money(pos.cashFree)+'</b>. The amount is split by the members\' interests.</p>'
+      + '<div class="field row"><div><label>Total to pay out (N$)</label><input id="f_damt" class="num" type="number" min="0" step="0.01" value="'+esc(String(pos.suggested||""))+'"></div><div><label>Date</label><input id="f_ddate" type="date" value="'+todayISO()+'"></div></div>'
+      + accountSelectHtml("f_dacct", preferredAccountId(), "Paid from")
+      + '<div class="field"><label>Reference</label><input id="f_dref" placeholder="e.g. Profit distribution Feb 2027"></div>'
+      + '<div id="f_dsplit"></div>'
+      + '<p style="margin:10px 0 0"><button type="button" class="btn ghost sm" id="f_dres">Print the members\' resolution first</button></p>'
+      + '<p style="font-size:11.5px;color:var(--muted);margin:8px 0 0">Sign the resolution, pay each member by bank transfer, then save here. Payouts are recorded as money out, so cash drops and profit is unchanged.</p>'
+      + '<div class="formerr" id="f_err"></div>';
+    function draft(){
+      var amt=num(fval("f_damt")); return { id:"draft", date:fval("f_ddate")||todayISO(), total:amt, accountId:fval("f_dacct"), reference:cleanText(fval("f_dref")),
+        parts:splitByShare(amt,pos.cfg.list).map(function(x){ return { memberId:x.id, memberName:x.name, share:x.share, amount:x.amount }; }) };
+    }
+    function preview(){
+      var d=draft(), box=$("f_dsplit"); if(!box) return;
+      box.innerHTML='<table class="dtable"><thead><tr><th>Member</th><th class="r">Interest</th><th class="r">Receives</th></tr></thead><tbody>'
+        + d.parts.map(function(x){ return '<tr><td>'+esc(x.memberName)+'</td><td class="r num">'+esc(String(x.share))+'%</td><td class="r num">'+money(x.amount)+'</td></tr>'; }).join("")+'</tbody></table>';
+    }
+    openModal("Record a distribution", body, "Save distribution", function(){
+      var d=draft(), acct=d.accountId;
+      if(!(d.total>0)){ ferr("Enter the total to pay out."); return; }
+      if(!d.date||d.date>todayISO()){ ferr("Pick the date it was paid (not in the future)."); return; }
+      if(pos.cfg.lockUntil&&d.date<pos.cfg.lockUntil){ ferr("Payouts are locked until "+fmtLong(pos.cfg.lockUntil)+"."); return; }
+      if(d.total>num(bal[acct]||0)+0.001){ ferr("That's more than the "+money(bal[acct]||0)+" in "+accountNameById(acct)+"."); return; }
+      if(d.total>pos.available+0.001&&!confirm(money(d.total)+" is more than the "+money(pos.available)+" available after hold-backs. Pay it out anyway?")) return;
+      if(d.total>pos.cashFree+0.001&&!confirm("This leaves less than your lending reserve of "+money(pos.cfg.reserve)+" in the bank. Continue?")) return;
+      var gid=uid("dist"), now=new Date().toISOString();
+      ui.lastAccount=acct;
+      commit(function(data){
+        if(!Array.isArray(data.capital)) data.capital=[];
+        d.parts.forEach(function(x){
+          if(!(x.amount>0)) return;
+          data.capital.push({ id:uid("capital"), createdAt:now, direction:"out", amount:x.amount, date:d.date, accountId:acct, kind:"distribution", distributionId:gid, memberId:x.memberId, memberName:x.memberName, share:x.share, reference:d.reference, note:"Profit distribution — "+x.memberName+" ("+x.share+"%)" });
+        });
+      }, "Distribution of "+money(d.total)+" saved.");
+    });
+    $("f_damt").addEventListener("input",preview); preview();
+    $("f_dres").addEventListener("click",function(){ var d=draft(); if(!(d.total>0)){ ferr("Enter the total first."); return; } showDocument(resolutionParts(d)); });
+  }
+  function deleteDistribution(id){
+    var d=distributionsList().find(function(x){ return x.id===id; }); if(!d) return;
+    if(!confirm("Delete the "+money(d.total)+" distribution of "+fmtDate(d.date)+"? Cash goes back up by that amount.")) return;
+    runDelete(function(data){ data.capital=(data.capital||[]).filter(function(c){ return c.distributionId!==id; }); }, "Distribution deleted.");
+  }
+  // A members' resolution approving the payout, on the letterhead, for signing.
+  function resolutionParts(d){
+    var co=company(), pos=memberPosition(), cfg=pos.cfg;
+    var recorded=pos.all.some(function(x){ return x.id===d.id; });
+    var paidBefore=num(pos.distributions.filter(function(x){ return x.id!==d.id && String(x.date)<=String(d.date); }).reduce(function(s,x){ return s+x.total; },0));
+    var p=profitBetween(cfg.start, d.date);
+    var cashAfter=num(pos.totals.cash-(recorded?0:d.total)), fundsAfter=num(pos.totals.totalFunds-(recorded?0:d.total));
+    function row(k,v){ return '<tr><td class="k">'+esc(k)+'</td><td>'+v+'</td></tr>'; }
+    var parts=d.parts.map(function(x){ return { name:x.memberName||((cfg.list.find(function(m){ return m.id===x.memberId; })||{}).name)||"Member", share:x.share, amount:num(x.amount) }; });
+    var sheet='<div class="sheet">'
+      + '<div class="head"><div>'+logoSvg()+'</div><div class="biz">'+letterBizLines(co).join("")+'</div></div>'
+      + '<h1>Resolution of the members</h1>'
+      + '<p style="text-align:center;margin:0 0 10px">'+esc(co.legalName)+(co.cc?' · Registration No. '+esc(co.cc):'')+'</p>'
+      + '<table>'+row("Resolution date", esc(fmtLong(d.date)))+row("Place", esc(co.town||"")+", Namibia")+(d.reference?row("Reference", esc(d.reference)):"")+'</table>'
+      + '<h2>1. Distribution</h2>'
+      + '<p>The members resolve that <strong>'+esc(money(d.total))+'</strong> of the corporation\'s profit be paid to the members in proportion to their members\' interests, as follows:</p>'
+      + '<table><tr><td class="k"><b>Member</b></td><td><b>Interest · amount</b></td></tr>'+parts.map(function(x){ return row(x.name, esc(String(x.share))+'% · <strong>'+esc(money(x.amount))+'</strong>'); }).join("")+'</table>'
+      + '<h2>2. Basis</h2>'
+      + '<table>'+row("Profit from "+fmtLong(cfg.start)+" to "+fmtLong(d.date), esc(money(p.net))+' <span class="muted">(interest collected less expenses and write-offs, from the loan book)</span>')
+        + row("Distributions already paid in this period", esc(money(paidBefore)))
+        + row("Held back for overdue loans", esc(money(pos.holdBack)))+(cfg.taxPct?row("Set aside for tax", esc(money(num(Math.max(0,p.net)*cfg.taxPct/100)))):"")+'</table>'
+      + '<h2>3. Confirmation</h2>'
+      + '<p>The members confirm that, after this payment, the corporation\'s assets, fairly valued, will exceed its liabilities, and that it will be able to pay its debts as they fall due in the ordinary course of business. After the payment the corporation will hold about <strong>'+esc(money(cashAfter))+'</strong> in cash and <strong>'+esc(money(fundsAfter))+'</strong> in total funds (cash plus money out on loan).</p>'
+      + '<p>Payment is to be made by bank transfer from '+esc(accountNameById(d.accountId))+'.</p>'
+      + '<div class="sign" style="justify-content:flex-start;gap:40px">'+parts.map(function(x){ return '<div class="who"><div class="sig-line"></div><div style="border-top:1px solid #555;padding-top:4px"><strong>'+esc(x.name)+'</strong><br><span class="muted">Member · '+esc(String(x.share))+'%</span><br><span class="muted">Date: ____________</span></div></div>'; }).join("")+'</div>'
+      + '</div>';
+    return { title:"Members' resolution — "+fmtDate(d.date), css:letterCss(), sheet:sheet };
   }
   function clientOptionsHtml(sel){
     return state.clients.slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"");})
@@ -2823,7 +3054,7 @@ body.doc-open{overflow:hidden}
     try{ if(sessionStorage.getItem("qs_idle_signout")){ sessionStorage.removeItem("qs_idle_signout"); msg("Signed out after 20 minutes without activity.",""); } }catch(e){}
   }
 
-  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm, creditScores:creditScores, clientScore:clientScore, bookByGrade:bookByGrade, openScoreHelp:openScoreHelp, assignMissingRefs:function(d){ return assignMissingRefs(d); }, missingRefCount:missingRefCount, company:company, openCompanyForm:openCompanyForm, printHead:printHead, openPaidUpLetter:openPaidUpLetter, explainNotSettled:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); if(r) explainNotSettled(r); }, showUpdateBar:showUpdateBar, build:function(){ return BUILD; }, openClientPaidUp:openClientPaidUp, paidUpLetterHtml:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); return r?paidUpLetterHtml(r):""; }, trimmedSignature:trimmedSignature, closeDocument:closeDocument };
+  window.__admin = { setState:function(d){ state=Object.assign(state,d); analyse(); }, go:go, render:render, openClient:openClient, openLoan:openLoan, totals:totals, openClientForm:openClientForm, openLoanForm:openLoanForm, openPaymentForm:openPaymentForm, deleteClient:deleteClient, deleteLoan:deleteLoan, deletePayment:deletePayment, openExpenseForm:openExpenseForm, deleteExpense:deleteExpense, expenseCount:function(){return (state.expenses||[]).length;}, saveLedger:saveLedger, projectionRows:projectionRows, projectionCfg:projectionCfg, exportBackup:exportBackup, exportLoansCSV:exportLoansCSV, clientCount:function(){return state.clients.length;}, loanCount:function(){return state.loans.length;}, paymentCount:function(){return state.payments.length;}, findClient:function(id){return client(id);}, findLoanRow:function(id){return rows.find(function(x){return x.loan.id===id;});}, accountBalances:accountBalances, accountsList:accountsList, cashMovements:cashMovements, openAccountForm:openAccountForm, openTransferForm:openTransferForm, openCapitalForm:openCapitalForm, openReconcileForm:openReconcileForm, openAccount:openAccount, openRolloverForm:openRolloverForm, setLoanStatus:setLoanStatus, exportTransfersCSV:exportTransfersCSV, ageing:ageing, provisionRates:provisionRates, promiseStatus:function(id){ var r=rows.find(function(x){return x.loan.id===id;}); return r?promiseStatus(r):null; }, promiseCounts:promiseCounts, openContactForm:openContactForm, pnlMonths:pnlMonths, revenueByPayment:revenueByPayment, describeChange:describeChange, restoreFromFile:restoreFromFile, restoreVersion:restoreVersion, backupAge:backupAge, exportBackup:exportBackup, openProvisionForm:openProvisionForm, creditScores:creditScores, clientScore:clientScore, bookByGrade:bookByGrade, openScoreHelp:openScoreHelp, memberPosition:memberPosition, openMembersForm:openMembersForm, openDistributionForm:openDistributionForm, resolutionParts:resolutionParts, splitByShare:splitByShare, profitBetween:profitBetween, assignMissingRefs:function(d){ return assignMissingRefs(d); }, missingRefCount:missingRefCount, company:company, openCompanyForm:openCompanyForm, printHead:printHead, openPaidUpLetter:openPaidUpLetter, explainNotSettled:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); if(r) explainNotSettled(r); }, showUpdateBar:showUpdateBar, build:function(){ return BUILD; }, openClientPaidUp:openClientPaidUp, paidUpLetterHtml:function(id){ var r=rows.find(function(x){ return x.loan.id===id; }); return r?paidUpLetterHtml(r):""; }, trimmedSignature:trimmedSignature, closeDocument:closeDocument };
   paintLetterhead();
 })();
 </script>
