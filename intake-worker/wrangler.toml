@@ -22,6 +22,10 @@ MIN_AMOUNT = "500"
 STANDARD_MAX_AMOUNT = "10000"
 MAX_AMOUNT = "100000"
 INTEREST_RATE_BP = "3000"
+# Web Push: staff devices get a notification for every new application. The
+# private half is the VAPID_PRIVATE_JWK secret.
+VAPID_PUBLIC_KEY = "BLjubqCUHQ56QIcpSXIifR0UIRWASt6mZTpHOSs1fLJ6n63VrdimticSmoKdfsMO5yGOCcdTdyZ-cUTnGvh5-Og"
+VAPID_SUBJECT = "mailto:info@quickserve.group"
 # Days to keep documents of declined or withdrawn applications.
 RETENTION_DAYS = "180"
 

@@ -188,13 +188,16 @@ export function sniffMime(bytes) {
 
 // ---- what the applicant sees -------------------------------------------------
 
+// What the applicant's tracking page shows, matching the admin portal:
+// New → Received, In review, Waiting on applicant → Waiting on you,
+// Approved, Paid out → Paid, Declined, Withdrawn.
 export function applicantStage(status) {
   return {
     draft: "not_handed_in",
     new: "received",
-    in_review: "received",
+    in_review: "in_review",
     info_requested: "waiting_on_you",
-    approved: "quoted",
+    approved: "approved",
     converted: "paid",
     declined: "declined",
     withdrawn: "withdrawn"
