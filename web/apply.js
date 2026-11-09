@@ -18,9 +18,18 @@
   st.amount = st.amount || 2000;
   st.d = st.d || {};
   st.files = st.files || { id: [], payslip: [], bank: [] };
+  // An amount from the home page's quote slip always wins over an earlier
+  // unfinished application saved on this device. If that application was
+  // already saved on our side, go back to sheet 1 so the new amount is saved
+  // again when they continue. The amount is then removed from the address,
+  // so a refresh doesn't undo later changes.
   try {
     var qa = Number(new URLSearchParams(location.search).get("amount"));
-    if (qa >= QS.MIN && qa <= QS.MAX && !st.ref) { st.amount = Math.round(qa / 100) * 100; st.big = false; }
+    if (qa >= QS.MIN && qa <= QS.MAX) {
+      qa = Math.round(qa / 100) * 100;
+      if (qa !== st.amount || st.big) { st.amount = qa; st.big = false; st.sheet = 1; }
+      history.replaceState(null, "", location.pathname);
+    }
   } catch (e) {}
   function save() { QS.store.set(KEY, st); }
 
