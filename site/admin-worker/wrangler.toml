@@ -1,0 +1,9 @@
+# The admin console, served at https://admin.quickserve.group from the
+# QuickServe Cloudflare account. Build and deploy from the repository root:
+#   sh site/assemble.sh && node site/admin-worker/build.mjs
+#   npx wrangler deploy --config site/admin-worker/wrangler.toml
+name = "quickserve-admin"
+main = "dist/worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = false
+routes = [{ pattern = "admin.quickserve.group", custom_domain = true }]
