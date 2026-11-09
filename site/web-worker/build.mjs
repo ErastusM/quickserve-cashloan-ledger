@@ -39,11 +39,11 @@ const FILES = ${JSON.stringify(files)};
 const PAGES = { "/": "/index.html", "/apply": "/apply.html", "/track": "/track.html", "/privacy": "/privacy.html" };
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src https://fonts.gstatic.com",
   "img-src 'self' data: blob:",
-  "connect-src 'self' https://api.quickserve.group",
+  "connect-src 'self' https://api.quickserve.group https://cloudflareinsights.com",
   "frame-src https://challenges.cloudflare.com",
   "form-action 'self'",
   "base-uri 'self'",
