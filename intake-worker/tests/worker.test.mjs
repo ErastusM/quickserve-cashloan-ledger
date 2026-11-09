@@ -11,7 +11,7 @@ import { normalisePhone, sniffMime, validateApplication, loanCost, yymm, formatR
 // ---- fakes ---------------------------------------------------------------------
 function fakeD1() {
   const db = new DatabaseSync(":memory:");
-  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql", "0003_recommendations.sql", "0004_push.sql", "0005_audit.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
+  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql", "0003_recommendations.sql", "0004_push.sql", "0005_audit.sql", "0006_contact.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
   const stmt = (sql, args = []) => ({
     bind: (...a) => stmt(sql, a),
     first: async () => db.prepare(sql).get(...args) ?? null,
@@ -37,6 +37,7 @@ function makeEnv() {
     ALLOWED_ORIGINS: "https://quickserve.group,https://admin.quickserve.group",
     SUPABASE_URL: "https://sb.example", SUPABASE_KEY: "pub",
     OWNER_TOKEN: "owner-secret-owner-secret-12345",
+    TRACK_SESSION_SECRET: "test-session-secret",
     MIN_AMOUNT: "500", STANDARD_MAX_AMOUNT: "10000", MAX_AMOUNT: "100000", INTEREST_RATE_BP: "3000"
   };
 }
@@ -357,6 +358,46 @@ test("audit trail: views, decisions with their basis, owner-only, CSV, and nothi
 
   assert.throws(() => env.DB.raw.prepare("UPDATE application_events SET actor = 'someone else'").run(), /cannot be changed/);
   assert.throws(() => env.DB.raw.prepare("DELETE FROM application_events").run(), /cannot be deleted/);
+});
+
+test("after a request, approval or decline the application waits until staff confirm the WhatsApp was sent", async () => {
+  const env = makeEnv();
+  const d = await draftWithDocs(env);
+  await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: { "X-Upload-Token": d.uploadToken } });
+  const detail = async () => (await (await call(env, "GET", `/v2/admin/applications/${d.reference}`, { headers: staff })).json()).application;
+  assert.equal((await detail()).contact_pending, null);
+  await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "info_requested", applicantMessage: "Please send your October statement." } });
+  assert.equal((await detail()).contact_pending, "info_requested");
+  const list = await (await call(env, "GET", "/v2/admin/applications", { headers: staff })).json();
+  assert.equal(list.applications[0].contact_pending, "info_requested");
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${d.reference}/whatsapp-sent`, { headers: staff })).status, 200);
+  assert.equal((await detail()).contact_pending, null);
+  await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "approved" } });
+  assert.equal((await detail()).contact_pending, "approved");
+  const log = await (await call(env, "GET", "/v2/admin/audit?type=whatsapp_sent", { headers: staff })).json();
+  assert.deepEqual(log.events.map((e) => e.detail.about), ["info_requested"]);
+  // an ad-hoc call is logged without touching the pending flag
+  await call(env, "POST", `/v2/admin/applications/${d.reference}/whatsapp-sent`, { headers: staff, body: { channel: "call" } });
+  assert.equal((await detail()).contact_pending, "approved");
+  const calls = await (await call(env, "GET", "/v2/admin/audit?type=contacted", { headers: staff })).json();
+  assert.equal(calls.events[0].detail.channel, "call");
+});
+
+test("tracking by reference + cellphone gives a 24-hour pass to refresh and upload from any phone", async () => {
+  const env = makeEnv();
+  const d = await draftWithDocs(env);
+  await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: { "X-Upload-Token": d.uploadToken } });
+  await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "info_requested", applicantMessage: "Please send your October statement." } });
+  const first = await (await call(env, "POST", "/v2/track", { body: { reference: d.reference, phone: "081 234 5678" } })).json();
+  assert.match(first.sessionToken, /^s\.QSA-/);
+  assert.equal(first.canUpload, true);
+  const again = await (await call(env, "POST", "/v2/track", { body: { trackToken: first.sessionToken } })).json();
+  assert.equal(again.stage, "waiting_on_you", "the pass refreshes without the bot check");
+  assert.equal((await call(env, "PUT", `/v2/track/${d.reference}/files/bank`, { raw: PDF, headers: { "X-Track-Token": first.sessionToken } })).status, 201);
+  const forged = first.sessionToken.slice(0, -4) + "0000";
+  assert.equal((await call(env, "POST", "/v2/track", { body: { trackToken: forged } })).status, 404);
+  const other = first.sessionToken.replace(d.reference, "QSA-2611-9999");
+  assert.equal((await call(env, "PUT", `/v2/track/QSA-2611-9999/files/bank`, { raw: PDF, headers: { "X-Track-Token": other } })).status, 404);
 });
 
 test("CORS only answers the website and the admin console", async () => {

@@ -21,6 +21,7 @@
 //   POST   /v2/admin/push/subscribe                 { subscription, device }   this device gets notifications
 //   POST   /v2/admin/push/unsubscribe               { endpoint }
 //   POST   /v2/admin/push/test                      sends a test to your devices
+//   POST   /v2/admin/applications/:id/whatsapp-sent  staff confirm the applicant was told
 //   POST   /v2/admin/applications/:id/recommend     { recommendation: approve|decline, note }
 //   POST   /v2/admin/applications/:id/converted     { clientId, loanId, clientRef, loanRef }   owners only
 //
@@ -37,7 +38,7 @@
 
 import {
   HttpError, json, corsHeaders, formatReference, yymm, REF_PATTERN, makeToken, makeId, sha256Hex, safeEqual,
-  validateApplication, normalisePhone, sniffMime, applicantStage, missingKinds,
+  validateApplication, normalisePhone, sniffMime, applicantStage, missingKinds, makeTrackSession, readTrackSession,
   MAX_FILE_BYTES, MAX_FILES, FILE_KINDS, STAFF_STATUSES, CONSENT_VERSION
 } from "./lib.js";
 import { sendPush } from "./webpush.js";
@@ -93,6 +94,7 @@ async function route(request, env, ctx) {
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/files\/([0-9a-f-]{36})$/)) && m === "GET") return streamFile(request, env, staff, p[1], p[2]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/status$/)) && m === "POST") return setStatus(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/affordability$/)) && m === "PUT") return saveAffordability(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/whatsapp-sent$/)) && m === "POST") return whatsappSent(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/recommend$/)) && m === "POST") return recommend(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/converted$/)) && m === "POST") return markConverted(request, env, staff, p[1]);
   }
@@ -354,7 +356,11 @@ async function track(request, env) {
   const body = await readJson(request);
   let app = null;
 
-  if (body.trackToken) {
+  let session = null;
+  const sessionId = await readTrackSession(env.TRACK_SESSION_SECRET, body.trackToken);
+  if (sessionId) {
+    app = await env.DB.prepare(`SELECT * FROM applications WHERE id = ?`).bind(sessionId).first();
+  } else if (body.trackToken) {
     app = await env.DB.prepare(`SELECT * FROM applications WHERE track_token_hash = ?`).bind(await sha256Hex(String(body.trackToken))).first();
   } else {
     await checkTurnstile(request, env, body.turnstileToken);
@@ -362,6 +368,7 @@ async function track(request, env) {
     const phone = normalisePhone(body.phone);
     if (new RegExp("^" + REF_PATTERN + "$").test(ref) && phone) {
       app = await env.DB.prepare(`SELECT * FROM applications WHERE id = ? AND phone = ?`).bind(ref, phone).first();
+      if (app && env.TRACK_SESSION_SECRET) session = await makeTrackSession(env.TRACK_SESSION_SECRET, app.id);
     }
   }
   if (!app || app.status === "draft") throw new HttpError(404, "We couldn't find an application with those details.");
@@ -395,12 +402,14 @@ async function track(request, env) {
     totalCents: app.total_cents,
     submittedAt: app.submitted_at,
     missing: missingKinds(files),
-    canUpload: app.status === "info_requested" && Boolean(body.trackToken)
+    canUpload: app.status === "info_requested" && Boolean(body.trackToken || session),
+    sessionToken: session
   });
 }
 
 async function uploadRequestedFile(request, env, id, kind, ctx) {
-  const app = await requireToken(request, env, id, "X-Track-Token", "track_token_hash");
+  const sessionId = await readTrackSession(env.TRACK_SESSION_SECRET, request.headers.get("X-Track-Token"));
+  const app = sessionId === id ? await loadApp(env, id) : await requireToken(request, env, id, "X-Track-Token", "track_token_hash");
   if (app.status !== "info_requested") throw new HttpError(409, "We're not waiting for any documents on this application.");
   const file = await storeFile(request, env, app, kind, "applicant");
   await env.DB.prepare(`UPDATE applications SET status = 'in_review', updated_at = ? WHERE id = ?`).bind(now(), id).run();
@@ -440,7 +449,7 @@ async function listApplications(request, env, legacyShape) {
   const { results } = await env.DB.prepare(
     `SELECT id, created_at, submitted_at, status, full_name, phone, national_id, employer, purpose,
             amount_cents, total_cents, payday, id_type, above_standard, ledger_client_ref, ledger_loan_ref,
-            recommendation, recommended_by
+            recommendation, recommended_by, contact_pending
      FROM applications WHERE ${where.join(" AND ")} ORDER BY submitted_at DESC LIMIT 300`
   ).bind(...binds).all();
   const { results: counts } = await env.DB.prepare(
@@ -530,6 +539,8 @@ async function setStatus(request, env, staff, id) {
   const t = now();
   const decided = to === "approved" || to === "declined";
 
+  const contact = ["info_requested", "approved", "declined"].includes(to) ? to : null;
+  await env.DB.prepare(`UPDATE applications SET contact_pending = ? WHERE id = ?`).bind(contact, id).run();
   await env.DB.prepare(
     `UPDATE applications SET status = ?, updated_at = ?, applicant_message = ?,
        decided_at = CASE WHEN ? THEN ? ELSE decided_at END,
@@ -556,6 +567,21 @@ async function saveAffordability(request, env, staff, id) {
   const sheet = JSON.stringify(body).slice(0, 8000);
   await env.DB.prepare(`UPDATE applications SET affordability_json = ?, updated_at = ? WHERE id = ?`).bind(sheet, now(), id).run();
   await event(env, id, "staff:" + staff.email, "affordability_saved", null);
+  return json(request, env, { ok: true });
+}
+
+async function whatsappSent(request, env, staff, id) {
+  const app = await loadApp(env, id);
+  const body = await request.json().catch(() => ({}));
+  // Any other contact (an ad-hoc WhatsApp or a call) is logged too.
+  if (body.channel) {
+    const channel = body.channel === "call" ? "call" : "whatsapp";
+    await event(env, id, "staff:" + staff.email, "contacted", { channel, message: String(body.message || "").slice(0, 600) || null });
+    if (!body.confirm) return json(request, env, { ok: true });
+  }
+  if (!app.contact_pending) return json(request, env, { ok: true, already: true });
+  await env.DB.prepare(`UPDATE applications SET contact_pending = NULL WHERE id = ?`).bind(id).run();
+  await event(env, id, "staff:" + staff.email, "whatsapp_sent", { about: app.contact_pending });
   return json(request, env, { ok: true });
 }
 
@@ -608,7 +634,7 @@ async function eventOnce(env, id, actor, type, detail) {
 
 const AUDIT_LABELS = {
   draft_created: "Started an application", submitted: "Handed in", document_added: "Sent a requested document",
-  opened: "Opened the application", document_viewed: "Viewed a document", affordability_saved: "Saved the affordability worksheet",
+  opened: "Opened the application", document_viewed: "Viewed a document", whatsapp_sent: "Confirmed the applicant was told on WhatsApp", contacted: "Contacted the applicant", affordability_saved: "Saved the affordability worksheet",
   recommended: "Recommended", status: "Changed status"
 };
 

@@ -1459,6 +1459,14 @@ body.doc-open{overflow:hidden}
   function phoneLocal(p){ var d=String(p||"").replace(/\D/g,""); if(d.indexOf("264")===0) d="0"+d.slice(3); return d.length===10 ? d.slice(0,3)+" "+d.slice(3,6)+" "+d.slice(6) : d; }
   function waLink(phone, text){ return "https://wa.me/"+String(phone||"").replace(/\D/g,"")+"?text="+encodeURIComponent(text); }
   function firstName(n){ return String(n||"").trim().split(/\s+/)[0]||""; }
+  // The WhatsApp message for a status change, ready to send.
+  function waText(a, status, message){
+    var hi="Hello "+firstName(a.full_name)+", this is QuickServe about your application "+a.id+". ";
+    if(status==="info_requested") return hi+(message||"")+" You can send it here: "+PUBLIC_SITE+"/track";
+    if(status==="approved") return "Hello "+firstName(a.full_name)+", good news from QuickServe: your application "+a.id+" is approved. We're sending your Pre-Agreement Statement with the full cost before you sign.";
+    if(status==="declined") return hi+(message||"");
+    return hi;
+  }
 
   function renderApplications(c){
     if(ui.appId) return renderApplication(c, ui.appId);
@@ -1474,6 +1482,7 @@ body.doc-open{overflow:hidden}
       setSub(isOwner()?"":"Signed in as credit analyst"+(me.approvalLimit!=null?" · approves up to "+money0(me.approvalLimit):""));
       var body=apps.map(function(a){
         var flags=(a.above_standard?'<span class="pill waiting" style="margin-left:6px">Over N$ 10 000</span>':'')
+          +(a.contact_pending?'<span class="pill waiting" style="margin-left:6px">Not told yet</span>':'')
           +(a.recommendation&&["new","in_review","info_requested"].indexOf(a.status)>=0?'<span class="pill '+(a.recommendation==="approve"?"approved":"declined")+'" style="margin-left:6px">Recommend '+esc(a.recommendation)+'</span>':'');
         return '<tr class="rowlink" data-app="'+esc(a.id)+'"><td class="mono">'+esc(a.id)+'</td>'
           +'<td class="who-cell"><b>'+esc(a.full_name||"—")+'</b><span>'+esc(phoneLocal(a.phone))+(a.employer?" · "+esc(a.employer):"")+'</span></td>'
@@ -1508,7 +1517,7 @@ body.doc-open{overflow:hidden}
       var open=["new","in_review","info_requested"].indexOf(a.status)>=0;
       var acts=[];
       if(open){
-        acts.push('<button class="btn ghost sm" id="aAsk">Ask for something</button>');
+        acts.push('<button class="btn ghost sm" id="aAsk">Ask for missing info</button>');
         acts.push('<button class="btn ghost sm danger" id="aDecline">Decline</button>');
         if(canApprove(a)) acts.push('<button class="btn sm" id="aApprove">Approve</button>');
         else acts.push('<button class="btn sm" id="aRecommend">Recommend</button>');
@@ -1518,11 +1527,8 @@ body.doc-open{overflow:hidden}
         acts.push('<button class="btn ghost sm danger" id="aDecline">Decline</button>');
       }
       if(a.status==="declined"||a.status==="withdrawn") acts.push('<button class="btn ghost sm" id="aReopen">Reopen</button>');
-      var wa=null;
-      if(a.status==="info_requested" && a.applicant_message) wa=waLink(a.phone,"Hello "+firstName(a.full_name)+", this is QuickServe about your application "+a.id+". "+a.applicant_message+" You can send it here: "+PUBLIC_SITE+"/track");
-      if(a.status==="approved") wa=waLink(a.phone,"Hello "+firstName(a.full_name)+", good news from QuickServe: your application "+a.id+" is approved. We're sending your Pre-Agreement Statement with the full cost before you sign.");
-      if(a.status==="declined" && a.applicant_message) wa=waLink(a.phone,"Hello "+firstName(a.full_name)+", this is QuickServe about your application "+a.id+". "+a.applicant_message);
-      if(wa) acts.unshift('<a class="btn ghost sm" href="'+esc(wa)+'" target="_blank" rel="noopener">WhatsApp the applicant</a>');
+      acts.unshift('<button class="btn ghost sm" id="aContact">Contact applicant</button>');
+      var pendingWa = a.contact_pending ? waLink(a.phone, waText(a, a.contact_pending, a.applicant_message)) : null;
 
       function L(k,v){ return '<div class="lrow"><span class="lk">'+esc(k)+'</span><span class="lv" style="font-family:var(--sans);font-size:13.5px;text-align:right;white-space:normal">'+v+'</span></div>'; }
       var idLine=a.id_type==="passport" ? 'Passport <span class="mono">'+esc(a.national_id)+'</span>'+(a.nationality?" · "+esc(a.nationality):"") : 'ID <span class="mono">'+esc(a.national_id)+'</span>';
@@ -1535,6 +1541,9 @@ body.doc-open{overflow:hidden}
         +'<div style="color:var(--muted);font-size:13px;margin-top:4px"><span class="mono">'+esc(a.id)+'</span> · received '+esc(fmtDate((a.submitted_at||"").slice(0,10)))+(a.ledger_loan_ref?' · loan <span class="mono">'+esc(a.ledger_loan_ref)+'</span>':'')+'</div></div>'
         +'<div style="display:flex;flex-wrap:wrap;gap:8px">'+acts.join("")+'</div></div>';
       if(a.recommendation && open) h+='<div class="card" style="margin-bottom:16px;border-color:'+(a.recommendation==="approve"?"var(--good)":"var(--bad)")+'"><div class="ledger" style="padding:12px 18px"><b>'+esc(a.recommended_by||"Analyst")+' recommends '+esc(a.recommendation==="approve"?"approving":"declining")+'.</b> '+esc(a.recommendation_note||"")+'</div></div>';
+      if(pendingWa) h+='<div class="card" style="margin-bottom:16px;border:2px solid var(--warn);background:var(--warn-soft)"><div style="padding:12px 18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">'
+        +'<span><b>The applicant hasn’t been told yet.</b> '+esc({info_requested:"Send them the request on WhatsApp so they know to upload.",approved:"Let them know it’s approved.",declined:"Let them know, with the reason."}[a.contact_pending]||"")+'</span>'
+        +'<span style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" id="waOpen" href="'+esc(pendingWa)+'" target="_blank" rel="noopener">Open WhatsApp</a><button class="btn ghost sm" id="waDone">I’ve sent it</button></span></div></div>';
       h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:16px;align-items:start">';
       h+='<div class="card"><div class="ch"><h3>Requested</h3></div><div class="ledger">'
         +L("Amount", '<span class="mono">'+cents(a.amount_cents)+'</span>')+L("Interest at 30%", '<span class="mono">'+cents(a.interest_cents)+'</span>')
@@ -1560,7 +1569,7 @@ body.doc-open{overflow:hidden}
         +'<div style="padding:10px 18px;display:flex;flex-wrap:wrap;gap:6px" id="appDocTabs">'+files.map(function(f,i){ return '<button class="btn ghost sm" data-doc="'+i+'">'+esc({id:"ID / passport",payslip:"Payslip",bank:"Bank statement",other:"Other"}[f.kind]||f.kind)+(f.uploaded_by==="applicant"&&events.some(function(e){ return e.type==="document_added"&&e.detail&&e.detail.fileId===f.id; })?" (added later)":"")+'</button>'; }).join("")+'</div>'
         +'<div id="appDocView" style="padding:0 18px 18px"><div class="empty">Choose a document above.</div></div></div>';
       h+='<div class="card" style="margin-top:16px"><div class="ch"><h3>Activity</h3></div><div class="ledger">'
-        +events.map(function(e){ var d=e.detail||{}, what={opened:"Opened the application",document_viewed:"Viewed a document ("+({id:"ID / passport",payslip:"payslip",bank:"bank statement",other:"other"}[d.kind]||d.kind||"")+")",draft_created:"Started the application",submitted:"Handed in",document_added:"Added a document",affordability_saved:"Saved the affordability worksheet",recommended:"Recommended "+(d.recommendation||"")+(d.note?": "+d.note:"")}[e.type] || (e.type==="status" ? (APP_STATUS[d.to]||d.to)+(d.applicantMessage?": “"+d.applicantMessage+"”":"")+(d.loanRef?" · "+d.loanRef:"") : e.type);
+        +events.map(function(e){ var d=e.detail||{}, what={whatsapp_sent:"Confirmed the applicant was told on WhatsApp",contacted:(d.channel==="call"?"Called the applicant":"Messaged the applicant on WhatsApp")+(d.message?": “"+d.message+"”":""),opened:"Opened the application",document_viewed:"Viewed a document ("+({id:"ID / passport",payslip:"payslip",bank:"bank statement",other:"other"}[d.kind]||d.kind||"")+")",draft_created:"Started the application",submitted:"Handed in",document_added:"Added a document",affordability_saved:"Saved the affordability worksheet",recommended:"Recommended "+(d.recommendation||"")+(d.note?": "+d.note:"")}[e.type] || (e.type==="status" ? (APP_STATUS[d.to]||d.to)+(d.applicantMessage?": “"+d.applicantMessage+"”":"")+(d.loanRef?" · "+d.loanRef:"") : e.type);
           return '<div class="lrow"><span class="lk">'+esc(what)+'<small>'+esc(String(e.actor||"").replace(/^staff:/,""))+'</small></span><span class="lv" style="font-size:12px">'+esc(new Date(e.at).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))+'</span></div>'; }).join("")
         +'</div></div>';
       c.innerHTML=h;
@@ -1598,17 +1607,38 @@ body.doc-open{overflow:hidden}
 
       function setStatus(body, msg){
         var btn=$("modalSave"); btn.disabled=true; ferr("");
+        var tell=["info_requested","approved","declined"].indexOf(body.status)>=0, win=null;
+        if(tell){ try{ win=window.open("about:blank","_blank"); }catch(e){ win=null; } }
         appApi("POST","/v2/admin/applications/"+a.id+"/status", body).then(function(r){
           btn.disabled=false;
-          if(!r._ok){ ferr(r.error||"Couldn't save."); return; }
-          closeModal(); toast(msg); render();
+          if(!r._ok){ if(win) win.close(); ferr(r.error||"Couldn't save."); return; }
+          if(win){ try{ win.location.href=waLink(a.phone, waText(a, body.status, body.applicantMessage)); }catch(e){} }
+          closeModal(); toast(msg+(tell?" WhatsApp is open with the message; press send, then tap “I’ve sent it”.":"")); render();
         });
       }
+      if($("waDone")) $("waDone").onclick=function(){ this.disabled=true; appApi("POST","/v2/admin/applications/"+a.id+"/whatsapp-sent",{}).then(function(r){ toast(r._ok?"Noted: the applicant was told.":(r.error||"Couldn't save."), r._ok?"":"err"); render(); }); };
+      if($("aContact")) $("aContact").onclick=function(){
+        var hello="Hello "+firstName(a.full_name)+", this is QuickServe about your application "+a.id+". ";
+        openModal("Contact "+(a.full_name||"the applicant"),
+          '<p style="margin:0 0 10px;color:var(--ink-2)">'+esc(phoneLocal(a.phone))+(a.email?' · '+esc(a.email):'')+'</p>'
+          +'<div class="field"><label>WhatsApp message</label><textarea id="f_msg" rows="4">'+esc(hello)+'</textarea></div>'
+          +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"><button type="button" class="btn sm" id="cWa">Send on WhatsApp</button><a class="btn ghost sm" id="cCall" href="tel:+'+esc(String(a.phone||"").replace(/\D/g,""))+'">Call '+esc(phoneLocal(a.phone))+'</a>'
+          +(["new","in_review","info_requested"].indexOf(a.status)>=0?'<button type="button" class="btn ghost sm" id="cAsk">Ask for a missing document</button>':'')+'</div>'
+          +'<p style="color:var(--muted);font-size:12.5px;margin:0">“Ask for a missing document” also shows your note on their tracking page with an upload button. Every contact is recorded in the activity log.</p><div class="formerr" id="f_err"></div>',
+          "Done", function(){ closeModal(); render(); });
+        $("cWa").onclick=function(){
+          var m=$("f_msg").value.trim(); if(!m) return;
+          window.open(waLink(a.phone, m),"_blank");
+          appApi("POST","/v2/admin/applications/"+a.id+"/whatsapp-sent",{ channel:"whatsapp", message:m }).then(function(){ toast("Opened WhatsApp and noted it in the activity log."); });
+        };
+        $("cCall").addEventListener("click",function(){ appApi("POST","/v2/admin/applications/"+a.id+"/whatsapp-sent",{ channel:"call" }); });
+        if($("cAsk")) $("cAsk").onclick=function(){ closeModal(); setTimeout(function(){ $("aAsk") && $("aAsk").click(); },50); };
+      };
       if($("aAsk")) $("aAsk").onclick=function(){
-        openModal("Ask "+firstName(a.full_name)+" for something",
+        openModal("Ask "+firstName(a.full_name)+" for missing info",
           '<div class="field"><label>Reason</label><select id="f_reason">'+ASK_REASONS.map(function(r,i){ return '<option value="'+i+'">'+esc(r)+'</option>'; }).join("")+'<option value="custom">Write my own</option></select></div>'
           +'<div class="field"><label>Message the applicant sees on their tracking page</label><textarea id="f_msg" rows="4">'+esc(ASK_REASONS[0])+'</textarea></div>'
-          +'<p style="color:var(--muted);font-size:12.5px;margin:0">Afterwards, use “WhatsApp the applicant” to send them a ready-written message.</p><div class="formerr" id="f_err"></div>',
+          +'<p style="color:var(--muted);font-size:12.5px;margin:0">WhatsApp opens with this message ready to send. The application shows “not told yet” until you confirm it was sent.</p><div class="formerr" id="f_err"></div>',
           "Send request", function(){ var m=fval("f_msg").trim(); if(!m){ ferr("Write what they need to send."); return; } setStatus({ status:"info_requested", applicantMessage:m }, "Request sent to the tracking page."); });
         $("f_reason").addEventListener("change",function(){ if(this.value!=="custom") $("f_msg").value=ASK_REASONS[Number(this.value)]; else { $("f_msg").value=""; $("f_msg").focus(); } });
       };
@@ -1719,7 +1749,7 @@ body.doc-open{overflow:hidden}
   // ---- audit trail (owners only) ----
   // Every action on every application, permanent and filterable, with a
   // spreadsheet download. Decisions carry what they were based on.
-  var AUDIT_TYPES=[["","All actions"],["decision","Decisions (approve, decline, paid out)"],["status","Status changes"],["recommended","Recommendations"],["opened","Opened an application"],["document_viewed","Viewed a document"],["affordability_saved","Saved affordability"],["document_added","Applicant sent a document"],["submitted","Handed in"]];
+  var AUDIT_TYPES=[["","All actions"],["decision","Decisions (approve, decline, paid out)"],["status","Status changes"],["recommended","Recommendations"],["opened","Opened an application"],["document_viewed","Viewed a document"],["affordability_saved","Saved affordability"],["document_added","Applicant sent a document"],["contacted","Contacted the applicant"],["whatsapp_sent","Confirmed applicant was told"],["submitted","Handed in"]];
   function auditWhat(e){
     var d=e.detail||{};
     if(e.type==="status"){
@@ -1727,7 +1757,7 @@ body.doc-open{overflow:hidden}
       if(d.loanRef) s+=" · loan "+d.loanRef+(d.clientRef?" for "+d.clientRef:"");
       return s;
     }
-    return { submitted:"Handed in", draft_created:"Started an application", document_added:"Sent a requested document ("+(d.kind||"")+")",
+    return { whatsapp_sent:"Confirmed the applicant was told on WhatsApp", contacted:(d.channel==="call"?"Called the applicant":"Messaged the applicant on WhatsApp"), submitted:"Handed in", draft_created:"Started an application", document_added:"Sent a requested document ("+(d.kind||"")+")",
       opened:"Opened the application", document_viewed:"Viewed a document ("+({id:"ID / passport",payslip:"payslip",bank:"bank statement",other:"other"}[d.kind]||d.kind||"")+")",
       affordability_saved:"Saved the affordability worksheet", recommended:"Recommended "+(d.recommendation||"") }[e.type] || e.type;
   }
@@ -1735,6 +1765,7 @@ body.doc-open{overflow:hidden}
     var d=e.detail||{}, out=[];
     if(d.note) out.push("Note: "+d.note);
     if(d.applicantMessage) out.push("To applicant: “"+d.applicantMessage+"”");
+    if(e.type==="contacted" && d.message) out.push("Message: “"+d.message+"”");
     if(d.basis){
       var b=d.basis, a=b.affordability||{};
       out.push("Based on: "+money(b.amount)+" (repay "+money(b.total)+")"+(a.leftOver!=null?", left over "+money(a.leftOver):", no affordability worksheet")
