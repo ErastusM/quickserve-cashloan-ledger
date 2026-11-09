@@ -12,7 +12,9 @@ Steps marked **(you)** need you, signed in to the new account. Steps marked **(C
 2. Confirm the email Cloudflare sends.
 3. Turn on two-factor login: **My Profile → Authentication → Two-Factor Authentication**. This account will hold ID documents and bank statements, so don't skip it. Save the recovery codes somewhere safe and offline.
 
-## 2. Put quickserve.group on Cloudflare (you, about 15 minutes, recommended)
+## 2. Connect quickserve.group to Cloudflare (you, about 15 minutes)
+
+Connect the domain by changing its nameservers. **Don't transfer it.** Hostinger stays the registrar, and you keep renewing the domain there. A newly registered domain can't be transferred for 60 days anyway.
 
 This gives the API a proper address, **api.quickserve.group**, instead of a `workers.dev` address. Some mobile networks block `workers.dev` addresses, the same way some blocked `github.io` for the admin console. The website and admin console stay on Hostinger.
 
@@ -73,11 +75,6 @@ Two secrets go into the Worker. You type them yourself with `npx wrangler secret
 - `OWNER_TOKEN`: a new long random password for the Applications inbox, used until staff sign in with their console logins.
 - `TURNSTILE_SECRET`: the secret key from step 4.
 
-## 7. Applications already in the old account
+## 7. The old account
 
-The old Worker at `quickservefinance.workers.dev` may hold real applications and documents. Choose one:
-
-- **Move them:** export the old D1 database (`wrangler d1 export`) and copy the R2 files across. This needs a token for the old account too, used once and then deleted.
-- **Start fresh:** keep the old account read-only until every open application there is dealt with, then delete it.
-
-Either way, don't delete the old account until the new one has taken its first real application.
+Decision: **start fresh**. Nothing is moved from the old Worker at `quickserve-intake.quickservefinance.workers.dev`. Deal with any open applications there, then delete that account once the new one has taken its first real application.
