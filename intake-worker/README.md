@@ -35,5 +35,5 @@ npx wrangler deploy
 
 Secrets are never committed. Set them with `npx wrangler secret put <NAME>`:
 
-- `TURNSTILE_SECRET`: switches on the bot check for new applications and tracking. **Set this before the website goes public.**
+- `TURNSTILE_SECRET`: switches on the bot check for new applications and tracking. **Set** (widget `quickserve-apply`; its public site key, used by the website's form, is `0x4AAAAAAF54MSk3VG1JubiX`).
 - `OWNER_TOKEN` (optional): a fallback password for the Applications tab if staff login is ever unavailable.
