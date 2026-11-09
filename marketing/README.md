@@ -68,7 +68,7 @@ genuinely competitive claim once a borrower understands it.
 
 ## `how-to-apply-video.mp4`
 
-An 89-second vertical video (780 × 1688, MP4/H.264, no sound) that walks a
+An 89-second vertical video (780 × 1688, MP4/H.264 with AAC music) that walks a
 client through applying on quickserve.group on a phone. It covers the quote
 slip, the four application sheets, documents, the customer copy and the
 tracking page, with large on-screen captions and a tap marker. It plays
@@ -90,4 +90,35 @@ node marketing/how-to-apply/record.cjs
 ffmpeg -f concat -safe 0 -i marketing/how-to-apply/frames.ffconcat \
   -vf "scale=780:1688:force_original_aspect_ratio=decrease,pad=780:1688:(ow-iw)/2:0:color=0x053437,setsar=1,fps=30,format=yuv420p" \
   -c:v libx264 -preset slow -crf 20 -movflags +faststart -an marketing/how-to-apply-video.mp4
+```
+
+### Music
+
+The background tune is original: composed and synthesised by
+`how-to-apply/music.py` (numpy only, no samples or third-party music), so it
+can be posted anywhere without licensing worries. It's an upbeat
+"explainer" style at 112 BPM with marimba-like plucks, pads, bass and light
+drums, fading in and out. To rebuild the video with music:
+
+```bash
+python3 marketing/how-to-apply/music.py /tmp/music.wav 88.7
+ffmpeg -i marketing/how-to-apply-video.mp4 -i /tmp/music.wav -map 0:v -map 1:a -c:v copy \
+  -af "loudnorm=I=-18:TP=-1.5:LRA=9" -c:a aac -b:a 160k -shortest -movflags +faststart out.mp4
+```
+
+## `website-launch-poster.html` / `website-launch-poster.png`
+
+The website launch poster, 1080 × 1350 (4:5), in the website's "No small
+print" style: "We're online. Apply from your phone.", a launch slip with the
+key terms and a QR code to https://quickserve.group, the four stamps, and the
+contact number. The PNG is rendered at 2× (2160 × 2700).
+
+Like the flyer, the HTML is the source and is self-contained (fonts and QR
+code embedded). Edit it, then re-render; the renderer also checks that no
+two blocks overlap:
+
+```bash
+cd tools
+npm install        # first time only
+npm run poster
 ```
