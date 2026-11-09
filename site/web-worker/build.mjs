@@ -49,7 +49,7 @@ const CSP = [
   "base-uri 'self'",
   "frame-ancestors 'none'"
 ].join("; ");
-function send(file, status, env) {
+function send(file, status, hidden) {
   const h = {
     "Content-Type": file.type,
     "Cache-Control": file.type.startsWith("text/html") ? "no-cache" : "public, max-age=3600",
@@ -59,7 +59,7 @@ function send(file, status, env) {
     "Permissions-Policy": "camera=(self), geolocation=(), microphone=()"
   };
   if (file.type.startsWith("text/html")) { h["Content-Security-Policy"] = CSP; h["X-Frame-Options"] = "DENY"; }
-  if (env.SITE_MODE === "preview") h["X-Robots-Tag"] = "noindex, nofollow";
+  if (hidden) h["X-Robots-Tag"] = "noindex, nofollow";
   return new Response(file.body, { status, headers: h });
 }
 export default {
@@ -67,16 +67,22 @@ export default {
     const url = new URL(request.url);
     if (url.hostname.startsWith("www.")) return Response.redirect("https://" + url.hostname.slice(4) + url.pathname + url.search, 301);
     if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
+    // The preview address (and preview mode) is never indexed by search engines.
+    const hidden = env.SITE_MODE === "preview" || url.hostname.startsWith("preview.");
     let path = url.pathname.replace(/\\/+$/, "") || "/";
     if (path === "/robots.txt") {
-      const body = env.SITE_MODE === "preview" ? "User-agent: *\\nDisallow: /\\n" : "User-agent: *\\nDisallow: /apply\\nDisallow: /track\\n";
+      const body = hidden ? "User-agent: *\\nDisallow: /\\n" : "User-agent: *\\nDisallow: /apply\\nDisallow: /track\\nSitemap: https://quickserve.group/sitemap.xml\\n";
       return new Response(body, { headers: { "Content-Type": "text/plain" } });
+    }
+    if (path === "/sitemap.xml") {
+      const urls = ["/", "/privacy"].map((p) => "<url><loc>https://quickserve.group" + p + "</loc></url>").join("");
+      return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + urls + "</urlset>", { headers: { "Content-Type": "application/xml" } });
     }
     const pretty = Object.keys(PAGES).find((k) => PAGES[k] === path);
     if (pretty) return Response.redirect(url.origin + pretty + url.search, 301);
     const file = FILES[PAGES[path] || path];
-    if (file && !path.startsWith("/_")) return send(file, 200, env);
-    return send(FILES["/404.html"], 404, env);
+    if (file && !path.startsWith("/_")) return send(file, 200, hidden);
+    return send(FILES["/404.html"], 404, hidden);
   }
 };
 `;

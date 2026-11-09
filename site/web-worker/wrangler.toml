@@ -1,5 +1,6 @@
-# The public website. While SITE_MODE is "preview" it is served at
-# https://preview.quickserve.group and hidden from search engines.
+# The public website at https://quickserve.group (www redirects to it).
+# preview.quickserve.group serves the same site, always hidden from search
+# engines, for trying changes. Setting SITE_MODE to preview hides every address.
 # Build and deploy from the repository root:
 #   node site/web-worker/build.mjs
 #   npx wrangler deploy --config site/web-worker/wrangler.toml
@@ -8,7 +9,11 @@ main = "dist/worker.js"
 compatibility_date = "2025-09-01"
 account_id = "8123123f3ff485f588fa2292ce6c8923"
 workers_dev = false
-routes = [{ pattern = "preview.quickserve.group", custom_domain = true }]
+routes = [
+  { pattern = "quickserve.group", custom_domain = true },
+  { pattern = "www.quickserve.group", custom_domain = true },
+  { pattern = "preview.quickserve.group", custom_domain = true }
+]
 
 [vars]
-SITE_MODE = "preview"
+SITE_MODE = "live"
