@@ -166,6 +166,17 @@ test("submit is refused without all documents, consent and a matching signature"
   assert.equal(s.status, 400);
 });
 
+test("a draft's details can be changed before it is handed in", async () => {
+  const env = makeEnv();
+  const d = await (await call(env, "POST", "/v2/applications", { body: details })).json();
+  const up = { "X-Upload-Token": d.uploadToken };
+  const r = await call(env, "PUT", `/v2/applications/${d.reference}`, { body: { ...details, amount: "1000" }, headers: up });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).totalCents, 130000);
+  assert.equal((await call(env, "PUT", `/v2/applications/${d.reference}`, { body: { ...details, phone: "1" }, headers: up })).status, 400);
+  assert.equal((await call(env, "PUT", `/v2/applications/${d.reference}`, { body: details, headers: { "X-Upload-Token": "x" } })).status, 403);
+});
+
 test("bad files, wrong tokens and strangers are refused", async () => {
   const env = makeEnv();
   const d = await (await call(env, "POST", "/v2/applications", { body: details })).json();

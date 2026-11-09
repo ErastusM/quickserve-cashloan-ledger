@@ -11,7 +11,7 @@ workers_dev = false
 routes = [{ pattern = "api.quickserve.group", custom_domain = true }]
 
 [vars]
-ALLOWED_ORIGINS = "https://quickserve.group,https://www.quickserve.group,https://admin.quickserve.group"
+ALLOWED_ORIGINS = "https://quickserve.group,https://www.quickserve.group,https://admin.quickserve.group,https://preview.quickserve.group"
 # Staff sign in to the admin console with Supabase; the service checks that
 # login. The publishable key is public by design (it is in the console too).
 SUPABASE_URL = "https://ptlwhpvzyfpxtpghwlqs.supabase.co"

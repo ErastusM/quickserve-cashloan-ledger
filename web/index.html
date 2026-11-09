@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--#head-->
+<title>QuickServe Cashloan — Payday loans, no small print</title>
+<meta name="description" content="Payday loans in Namibia at a 30% interest rate, repaid in one payment on your next payday. Apply online in about five minutes.">
+</head>
+<body>
+<!--#header-->
+<main>
+  <section class="hero" id="top">
+    <div class="wrap">
+      <div class="hero-copy">
+        <p class="eyebrow" style="color:var(--desk-muted)">Payday loans · Namibia · 100% online</p>
+        <h1 class="display">Fast cash.<br><span>No small print.</span></h1>
+        <p class="lede">Tell us what you need. Before you sign anything, we write the whole cost on one slip, down to the cent.</p>
+        <div class="hero-actions">
+          <a class="btn btn-leaf" href="/apply">Start my application
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="plain" href="https://wa.me/264812819840">or WhatsApp +264 81 281 9840</a>
+        </div>
+      </div>
+
+      <div class="hero-slip slip-wrap">
+        <form class="slip" id="quote" aria-label="Quote slip" action="/apply">
+          <div class="slip-head"><span>QuickServe Cashloan<br><b>Quote slip</b></span><span style="text-align:right">Payday loan<br><span id="qDate"></span></span></div>
+          <hr class="slip-rule">
+          <span class="field-label" id="qAmtLabel">1. I need</span>
+          <div class="stepper">
+            <button type="button" id="qLess" aria-label="N$ 100 less">−</button>
+            <output class="amount num" id="qAmount" aria-labelledby="qAmtLabel" aria-live="polite">N$ 2 000</output>
+            <button type="button" id="qMore" aria-label="N$ 100 more">+</button>
+          </div>
+          <span class="field-label">2. Paying back</span>
+          <p class="payday-line" style="margin:0"><span>On my next payday</span><span class="mono" style="font-size:12px;font-weight:500;color:var(--ink-3)">ONE PAYMENT</span></p>
+          <div class="lines" style="margin-top:18px">
+            <div class="line"><span>Amount borrowed</span><span id="qBorrow">N$ 2 000.00</span></div>
+            <div class="line"><span>Interest at 30%</span><span id="qInterest">N$ 600.00</span></div>
+            <div class="line total"><span>TOTAL TO REPAY</span><span id="qTotal">N$ 2 600.00</span></div>
+          </div>
+          <input type="hidden" name="amount" id="qAmountField" value="2000">
+          <button class="btn btn-ink btn-block" type="submit" style="margin-top:22px">Apply with this slip</button>
+          <p class="fine">Worked out at our 30% interest rate. You get the full cost in writing in your Pre-Agreement Statement, after we check affordability.</p>
+        </form>
+        <span class="stamp stamp-green drop" aria-hidden="true">30%<small>interest rate</small></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band-ground" id="stamps">
+    <div class="wrap">
+      <div class="split">
+        <h2 class="display" style="max-width:12ch">Four stamps to your money</h2>
+        <p>Your application gets one stamp at each step. You can watch them land on the tracking page.</p>
+      </div>
+      <div class="cards">
+        <article class="card-slip"><span class="stamp stamp-green" style="transform:rotate(-6deg)">Received</span><h3>You apply</h3><p>Here or on WhatsApp. About five minutes, with photos of your documents.</p></article>
+        <article class="card-slip"><span class="stamp stamp-green" style="transform:rotate(4deg)">Checked</span><h3>We check it fits</h3><p>We read your payslip and statements to make sure the repayment leaves you enough to live on.</p></article>
+        <article class="card-slip"><span class="stamp stamp-green" style="transform:rotate(-3deg)">Quoted</span><h3>You see the exact cost</h3><p>We send a Pre-Agreement Statement on WhatsApp. Nothing is signed yet; you can still walk away.</p></article>
+        <article class="card-slip"><span class="stamp stamp-green" style="transform:rotate(7deg)">Paid</span><h3>You sign, we pay</h3><p>Sign the agreement and the money goes into your bank account.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band-bond" id="bring">
+    <div class="wrap" style="display:flex;flex-wrap:wrap;gap:48px;align-items:center">
+      <div style="flex:1 1 340px;min-width:0">
+        <h2 class="display">Bring three things</h2>
+        <p style="margin:20px 0 0;font-size:18px;color:var(--ink-2);max-width:34ch">Your phone camera is enough. Lay the page flat, in good light, with all four corners showing.</p>
+      </div>
+      <div style="flex:2 1 520px;min-width:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:18px">
+        <div class="attach"><p class="tabhead">ATTACH 1</p><p class="big">Namibian ID</p><p>Front and back.</p></div>
+        <div class="attach"><p class="tabhead">ATTACH 2</p><p class="big">Latest payslip</p><p>Or other proof of regular income.</p></div>
+        <div class="attach"><p class="tabhead">ATTACH 3</p><p class="big">3 months’ bank statements</p><p>PDF from your banking app, or photos.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band-desk" id="fineprint">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--desk-muted)">Terms, in full</p>
+      <h2 class="display" style="font-size:clamp(56px,9vw,96px);margin:14px 0 48px;max-width:14ch">The fine print, in <span style="color:var(--leaf)">big print.</span></h2>
+      <ol class="clauses">
+        <li><span class="n">§1</span><p>Our interest rate is <b>30%</b>.</p></li>
+        <li><span class="n">§2</span><p>You pay it all back in one payment, on your next payday.</p></li>
+        <li><span class="n">§3</span><p>You get the exact cost in writing before you sign.</p></li>
+        <li><span class="n">§4</span><p>We never keep your bank card, PIN or ID.</p></li>
+        <li><span class="n">§5</span><p>Quickserve Financial Services CC, registration number CC/2026/01904. We work online only: no branch, no queue.</p></li>
+      </ol>
+      <p class="equation"><span>N$ 1 000</span><span class="op">+</span><span>N$ 300</span><span class="op">=</span><span class="res">N$ 1 300</span><small>what you repay</small></p>
+    </div>
+  </section>
+
+  <section class="band band-ground">
+    <div class="wrap" style="display:flex;flex-wrap:wrap;gap:44px">
+      <h2 class="display" style="flex:1 1 280px;font-size:clamp(44px,6vw,64px)">Questions people ask</h2>
+      <div class="faq" style="flex:2 1 560px;min-width:0">
+        <div><h3>How long until I hear back?</h3><p>We go through complete applications on working days and reply on WhatsApp. You can check progress any time on the tracking page.</p></div>
+        <div><h3>Who sees my documents?</h3><p>Only our credit staff. Files are stored privately, never with public links, and deleted on the schedule in our privacy notice.</p></div>
+        <div><h3>I’ve borrowed before. Do I start over?</h3><p>Use the same ID number and we’ll link your application to your history.</p></div>
+        <div><h3>What if I can’t pay on time?</h3><p>Tell us before your payday. We’ll talk through a payment arrangement in writing.</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+<!--#footer-->
+<script src="/common.js?v=__BUILD__"></script>
+<script>
+(function () {
+  var amount = 2000;
+  try { var a = Number(new URLSearchParams(location.search).get("amount")); if (a >= QS.MIN && a <= QS.MAX) amount = a; } catch (e) {}
+  var $ = function (id) { return document.getElementById(id); };
+  $("qDate").textContent = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  function draw() {
+    var c = QS.cost(amount);
+    $("qAmount").textContent = QS.money(amount, 0);
+    $("qBorrow").textContent = QS.money(c.amount);
+    $("qInterest").textContent = QS.money(c.interest);
+    $("qTotal").textContent = QS.money(c.total);
+    $("qAmountField").value = amount;
+    $("qLess").disabled = amount <= QS.MIN; $("qMore").disabled = amount >= QS.MAX;
+  }
+  $("qLess").addEventListener("click", function () { amount = Math.max(QS.MIN, amount - 100); draw(); });
+  $("qMore").addEventListener("click", function () { amount = Math.min(QS.MAX, amount + 100); draw(); });
+  draw();
+})();
+</script>
+</body>
+</html>

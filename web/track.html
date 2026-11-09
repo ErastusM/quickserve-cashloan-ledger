@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--#head-->
+<title>Track an application — QuickServe Cashloan</title>
+<meta name="description" content="Check where your QuickServe application is, and send any document we ask for.">
+<meta name="robots" content="noindex">
+</head>
+<body>
+<!--#header-->
+<main class="wrap" style="padding-top:28px;padding-bottom:64px;color:var(--desk-ink)">
+  <div style="max-width:560px;margin:0 auto">
+    <h1 class="display" style="font-size:clamp(48px,10vw,72px)">Track</h1>
+
+    <form id="find" class="sheet" style="margin-top:20px" novalidate hidden>
+      <p style="margin:0;color:var(--ink-2)">Enter the reference from your customer copy and the WhatsApp number you applied with.</p>
+      <label class="field"><span class="label">Reference</span><input name="reference" class="mono" placeholder="AP-7KD4MP" autocomplete="off" autocapitalize="characters" required></label>
+      <label class="field"><span class="label">WhatsApp number</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="081 234 5678" required></label>
+      <div class="ts" id="tsTrack"></div>
+      <p class="alert" id="findAlert" role="alert" hidden></p>
+      <button class="btn btn-ink btn-block" type="submit" style="margin-top:18px">Show my application</button>
+    </form>
+
+    <div id="result" hidden>
+      <div class="sheet" style="margin-top:20px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+          <span class="display" id="tRef" style="font-size:40px;letter-spacing:.03em"></span>
+          <span class="mono" id="tAmt" style="font-size:12px;color:var(--ink-3)"></span>
+        </div>
+        <hr class="slip-rule" style="margin:10px 0 0">
+        <div class="stampcard" id="tStamps"></div>
+        <p id="tStatus" style="margin:14px 0 0;color:var(--ink-2)"></p>
+      </div>
+      <div class="note-card" id="tNote" hidden>
+        <p class="eyebrow" style="font-size:11px">Note from QuickServe</p>
+        <p id="tMsg" style="margin:8px 0 0;font-size:17px"></p>
+        <div id="tUpload" hidden>
+          <label class="field" style="margin-top:14px"><span class="label">What are you sending?</span>
+            <select id="tKind" style="width:100%;min-height:48px;border:2px solid var(--ink);background:#fff;padding:0 10px">
+              <option value="bank">Bank statement</option><option value="payslip">Payslip</option><option value="id">ID</option><option value="other">Something else</option>
+            </select></label>
+          <label class="btn btn-ink btn-block" style="margin-top:12px;position:relative">
+            <input type="file" id="tFile" accept="image/*,application/pdf" class="sr-only">Attach a document</label>
+          <div class="progress" id="tProg" hidden><i></i></div>
+          <p class="alert" id="tAlert" role="alert" hidden></p>
+        </div>
+      </div>
+      <p style="text-align:center;margin-top:20px"><button type="button" class="link-btn" id="other" style="color:var(--desk-ink)">Look up a different application</button></p>
+    </div>
+
+    <p style="text-align:center;color:var(--desk-muted);margin-top:28px">Questions about an application?<br><a href="https://wa.me/264812819840" style="color:var(--desk-ink);font-weight:600">WhatsApp +264 81 281 9840</a></p>
+  </div>
+</main>
+<!--#footer-->
+<script src="/common.js?v=__BUILD__"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var bot = null, token = null, current = null;
+  var STAGE = {
+    received: "We have your application and we’re going through it.",
+    waiting_on_you: "We need something from you before we can carry on. See the note below.",
+    quoted: "Approved. Your Pre-Agreement Statement is on its way to your WhatsApp.",
+    paid: "Paid out. Your repayment is due on your payday.",
+    declined: "We weren’t able to approve this application.",
+    withdrawn: "This application was withdrawn."
+  };
+
+  // A tracking link (#t=…) or the copy saved on this phone.
+  var m = location.hash.match(/t=([A-Za-z0-9_-]{20,})/);
+  if (m) { token = m[1]; history.replaceState(null, "", location.pathname); }
+  else { var rc = QS.store.get("qs_receipt"); if (rc && rc.trackToken) token = rc.trackToken; }
+
+  function showFind() { $("result").hidden = true; $("find").hidden = false; if (!bot) bot = QS.botCheck($("tsTrack")); }
+
+  function render(r) {
+    current = r;
+    $("find").hidden = true; $("result").hidden = false;
+    $("tRef").textContent = r.reference;
+    $("tAmt").textContent = QS.money(r.amountCents / 100, 0).toUpperCase() + " · PAYDAY";
+    var got = {}; (r.stamps || []).forEach(function (s) { got[s.stamp] = s.at; });
+    function day(at) { return at ? new Date(at).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }).toUpperCase() : ""; }
+    var slots = [
+      got.received ? '<span class="stamp stamp-green" style="transform:rotate(-7deg)">Received<small>' + day(got.received) + "</small></span>" : "RECEIVED",
+      r.stage === "waiting_on_you" ? '<span class="stamp stamp-red" style="transform:rotate(5deg)">Waiting<br>on you</span>'
+        : r.stage === "declined" ? '<span class="stamp stamp-red" style="transform:rotate(5deg)">Declined</span>'
+        : got.quoted ? '<span class="stamp stamp-green" style="transform:rotate(4deg)">Checked</span>' : "CHECKED",
+      got.quoted ? '<span class="stamp stamp-green" style="transform:rotate(-3deg)">Quoted<small>' + day(got.quoted) + "</small></span>" : "QUOTED",
+      got.paid ? '<span class="stamp stamp-green" style="transform:rotate(6deg)">Paid<small>' + day(got.paid) + "</small></span>" : "PAID"
+    ];
+    $("tStamps").innerHTML = slots.map(function (s) { return '<div class="slot' + (s.indexOf("stamp") < 0 ? " empty" : "") + '">' + s + "</div>"; }).join("");
+    $("tStatus").textContent = STAGE[r.stage] || "";
+    $("tNote").hidden = !r.message;
+    $("tMsg").textContent = r.message || "";
+    $("tUpload").hidden = !r.canUpload;
+  }
+
+  function lookUp(body) {
+    return QS.api("POST", "/v2/track", body).then(function (r) {
+      if (r._ok) return render(r);
+      if (body.trackToken) { token = null; return showFind(); }
+      if (bot) bot.reset();
+      $("findAlert").textContent = r.error || "Something went wrong. Try again."; $("findAlert").hidden = false;
+    });
+  }
+
+  $("find").addEventListener("submit", function (e) {
+    e.preventDefault(); $("findAlert").hidden = true;
+    var f = e.target.elements;
+    bot.token().then(function (t) { lookUp({ reference: f.reference.value, phone: f.phone.value, turnstileToken: t }); });
+  });
+  $("other").onclick = function () { token = null; QS.store.del("qs_receipt"); showFind(); };
+
+  $("tFile").addEventListener("change", function () {
+    var file = this.files[0]; this.value = ""; if (!file || !current) return;
+    $("tAlert").hidden = true; $("tProg").hidden = false;
+    var x = new XMLHttpRequest();
+    x.open("PUT", QS.API + "/v2/track/" + current.reference + "/files/" + $("tKind").value);
+    x.setRequestHeader("X-Track-Token", token);
+    x.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    x.upload.onprogress = function (ev) { if (ev.lengthComputable) $("tProg").firstChild.style.width = Math.round(ev.loaded / ev.total * 100) + "%"; };
+    x.onload = function () {
+      $("tProg").hidden = true;
+      if (x.status === 201) return lookUp({ trackToken: token });
+      var j = {}; try { j = JSON.parse(x.responseText); } catch (e) {}
+      $("tAlert").textContent = j.error || "That upload didn't work. Try again."; $("tAlert").hidden = false;
+    };
+    x.onerror = function () { $("tProg").hidden = true; $("tAlert").textContent = "The upload stopped. Check your connection and try again."; $("tAlert").hidden = false; };
+    x.send(file);
+  });
+
+  if (token) lookUp({ trackToken: token }); else showFind();
+})();
+</script>
+</body>
+</html>

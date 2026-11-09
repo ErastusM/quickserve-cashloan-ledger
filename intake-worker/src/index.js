@@ -2,6 +2,7 @@
 //
 // Public (website, protected by Turnstile + per-IP limits)
 //   POST   /v2/applications                      create a draft (JSON) → { reference, uploadToken }
+//   PUT    /v2/applications/:id                  change a draft's details          X-Upload-Token
 //   PUT    /v2/applications/:id/files/:kind      upload one file (raw body)       X-Upload-Token
 //   DELETE /v2/applications/:id/files/:fileId    remove a file from a draft       X-Upload-Token
 //   POST   /v2/applications/:id/submit           hand in → { trackToken }         X-Upload-Token
@@ -62,6 +63,7 @@ async function route(request, env) {
 
   // ---- public
   if (path === "/v2/applications" && m === "POST") return createDraft(request, env);
+  if ((p = path.match(/^\/v2\/applications\/(AP-[A-Z0-9]{6})$/)) && m === "PUT") return updateDraft(request, env, p[1]);
   if ((p = path.match(/^\/v2\/applications\/(AP-[A-Z0-9]{6})\/files\/([a-z]+)$/)) && m === "PUT") return uploadDraftFile(request, env, p[1], p[2]);
   if ((p = path.match(/^\/v2\/applications\/(AP-[A-Z0-9]{6})\/files\/([0-9a-f-]{36})$/)) && m === "DELETE") return deleteDraftFile(request, env, p[1], p[2]);
   if ((p = path.match(/^\/v2\/applications\/(AP-[A-Z0-9]{6})\/submit$/)) && m === "POST") return submit(request, env, p[1]);
@@ -165,12 +167,13 @@ async function readJson(request) {
 // ---- public: draft → files → submit -----------------------------------------
 
 async function createDraft(request, env) {
-  await rateLimit(env, "draft:" + clientIp(request), Number(env.DRAFTS_PER_HOUR || 5), 3600);
+  // Check the details first, so a typo doesn't use up the applicant's
+  // security check or count against their hourly limit.
   const body = await readJson(request);
-  await checkTurnstile(request, env, body.turnstileToken);
-
   const { row, errors } = validateApplication(body, env);
   if (Object.keys(errors).length) throw new HttpError(400, "Some details need fixing.", { fields: errors });
+  await rateLimit(env, "draft:" + clientIp(request), Number(env.DRAFTS_PER_HOUR || 5), 3600);
+  await checkTurnstile(request, env, body.turnstileToken);
 
   const uploadToken = makeToken();
   const t = now();
@@ -193,6 +196,17 @@ async function createDraft(request, env) {
     interestCents: row.interest_cents,
     totalCents: row.total_cents
   }, 201);
+}
+
+async function updateDraft(request, env, id) {
+  const app = await requireToken(request, env, id, "X-Upload-Token", "upload_token_hash");
+  if (app.status !== "draft") throw new HttpError(409, "This application has already been handed in.");
+  const { row, errors } = validateApplication(await readJson(request), env);
+  if (Object.keys(errors).length) throw new HttpError(400, "Some details need fixing.", { fields: errors });
+  const names = Object.keys(row);
+  await env.DB.prepare(`UPDATE applications SET ${names.map((k) => k + " = ?").join(", ")}, updated_at = ? WHERE id = ?`)
+    .bind(...names.map((k) => row[k]), now(), id).run();
+  return json(request, env, { reference: id, amountCents: row.amount_cents, interestCents: row.interest_cents, totalCents: row.total_cents });
 }
 
 async function storeFile(request, env, app, kind, uploadedBy) {
