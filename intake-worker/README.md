@@ -1,110 +1,39 @@
-# QuickServe Cashloan — WhatsApp intake backend
+# QuickServe application service
 
-A small Cloudflare Worker that powers automated loan-request intake:
+The Cloudflare Worker behind online loan applications. It runs at
+**https://api.quickserve.group** on the QuickServe Cloudflare account
+(quickservegroup1@gmail.com).
 
 ```
-Borrower texts your WhatsApp number
-      │  (WhatsApp Business App greeting auto-reply: "Apply here: <link>")
-      ▼
-apply.html  ──POST──►  Worker  ──►  D1 (details)  +  R2 (ID / bank / payslip)
-                                        │
-                                        ▼
-                                    inbox.html   (you review · approve · decline)
-                                        │
-                                        ▼
-                          WhatsApp reply to the applicant + record the loan in your app
+website (quickserve.group) ──► api.quickserve.group ──► D1  quickserve-intake  (application details)
+admin console (admin.…)    ──►        (Worker)       ──► R2  quickserve-docs    (ID, payslip, statements; private)
 ```
 
-Everything here is **free-tier** on Cloudflare. No Meta app or business verification is
-needed for this phase — it uses your existing WhatsApp Business App. The code contains
-**no data and no secrets**; applicant data lives in Cloudflare, not in this repo.
+- **Applicants** create a draft, upload their documents one at a time, then hand it in. They get a reference (`AP-7KD4MP`) and a private tracking link.
+- **Staff** use their normal admin-console login (Supabase). The service checks that login with Supabase on each request, so there is no separate password to share.
+- **Loan rules** are set in `wrangler.toml`: payday loans only, 30% interest, and N$ 500–5 000 (the maximum is a placeholder until confirmed).
+- **Clean-up** runs every night. Drafts never handed in are deleted after 7 days. Documents of declined or withdrawn applications are deleted after `RETENTION_DAYS` (180).
 
----
+The full list of routes is at the top of `src/index.js`.
 
-## One-time setup (about 15 minutes)
+## Tests
 
-You need [Node.js](https://nodejs.org) installed. All commands are run from this
-`intake-worker/` folder. `npx wrangler` downloads Cloudflare's CLI on first use.
-
-### 1. Sign in to Cloudflare
-Create a free account at https://dash.cloudflare.com, then:
 ```bash
-npx wrangler login
+node --test intake-worker/tests/worker.test.mjs
 ```
 
-### 2. Create the database (D1) and load the schema
-```bash
-npx wrangler d1 create quickserve-intake
-```
-Copy the `database_id` it prints into **wrangler.toml** (replace `REPLACE_WITH_YOUR_D1_DATABASE_ID`), then:
-```bash
-npx wrangler d1 execute quickserve-intake --remote --file=./schema.sql
-```
+These tests need Node 22 or later. They run the whole flow against an in-memory database: apply, upload, hand in, review, request info, upload again, approve and convert. They also check bad files, wrong tokens, CORS and rate limits.
 
-### 3. Create the document store (R2)
-```bash
-npx wrangler r2 bucket create quickserve-docs
-```
-> R2 requires activating R2 in the dashboard once (Storage → R2 → enable). It stays free within the generous free tier.
+## Deploying
 
-### 4. Set your owner password (the inbox login)
-Pick a long random string (e.g. from a password manager) and set it as a secret:
-```bash
-npx wrangler secret put OWNER_TOKEN
-```
-Paste the string when prompted. **This is what you'll type to open inbox.html.** Keep it private.
+From `intake-worker/`, with a Cloudflare API token in `CLOUDFLARE_API_TOKEN`:
 
-### 5. Deploy
 ```bash
+npx wrangler d1 migrations apply quickserve-intake --remote   # only when migrations/ changes
 npx wrangler deploy
 ```
-It prints your Worker URL, e.g. `https://quickserve-intake.<your-subdomain>.workers.dev`.
 
-### 6. Wire up the two pages
-In the repo root:
-- **apply.html** — set `ENDPOINT` to `"<your-worker-url>/applications"`.
-- **inbox.html** — set `WORKER_BASE` to `"<your-worker-url>"`.
+Secrets are never committed. Set them with `npx wrangler secret put <NAME>`:
 
-Commit and push so GitHub Pages serves them. Your pages will be at
-`https://erastusm.github.io/quickserve-cashloan-ledger/apply.html` and `/inbox.html`.
-
-### 7. Lock CORS to your site
-In **wrangler.toml**, set `ALLOWED_ORIGIN` to your Pages origin
-(`https://erastusm.github.io`) if it isn't already, then `npx wrangler deploy` again.
-
-### 8. Turn on the WhatsApp auto-reply
-In the **WhatsApp Business app** on your phone: **Settings → Business tools → Greeting
-message** → turn on and set something like:
-
-> Thanks for contacting QuickServe Cashloan! To apply for a loan, please complete this
-> short form: https://erastusm.github.io/quickserve-cashloan-ledger/apply.html
-
-That's it — new applications now flow into **inbox.html**.
-
----
-
-## Day-to-day use
-
-- Open **inbox.html**, enter your owner password once (stored on that device only).
-- New requests appear under **New**. Open one to see the details and **view the ID,
-  bank statement and payslip**.
-- Tap **Approve** or **Decline** — you get a one-tap **WhatsApp reply** to the applicant
-  and a **Copy for loan book** button to paste the details into the ledger app when you
-  issue the loan.
-
-## Local testing (optional)
-```bash
-npx wrangler dev
-```
-Runs the Worker locally; point `ENDPOINT`/`WORKER_BASE` at the printed localhost URL to try it.
-
-## Notes on data
-- Applicant documents (ID, bank statement, payslip) are stored **privately** in R2 and are
-  only reachable through the password-protected Worker — there are no public file links.
-- Consider how long you retain documents, and cover intake/retention in your NAMFISA and
-  data-protection compliance. You can delete an application's files from R2 at any time.
-
-## What's next (phase 2)
-This same Worker + D1 + R2 becomes the backend for full **in-chat** automation via the
-WhatsApp Cloud API — add a `/webhook` route and an in-chat form (WhatsApp Flows) later,
-with no change to the storage or the inbox.
+- `TURNSTILE_SECRET`: switches on the bot check for new applications and tracking. **Set** (widget `quickserve-apply`; its public site key, used by the website's form, is `0x4AAAAAAF54MSk3VG1JubiX`).
+- `OWNER_TOKEN` (optional): a fallback password for the Applications tab if staff login is ever unavailable.

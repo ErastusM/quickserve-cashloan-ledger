@@ -605,34 +605,40 @@ test("client references: a new client with no refs yet starts at QS-0001", () =>
   assert.strictEqual(app.run(`nextClientRef()`), "QS-0001");
 });
 
-test("loan references: backfilled in creation order, oldest gets QSL-0001", () => {
+test("loan references: backfilled in creation order with the issue month", () => {
   const app = loadApp();
   app.setState(baseState({
     loans: [
-      loan({ id: "l2", createdAt: "2026-02-01T00:00:00.000Z" }),
-      loan({ id: "l1", createdAt: "2026-01-01T00:00:00.000Z" }),
-      loan({ id: "l3", createdAt: "2026-03-01T00:00:00.000Z" })
+      loan({ id: "l2", issueDate: "2026-02-10", createdAt: "2026-02-01T00:00:00.000Z" }),
+      loan({ id: "l1", issueDate: "2026-01-15", createdAt: "2026-01-01T00:00:00.000Z" }),
+      loan({ id: "l3", issueDate: "2026-03-31", createdAt: "2026-03-01T00:00:00.000Z" })
     ]
   }));
   app.run(`assignLoanRefs(state)`);
   const byId = Object.fromEntries(JSON.parse(app.run(`JSON.stringify(state.loans.map((l) => [l.id, l.ref]))`)));
-  assert.strictEqual(byId.l1, "QSL-0001");
-  assert.strictEqual(byId.l2, "QSL-0002");
-  assert.strictEqual(byId.l3, "QSL-0003");
-  assert.strictEqual(app.run(`nextLoanRef()`), "QSL-0004");
+  assert.strictEqual(byId.l1, "QSL-2601-0001");
+  assert.strictEqual(byId.l2, "QSL-2602-0002");
+  assert.strictEqual(byId.l3, "QSL-2603-0003");
+  assert.strictEqual(app.run(`nextLoanRef({ issueDate: "2026-11-09" })`), "QSL-2611-0004");
 });
 
-test("loan references: existing refs are kept and the next continues past the highest", () => {
+test("loan references: old QSL-0001 numbers are kept and the count carries on with the month", () => {
   const app = loadApp();
   app.setState(baseState({
     loans: [
       loan({ id: "l1", ref: "QSL-0001", createdAt: "2026-01-01T00:00:00.000Z" }),
-      loan({ id: "l3", ref: "QSL-0003", createdAt: "2026-03-01T00:00:00.000Z" })
+      loan({ id: "l3", ref: "QSL-0136", createdAt: "2026-03-01T00:00:00.000Z" })
     ]
   }));
   app.run(`assignLoanRefs(state)`);
-  assert.deepStrictEqual(JSON.parse(app.run(`JSON.stringify(state.loans.map((l) => l.ref))`)), ["QSL-0001", "QSL-0003"]);
-  assert.strictEqual(app.run(`nextLoanRef()`), "QSL-0004", "continues past the highest, not into the gap");
+  assert.deepStrictEqual(JSON.parse(app.run(`JSON.stringify(state.loans.map((l) => l.ref))`)), ["QSL-0001", "QSL-0136"]);
+  assert.strictEqual(app.run(`nextLoanRef({ issueDate: "2026-11-09" })`), "QSL-2611-0137", "continues past the highest, not into the gap");
+});
+
+test("loan references: a dated reference counts by its last number, not its month", () => {
+  const app = loadApp();
+  app.setState(baseState({ loans: [loan({ id: "l1", ref: "QSL-2611-0137" })] }));
+  assert.strictEqual(app.run(`nextLoanRef({ issueDate: "2026-12-01" })`), "QSL-2612-0138");
 });
 
 test("projection: an explicit cfg override models a scenario without touching saved settings", () => {

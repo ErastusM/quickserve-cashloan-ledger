@@ -210,6 +210,9 @@ td.r,th.r{text-align:right}
 
 .pill{font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; padding:2px 8px; border-radius:4px; border:1px solid currentColor; display:inline-block}
 .pill.active{color:var(--accent)} .pill.paid{color:var(--good)} .pill.overdue{color:var(--bad)}
+.pill.waiting{color:var(--warn)}
+body.analyst .navitem:not([data-route="applications"]){display:none}
+body.analyst #printBtn{display:none}
 .pill.new{color:var(--steel)} .pill.approved{color:var(--good)} .pill.declined{color:var(--bad)} .pill.writtenoff{color:var(--muted)}
 
 .empty{padding:40px 20px; text-align:center; color:var(--muted); font-size:13px}
@@ -444,7 +447,7 @@ body.doc-open{overflow:hidden}
 (function(){
   "use strict";
   var SB = { url:"https://ptlwhpvzyfpxtpghwlqs.supabase.co", key:"sb_publishable_jy5bMPcZ9uIwXHV2M7Sq0g_5uYtWcZH" };
-  var WORKER_BASE = "https://quickserve-intake.quickservefinance.workers.dev";
+  var WORKER_BASE = "https://api.quickserve.group";
   var SESSION_KEY = "quickserve_cloud_v1";
   var OWNER_KEY = "qs_owner_token";
 
@@ -690,17 +693,25 @@ body.doc-open{overflow:hidden}
   }
   function missingKyc(){ return state.clients.filter(function(c){ return !String(c.nationalId||"").trim(); }); }
   // ---- reference numbers ----
-  // Clients carry QS-0001…, loans QSL-0001… (the phone app's scheme). A number is
-  // stored on the record and never recomputed, so deleting one never renumbers
-  // the others. New records get the next number; any record without one is
+  // Clients carry QS-0001…; loans carry the year and month they were issued,
+  // then a running number that never restarts: QSL-2611-0137 (loans made
+  // before November 2026 keep their QSL-0001… numbers). A number is stored on
+  // the record and never recomputed, so deleting one never renumbers the
+  // others. New records get the next number; any record without one is
   // numbered in the order it was created.
-  function refNumber(ref){ var m=String(ref||"").match(/(\d+)/); return m?Number(m[1]):0; }
-  function formatRef(prefix,n){ return prefix+"-"+String(n).padStart(4,"0"); }
+  function refNumber(ref){ var m=String(ref||"").match(/(\d+)\D*$/); return m?Number(m[1]):0; }
+  function refPeriod(x){
+    var d=x&&x.issueDate?new Date(String(x.issueDate).slice(0,10)+"T12:00:00Z"):new Date(x&&x.createdAt||Date.now());
+    if(isNaN(d)) d=new Date();
+    d=new Date(d.getTime()+2*3600000); // Namibian time
+    return String(d.getUTCFullYear()).slice(2)+String(d.getUTCMonth()+1).padStart(2,"0");
+  }
+  function formatRef(prefix,n,x){ return prefix+"-"+(prefix==="QSL"?refPeriod(x)+"-":"")+String(n).padStart(4,"0"); }
   function assignRefs(list, prefix){
     var top=(list||[]).reduce(function(mx,x){ return Math.max(mx, refNumber(x.ref)); },0), added=[];
     (list||[]).filter(function(x){ return !x.ref; })
       .sort(function(a,b){ return String(a.createdAt||a.issueDate||"").localeCompare(String(b.createdAt||b.issueDate||"")); })
-      .forEach(function(x){ x.ref=formatRef(prefix,++top); added.push(x.ref); });
+      .forEach(function(x){ x.ref=formatRef(prefix,++top,x); added.push(x.ref); });
     return added;
   }
   function assignMissingRefs(data){
@@ -860,16 +871,11 @@ body.doc-open{overflow:hidden}
     return attempt(0);
   }
   function ownerToken(){ return localStorage.getItem(OWNER_KEY)||""; }
-  function loadApps(){
-    var tk=ownerToken(); if(!tk) return Promise.resolve({needOwner:true});
-    return fetch(WORKER_BASE+"/applications",{headers:{Authorization:"Bearer "+tk}})
-      .then(function(r){ if(r.status===401) return {needOwner:true,bad:true}; if(!r.ok) return {error:r.status}; return r.json(); })
-      .catch(function(){ return {error:"offline"}; });
-  }
-
   // ---- routing ----
   var TITLES={dashboard:"Dashboard",accounts:"Accounts",applications:"Applications",clients:"Clients",loans:"Loans",payments:"Payments",expenses:"Expenses",reports:"Reports",projections:"Projections",settings:"Settings",collections:"Collections",pnl:"Profit & loss",members:"Members & distributions",history:"History & backups"};
   function go(r){
+    if(me.role==="analyst") r="applications";
+    if(r!=="applications"||route!=="applications") ui.appId=null;
     route=r; if(location.hash!=="#"+r) location.hash=r;
     Array.prototype.forEach.call(document.querySelectorAll(".navitem"),function(b){ b.classList.toggle("active", b.dataset.route===r); });
     $("pageTitle").textContent=TITLES[r]||"Admin";
@@ -1340,33 +1346,331 @@ body.doc-open{overflow:hidden}
   }
 
   // ---- applications ----
+  // Online applications from the website (QSA-YYMM-NNNN). Owners and credit
+  // analysts review them here. Analysts approve up to their approval limit and
+  // recommend above it; an owner marks an approved application as paid out,
+  // which creates the client (if new) and the loan in the ledger.
+  var PUBLIC_SITE = "https://quickserve.group";
+  var APP_STATUS = { new:"New", in_review:"In review", info_requested:"Waiting on applicant", approved:"Approved", converted:"Paid out", declined:"Declined", withdrawn:"Withdrawn" };
+  var APP_PILL = { new:"new", in_review:"active", info_requested:"waiting", approved:"approved", converted:"paid", declined:"declined", withdrawn:"writtenoff" };
+  var APP_TABS = [["open","Open"],["recommended","Recommended"],["info_requested","Waiting on applicant"],["approved","Approved"],["converted","Paid out"],["declined","Declined"],["all","All"]];
+  var ASK_REASONS = [
+    "Please send your bank statement for the latest month. The ones we have stop before your last payday.",
+    "Please send all 3 months of bank statements. We only have part of them.",
+    "Please send your latest payslip. The one we have is older than a month.",
+    "Your ID photo is hard to read. Please send a clear photo of the front and the back.",
+    "Please send a clear photo of your passport photo page."
+  ];
+  var DECLINE_REASONS = ["The repayment isn't affordable on this income","Too many other debts on the bank statements","Documents incomplete or couldn't be verified","Employment or income couldn't be confirmed","Other"];
+  var me = { role:"owner", email:"", approvalLimit:null };
+  var apps=[];
+
+  function appApi(method, path, body){
+    return token().then(function(tk){
+      if(!tk) return { _status:401, error:"You're signed out." };
+      var o={ method:method, headers:{ Authorization:"Bearer "+tk } };
+      if(body!==undefined){ o.headers["Content-Type"]="application/json"; o.body=JSON.stringify(body); }
+      return fetch(WORKER_BASE+path,o).then(function(r){
+        return r.json().catch(function(){ return {}; }).then(function(j){ j._status=r.status; j._ok=r.ok; return j; });
+      });
+    }).catch(function(){ return { _status:0, error:"You seem to be offline." }; });
+  }
+  function loadMe(){
+    return appApi("GET","/v2/admin/me").then(function(r){ if(r._ok) me={ role:r.role||"owner", email:r.email||"", approvalLimit:r.approvalLimit }; return me; });
+  }
+  function isOwner(){ return me.role==="owner"; }
+  function canApprove(a){ return isOwner() || (me.approvalLimit!=null && a.amount_cents<=me.approvalLimit*100); }
+  function cents(n){ return money((n||0)/100); }
+  function appMonths(){
+    var out=[], d=new Date();
+    for(var i=0;i<12;i++){ var x=new Date(d.getFullYear(), d.getMonth()-i, 1); out.push([String(x.getFullYear()).slice(2)+String(x.getMonth()+1).padStart(2,"0"), x.toLocaleDateString("en-GB",{month:"short",year:"numeric"})]); }
+    return out;
+  }
+  function phoneLocal(p){ var d=String(p||"").replace(/\D/g,""); if(d.indexOf("264")===0) d="0"+d.slice(3); return d.length===10 ? d.slice(0,3)+" "+d.slice(3,6)+" "+d.slice(6) : d; }
+  function waLink(phone, text){ return "https://wa.me/"+String(phone||"").replace(/\D/g,"")+"?text="+encodeURIComponent(text); }
+  function firstName(n){ return String(n||"").trim().split(/\s+/)[0]||""; }
+
   function renderApplications(c){
+    if(ui.appId) return renderApplication(c, ui.appId);
+    ui.appTab=ui.appTab||"open";
     c.innerHTML='<div class="empty">Loading applications…</div>'; setSub("");
-    loadApps().then(function(res){
-      if(res && res.needOwner){
-        c.innerHTML='<div class="panel"><div class="ph"><h3>Applications inbox</h3></div><div style="padding:26px 18px;max-width:360px">'
-          +'<p style="color:var(--muted);font-size:13px;margin:0 0 14px">Enter the owner password for the intake service to load loan requests.</p>'
-          +'<input id="ownerPw" class="fld" type="password" placeholder="Owner password"'+(res.bad?' style="border-color:var(--bad)"':'')+'>'
-          +'<button class="btn block" id="ownerBtn">Connect inbox</button></div></div>';
-        $("ownerBtn").addEventListener("click",function(){ var v=$("ownerPw").value.trim(); if(!v) return; localStorage.setItem(OWNER_KEY,v); renderApplications(c); });
-        $("ownerPw").addEventListener("keydown",function(e){ if(e.key==="Enter") $("ownerBtn").click(); });
-        return;
-      }
-      if(res && res.error){ c.innerHTML='<div class="empty">Could not reach the applications service ('+esc(res.error)+').</div>'; return; }
-      apps=(res&&res.applications)||[];
-      var nnew=apps.filter(function(a){return a.status==="new";}).length;
-      var badge=$("appsBadge"); if(nnew){ badge.textContent=nnew; badge.classList.remove("hidden"); } else badge.classList.add("hidden");
-      setSub(apps.length+" received");
+    var q="?status="+encodeURIComponent(ui.appTab==="all"?"":ui.appTab)+(ui.appMonth?"&month="+ui.appMonth:"")+(ui.appQ?"&q="+encodeURIComponent(ui.appQ):"");
+    appApi("GET","/v2/admin/applications"+q).then(function(res){
+      if(!res._ok){ c.innerHTML='<div class="empty">'+esc(res.error||("Could not reach the applications service ("+res._status+")."))+'</div>'; return; }
+      apps=res.applications||[];
+      var counts=res.counts||{}, open=(counts.new||0)+(counts.in_review||0);
+      var badge=$("appsBadge"); if(counts.new){ badge.textContent=counts.new; badge.classList.remove("hidden"); } else badge.classList.add("hidden");
+      function cnt(k){ var n=k==="open"?open:k==="all"?null:counts[k]; return n?' <span style="opacity:.7">'+n+'</span>':''; }
+      setSub(isOwner()?"":"Signed in as credit analyst"+(me.approvalLimit!=null?" · approves up to "+money0(me.approvalLimit):""));
       var body=apps.map(function(a){
-        return '<tr><td class="who-cell"><b>'+esc(a.full_name||"—")+'</b><span>'+esc(a.phone||"")+(a.purpose?" · "+esc(a.purpose):"")+'</span></td>'
-          +'<td class="num">'+fmtDate((a.created_at||"").slice(0,10))+'</td>'
-          +'<td>'+esc(a.employer||"—")+'</td>'
-          +'<td><span class="pill '+pillCls(a.status)+'">'+esc(a.status)+'</span></td></tr>';
+        var flags=(a.above_standard?'<span class="pill waiting" style="margin-left:6px">Over N$ 10 000</span>':'')
+          +(a.recommendation&&["new","in_review","info_requested"].indexOf(a.status)>=0?'<span class="pill '+(a.recommendation==="approve"?"approved":"declined")+'" style="margin-left:6px">Recommend '+esc(a.recommendation)+'</span>':'');
+        return '<tr class="rowlink" data-app="'+esc(a.id)+'"><td class="mono">'+esc(a.id)+'</td>'
+          +'<td class="who-cell"><b>'+esc(a.full_name||"—")+'</b><span>'+esc(phoneLocal(a.phone))+(a.employer?" · "+esc(a.employer):"")+'</span></td>'
+          +'<td class="r num">'+cents(a.amount_cents)+'</td>'
+          +'<td class="num">'+fmtDate((a.submitted_at||a.created_at||"").slice(0,10))+'</td>'
+          +'<td><span class="pill '+(APP_PILL[a.status]||"new")+'">'+esc(APP_STATUS[a.status]||a.status)+'</span>'+flags+(a.ledger_loan_ref?'<span class="mono" style="margin-left:6px;font-size:11.5px;color:var(--muted)">'+esc(a.ledger_loan_ref)+'</span>':'')+'</td></tr>';
       }).join("");
-      c.innerHTML='<div class="panel"><div class="ph"><h3>Applications</h3><span class="n">'+apps.length+'</span></div>'
-        + '<div class="table-scroll"><table><thead><tr><th>Applicant</th><th>Received</th><th>Employer</th><th>Status</th></tr></thead><tbody>'
-        + (body||'<tr><td colspan="4" class="empty">No applications yet.</td></tr>') + '</tbody></table></div></div>';
+      c.innerHTML='<div class="toolbar">'
+          +'<div class="seg" role="tablist">'+APP_TABS.map(function(t){ return '<button data-atab="'+t[0]+'" class="'+(ui.appTab===t[0]?"on":"")+'">'+esc(t[1])+cnt(t[0])+'</button>'; }).join("")+'</div>'
+        +'</div><div class="toolbar">'
+          +'<label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="appQ" placeholder="Search name, ID or passport, cellphone, QSA- reference" value="'+esc(ui.appQ||"")+'"></label>'
+          +'<select id="appMonth" class="fld" style="width:auto;margin:0"><option value="">Any month</option>'+appMonths().map(function(m){ return '<option value="'+m[0]+'"'+(ui.appMonth===m[0]?" selected":"")+'>'+esc(m[1])+'</option>'; }).join("")+'</select>'
+        +'</div>'
+        +'<div class="panel"><div class="ph"><h3>Applications</h3><span class="n">'+apps.length+'</span></div>'
+        +'<div class="table-scroll"><table><thead><tr><th>Reference</th><th>Applicant</th><th class="r">Amount</th><th>Received</th><th>Status</th></tr></thead><tbody>'
+        +(body||'<tr><td colspan="5" class="empty">Nothing here.</td></tr>')+'</tbody></table></div></div>';
+      Array.prototype.forEach.call(c.querySelectorAll("[data-atab]"),function(b){ b.addEventListener("click",function(){ ui.appTab=b.dataset.atab; render(); }); });
+      var t=null; $("appQ").addEventListener("input",function(){ var v=this.value; clearTimeout(t); t=setTimeout(function(){ ui.appQ=v.trim(); render(); setTimeout(function(){ var i=$("appQ"); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } },60); },350); });
+      $("appMonth").addEventListener("change",function(){ ui.appMonth=this.value; render(); });
+      wireRows(c,"app",function(id){ ui.appId=id; render(); });
     });
+  }
+
+  function renderApplication(c, id){
+    c.innerHTML='<div class="empty">Opening '+esc(id)+'…</div>';
+    appApi("GET","/v2/admin/applications/"+encodeURIComponent(id)).then(function(res){
+      if(!res._ok){ c.innerHTML='<div class="empty">'+esc(res.error||"Could not open this application.")+' <a href="#" id="appBack">Back to the list</a></div>'; $("appBack").onclick=function(e){ e.preventDefault(); ui.appId=null; render(); }; return; }
+      var a=res.application, files=res.files||[], events=res.events||[], matches=res.ledgerMatches, others=res.otherApplications||[];
+      if(res.you) me={ role:res.you.role, email:res.you.email, approvalLimit:res.you.approvalLimit };
+      setSub(a.id);
+      var open=["new","in_review","info_requested"].indexOf(a.status)>=0;
+      var acts=[];
+      if(open){
+        acts.push('<button class="btn ghost sm" id="aAsk">Ask for something</button>');
+        acts.push('<button class="btn ghost sm danger" id="aDecline">Decline</button>');
+        if(canApprove(a)) acts.push('<button class="btn sm" id="aApprove">Approve</button>');
+        else acts.push('<button class="btn sm" id="aRecommend">Recommend</button>');
+      }
+      if(a.status==="approved"){
+        if(isOwner()) acts.push('<button class="btn sm" id="aPaid">Mark as paid out</button>');
+        acts.push('<button class="btn ghost sm danger" id="aDecline">Decline</button>');
+      }
+      if(a.status==="declined"||a.status==="withdrawn") acts.push('<button class="btn ghost sm" id="aReopen">Reopen</button>');
+      var wa=null;
+      if(a.status==="info_requested" && a.applicant_message) wa=waLink(a.phone,"Hello "+firstName(a.full_name)+", this is QuickServe about your application "+a.id+". "+a.applicant_message+" You can send it here: "+PUBLIC_SITE+"/track");
+      if(a.status==="approved") wa=waLink(a.phone,"Hello "+firstName(a.full_name)+", good news from QuickServe: your application "+a.id+" is approved. We're sending your Pre-Agreement Statement with the full cost before you sign.");
+      if(a.status==="declined" && a.applicant_message) wa=waLink(a.phone,"Hello "+firstName(a.full_name)+", this is QuickServe about your application "+a.id+". "+a.applicant_message);
+      if(wa) acts.unshift('<a class="btn ghost sm" href="'+esc(wa)+'" target="_blank" rel="noopener">WhatsApp the applicant</a>');
+
+      function L(k,v){ return '<div class="lrow"><span class="lk">'+esc(k)+'</span><span class="lv" style="font-family:var(--sans);font-size:13.5px;text-align:right;white-space:normal">'+v+'</span></div>'; }
+      var idLine=a.id_type==="passport" ? 'Passport <span class="mono">'+esc(a.national_id)+'</span>'+(a.nationality?" · "+esc(a.nationality):"") : 'ID <span class="mono">'+esc(a.national_id)+'</span>';
+      var aff=a.affordability||{};
+      var income=aff.income!=null?aff.income:(a.net_income_cents||0)/100;
+      var h='<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:16px">'
+        +'<div><a href="#" id="appBack" style="color:var(--muted);font-size:13px">← Applications</a>'
+        +'<h2 style="margin:6px 0 0;font-size:22px;font-weight:600;display:flex;flex-wrap:wrap;gap:10px;align-items:center">'+esc(a.full_name)+' <span class="pill '+(APP_PILL[a.status]||"new")+'">'+esc(APP_STATUS[a.status]||a.status)+'</span>'
+        +(a.above_standard?'<span class="pill waiting">Over N$ 10 000</span>':'')+'</h2>'
+        +'<div style="color:var(--muted);font-size:13px;margin-top:4px"><span class="mono">'+esc(a.id)+'</span> · received '+esc(fmtDate((a.submitted_at||"").slice(0,10)))+(a.ledger_loan_ref?' · loan <span class="mono">'+esc(a.ledger_loan_ref)+'</span>':'')+'</div></div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:8px">'+acts.join("")+'</div></div>';
+      if(a.recommendation && open) h+='<div class="card" style="margin-bottom:16px;border-color:'+(a.recommendation==="approve"?"var(--good)":"var(--bad)")+'"><div class="ledger" style="padding:12px 18px"><b>'+esc(a.recommended_by||"Analyst")+' recommends '+esc(a.recommendation==="approve"?"approving":"declining")+'.</b> '+esc(a.recommendation_note||"")+'</div></div>';
+      h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:16px;align-items:start">';
+      h+='<div class="card"><div class="ch"><h3>Requested</h3></div><div class="ledger">'
+        +L("Amount", '<span class="mono">'+cents(a.amount_cents)+'</span>')+L("Interest at 30%", '<span class="mono">'+cents(a.interest_cents)+'</span>')
+        +L("Total to repay", '<b class="mono">'+cents(a.total_cents)+'</b>')+L("Repays", "On payday ("+esc(a.payday||"—")+")")+L("Purpose", esc(a.purpose||"—"))+'</div></div>';
+      h+='<div class="card"><div class="ch"><h3>Applicant</h3></div><div class="ledger">'
+        +L("Identity", idLine)+L("Cellphone", '<a href="'+esc(waLink(a.phone,""))+'" target="_blank" rel="noopener">'+esc(phoneLocal(a.phone))+'</a>')
+        +(a.email?L("Email", esc(a.email)):"")+L("Employer", esc(a.employer||"—"))+L("Take-home pay", '<span class="mono">'+cents(a.net_income_cents)+'</span>')
+        +L("Next of kin", esc(a.kin_name||"—")+(a.kin_phone?" · "+esc(phoneLocal(a.kin_phone)):""))+L("Signed as", '<i>'+esc(a.signed_name||"—")+'</i>')+'</div></div>';
+      h+='<div class="card"><div class="ch"><h3>Returning client?</h3></div><div class="ledger">'
+        +(matches==null?'<div class="lrow"><span class="lk" style="color:var(--muted)">The ledger lookup isn\'t available yet.</span></div>'
+          : matches.length? matches.map(function(m){ return L(esc(m.ref||"")+" · "+esc(m.name||""), m.loans+" loan"+(m.loans===1?"":"s")+" · "+money0(m.borrowed||0)+" borrowed"+(m.lastIssue?" · last "+esc(fmtDate(m.lastIssue)):"")); }).join("")
+          : '<div class="lrow"><span class="lk">No match on ID, passport or cellphone. New client.</span></div>')
+        +(others.length?'<div class="lrow"><span class="lk" style="color:var(--muted)">Other applications: '+others.map(function(o){ return esc(o.id)+" ("+esc(APP_STATUS[o.status]||o.status)+")"; }).join(", ")+'</span></div>':'')
+        +'</div></div>';
+      h+='<div class="card"><div class="ch"><h3>Affordability</h3><span class="asat">Document 03</span></div><div class="ledger" style="padding-top:12px">'
+        +'<div class="field row"><div><label>Take-home pay (N$)</label><input id="afInc" class="num" type="number" step="0.01" value="'+esc(income)+'"></div><div><label>Living expenses (N$)</label><input id="afExp" class="num" type="number" step="0.01" value="'+esc(aff.expenses!=null?aff.expenses:"")+'" placeholder="From statements"></div></div>'
+        +'<div class="field row"><div><label>Other debt repayments (N$)</label><input id="afDebt" class="num" type="number" step="0.01" value="'+esc(aff.debts!=null?aff.debts:"")+'" placeholder="0.00"></div><div><label>This repayment (N$)</label><input class="num" disabled value="'+esc(((a.total_cents||0)/100).toFixed(2))+'"></div></div>'
+        +'<div id="afOut"></div>'
+        +'<div class="field"><label>Notes</label><textarea id="afNote" placeholder="What you checked on the statements">'+esc(aff.note||"")+'</textarea></div>'
+        +'<button class="btn ghost sm" id="afSave">Save worksheet</button>'+(aff.savedBy?'<span style="margin-left:10px;color:var(--muted);font-size:12px">Saved by '+esc(aff.savedBy)+'</span>':'')+'</div></div>';
+      h+='</div>';
+      h+='<div class="card" style="margin-top:16px"><div class="ch"><h3>Documents</h3><span class="asat">'+files.length+' file'+(files.length===1?"":"s")+'</span></div>'
+        +'<div style="padding:10px 18px;display:flex;flex-wrap:wrap;gap:6px" id="appDocTabs">'+files.map(function(f,i){ return '<button class="btn ghost sm" data-doc="'+i+'">'+esc({id:"ID / passport",payslip:"Payslip",bank:"Bank statement",other:"Other"}[f.kind]||f.kind)+(f.uploaded_by==="applicant"&&events.some(function(e){ return e.type==="document_added"&&e.detail&&e.detail.fileId===f.id; })?" (added later)":"")+'</button>'; }).join("")+'</div>'
+        +'<div id="appDocView" style="padding:0 18px 18px"><div class="empty">Choose a document above.</div></div></div>';
+      h+='<div class="card" style="margin-top:16px"><div class="ch"><h3>Activity</h3></div><div class="ledger">'
+        +events.map(function(e){ var d=e.detail||{}, what={draft_created:"Started the application",submitted:"Handed in",document_added:"Added a document",affordability_saved:"Saved the affordability worksheet",recommended:"Recommended "+(d.recommendation||"")+(d.note?": "+d.note:"")}[e.type] || (e.type==="status" ? (APP_STATUS[d.to]||d.to)+(d.applicantMessage?": “"+d.applicantMessage+"”":"")+(d.loanRef?" · "+d.loanRef:"") : e.type);
+          return '<div class="lrow"><span class="lk">'+esc(what)+'<small>'+esc(String(e.actor||"").replace(/^staff:/,""))+'</small></span><span class="lv" style="font-size:12px">'+esc(new Date(e.at).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))+'</span></div>'; }).join("")
+        +'</div></div>';
+      c.innerHTML=h;
+
+      $("appBack").onclick=function(e){ e.preventDefault(); ui.appId=null; render(); };
+      function afDraw(){
+        var inc=num($("afInc").value), ex=num($("afExp").value), db=num($("afDebt").value), rep=(a.total_cents||0)/100, left=inc-ex-db-rep;
+        $("afOut").innerHTML='<div class="lrow total"><span class="lk">Left over after this loan</span><span class="lv" style="color:'+(left>=0?"var(--good)":"var(--bad)")+'">'+money(left)+'</span></div>'
+          +'<div class="lrow sub"><span class="lk">Repayment as share of take-home pay</span><span class="lv">'+(inc>0?Math.round(rep/inc*100)+"%":"—")+'</span></div>';
+        return { income:inc, expenses:ex, debts:db, repayment:rep, leftOver:left };
+      }
+      ["afInc","afExp","afDebt"].forEach(function(i){ $(i).addEventListener("input",afDraw); }); afDraw();
+      $("afSave").onclick=function(){
+        var b=this; b.disabled=true;
+        appApi("PUT","/v2/admin/applications/"+a.id+"/affordability", Object.assign(afDraw(),{ note:$("afNote").value.trim(), savedBy:me.email, savedAt:new Date().toISOString() }))
+          .then(function(r){ b.disabled=false; toast(r._ok?"Worksheet saved.":(r.error||"Couldn't save."), r._ok?"":"err"); });
+      };
+      var urls={};
+      Array.prototype.forEach.call(c.querySelectorAll("[data-doc]"),function(b){ b.addEventListener("click",function(){
+        Array.prototype.forEach.call(c.querySelectorAll("[data-doc]"),function(x){ x.classList.toggle("on",x===b); x.style.background=x===b?"var(--accent-soft)":""; });
+        var f=files[Number(b.dataset.doc)], v=$("appDocView");
+        function show(u){ v.innerHTML=(f.mime==="application/pdf"
+            ? '<iframe src="'+u+'" style="width:100%;height:70vh;border:1px solid var(--line);border-radius:6px" title="Document"></iframe>'
+            : f.mime==="image/heic" ? '<div class="empty">This is an iPhone (HEIC) photo, which most browsers can\'t show. <a href="'+u+'" download="'+esc(a.id+"-"+f.kind)+'.heic">Download it</a> to view.</div>'
+            : '<img src="'+u+'" alt="Document" style="max-width:100%;max-height:75vh;border:1px solid var(--line);border-radius:6px;display:block">')
+          +'<p style="margin:8px 0 0"><a href="'+u+'" target="_blank" rel="noopener">Open full size</a> · <span style="color:var(--muted);font-size:12px">'+esc(f.mime)+' · '+Math.round(f.bytes/1024)+' KB · '+esc(fmtDate(String(f.uploaded_at).slice(0,10)))+'</span></p>'; }
+        if(urls[f.id]) return show(urls[f.id]);
+        v.innerHTML='<div class="empty">Loading…</div>';
+        token().then(function(tk){ return fetch(WORKER_BASE+"/v2/admin/applications/"+a.id+"/files/"+f.id,{headers:{Authorization:"Bearer "+tk}}); })
+          .then(function(r){ if(!r.ok) throw 0; return r.blob(); })
+          .then(function(bl){ urls[f.id]=URL.createObjectURL(bl); show(urls[f.id]); })
+          .catch(function(){ v.innerHTML='<div class="empty">Couldn\'t load this document.</div>'; });
+      }); });
+      if(files.length) c.querySelector("[data-doc]").click();
+
+      function setStatus(body, msg){
+        var btn=$("modalSave"); btn.disabled=true; ferr("");
+        appApi("POST","/v2/admin/applications/"+a.id+"/status", body).then(function(r){
+          btn.disabled=false;
+          if(!r._ok){ ferr(r.error||"Couldn't save."); return; }
+          closeModal(); toast(msg); render();
+        });
+      }
+      if($("aAsk")) $("aAsk").onclick=function(){
+        openModal("Ask "+firstName(a.full_name)+" for something",
+          '<div class="field"><label>Reason</label><select id="f_reason">'+ASK_REASONS.map(function(r,i){ return '<option value="'+i+'">'+esc(r)+'</option>'; }).join("")+'<option value="custom">Write my own</option></select></div>'
+          +'<div class="field"><label>Message the applicant sees on their tracking page</label><textarea id="f_msg" rows="4">'+esc(ASK_REASONS[0])+'</textarea></div>'
+          +'<p style="color:var(--muted);font-size:12.5px;margin:0">Afterwards, use “WhatsApp the applicant” to send them a ready-written message.</p><div class="formerr" id="f_err"></div>',
+          "Send request", function(){ var m=fval("f_msg").trim(); if(!m){ ferr("Write what they need to send."); return; } setStatus({ status:"info_requested", applicantMessage:m }, "Request sent to the tracking page."); });
+        $("f_reason").addEventListener("change",function(){ if(this.value!=="custom") $("f_msg").value=ASK_REASONS[Number(this.value)]; else { $("f_msg").value=""; $("f_msg").focus(); } });
+      };
+      if($("aDecline")) $("aDecline").onclick=function(){
+        openModal("Decline "+a.id,
+          '<div class="field"><label>Reason (internal)</label><select id="f_reason">'+DECLINE_REASONS.map(function(r){ return '<option>'+esc(r)+'</option>'; }).join("")+'</select></div>'
+          +'<div class="field"><label>Note (internal, optional)</label><textarea id="f_note"></textarea></div>'
+          +'<div class="field"><label>Message the applicant sees</label><textarea id="f_msg" rows="3">Thank you for applying to QuickServe. We’re not able to approve this loan right now. You’re welcome to apply again later.</textarea></div><div class="formerr" id="f_err"></div>',
+          "Decline", function(){ setStatus({ status:"declined", note:fval("f_reason")+(fval("f_note").trim()?" — "+fval("f_note").trim():""), applicantMessage:fval("f_msg").trim() }, "Application declined."); });
+      };
+      if($("aApprove")) $("aApprove").onclick=function(){
+        var leftOk=afDraw().leftOver;
+        openModal("Approve "+a.id,
+          '<p style="margin:0 0 10px">Approve <b>'+esc(cents(a.amount_cents))+'</b> for '+esc(a.full_name)+', repaying <b>'+esc(cents(a.total_cents))+'</b> on payday.</p>'
+          +(leftOk<0?'<p style="color:var(--bad);margin:0 0 10px">The affordability worksheet shows a shortfall of '+esc(money(-leftOk))+'.</p>':'')
+          +(a.affordability?'':'<p style="color:var(--warn);margin:0 0 10px">The affordability worksheet hasn’t been saved yet.</p>')
+          +'<div class="field"><label>Note (internal, optional)</label><textarea id="f_note"></textarea></div><div class="formerr" id="f_err"></div>',
+          "Approve", function(){ setStatus({ status:"approved", note:fval("f_note").trim() }, "Approved. "+(isOwner()?"Mark it as paid out once the money is sent.":"The owner pays it out.")); });
+      };
+      if($("aRecommend")) $("aRecommend").onclick=function(){
+        openModal("Recommend "+a.id,
+          '<p style="margin:0 0 10px">'+esc(cents(a.amount_cents))+' is above your approval limit'+(me.approvalLimit!=null?' of '+esc(money0(me.approvalLimit)):'')+'. Your recommendation goes to the owner.</p>'
+          +'<div class="field"><label>I recommend</label><select id="f_rec"><option value="approve">Approving</option><option value="decline">Declining</option></select></div>'
+          +'<div class="field"><label>Why</label><textarea id="f_note" rows="3" placeholder="What you found on the statements and payslip"></textarea></div><div class="formerr" id="f_err"></div>',
+          "Send to owner", function(){
+            var btn=$("modalSave"); btn.disabled=true;
+            appApi("POST","/v2/admin/applications/"+a.id+"/recommend",{ recommendation:fval("f_rec"), note:fval("f_note").trim() }).then(function(r){
+              btn.disabled=false; if(!r._ok){ ferr(r.error||"Couldn't save."); return; } closeModal(); toast("Recommendation sent to the owner."); render(); });
+          });
+      };
+      if($("aReopen")) $("aReopen").onclick=function(){
+        openModal("Reopen "+a.id,'<p style="margin:0">Put this application back into review?</p><div class="formerr" id="f_err"></div>',"Reopen",function(){ setStatus({ status:"in_review" }, "Back in review."); });
+      };
+      if($("aPaid")) $("aPaid").onclick=function(){ openPaidOut(a); };
+    });
+  }
+
+  // Next date with this payday (e.g. "25th" → the coming 25th); else 30 days.
+  function nextPayday(text, fromIso){
+    var m=String(text||"").match(/\d{1,2}/), from=new Date(fromIso+"T00:00:00");
+    if(!m) return addDays(fromIso,30);
+    var day=Math.min(31,Math.max(1,Number(m[0])));
+    function at(y,mo){ var last=new Date(y,mo+1,0).getDate(); return new Date(y,mo,Math.min(day,last)); }
+    var d=at(from.getFullYear(),from.getMonth());
+    if(d<=from) d=at(from.getFullYear(),from.getMonth()+1);
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  }
+  function openPaidOut(a){
+    var already=state.loans.find(function(l){ return l.applicationRef===a.id; });
+    var nid=String(a.national_id||"").toUpperCase().replace(/[^A-Z0-9]/g,""), tel=String(a.phone||"").replace(/\D/g,"").slice(-9);
+    var matches=state.clients.filter(function(c){
+      var cn=String(c.nationalId||"").toUpperCase().replace(/[^A-Z0-9]/g,""), ct=String(c.phone||"").replace(/\D/g,"").slice(-9);
+      return (nid && cn===nid) || (tel.length===9 && ct===tel);
+    });
+    var today=todayISO(), principal=(a.amount_cents||0)/100;
+    var body=(already?'<p style="color:var(--warn);margin:0 0 10px">Loan '+esc(already.ref||"")+' was already created from this application. Saving links it without creating another.</p>':'')
+      +'<div class="field"><label>Client</label><select id="f_client">'
+        +matches.map(function(c){ return '<option value="'+esc(c.id)+'">'+esc((c.ref?c.ref+" · ":"")+c.name)+' (existing)</option>'; }).join("")
+        +'<option value="__new">New client: '+esc(a.full_name)+'</option></select></div>'
+      +'<div class="field row"><div><label>Amount paid out (N$)</label><input id="f_principal" class="num" type="number" step="0.01" value="'+esc(principal)+'"></div><div><label>Interest rate (%)</label><input id="f_rate" class="num" type="number" step="0.01" value="30"></div></div>'
+      +'<div class="field row"><div><label>Service fee (N$)</label><input id="f_fee" class="num" type="number" step="0.01" value="0"></div><div><label>Purpose</label><input id="f_purpose" value="'+esc(a.purpose||"")+'"></div></div>'
+      +'<div class="field row"><div><label>Paid out on</label><input id="f_issue" type="date" value="'+today+'"></div><div><label>Due on payday</label><input id="f_due" type="date" value="'+nextPayday(a.payday,today)+'"></div></div>'
+      +accountSelectHtml("f_lacct", preferredAccountId(), "Paid out from")
+      +'<p style="color:var(--muted);font-size:12.5px;margin:4px 0 0">This creates the loan in the ledger (next QSL- number) and moves the application to Paid out.</p><div class="formerr" id="f_err"></div>';
+    openModal("Mark "+a.id+" as paid out", body, "Create loan", function(){
+      var clientSel=fval("f_client"), pr=num(fval("f_principal")), rate=num(fval("f_rate")), fee=num(fval("f_fee")), issue=fval("f_issue"), due=fval("f_due");
+      if(!(pr>0)){ ferr("Enter the amount paid out."); return; }
+      if(!(rate>=0)||rate>100){ ferr("Interest rate must be between 0 and 100%."); return; }
+      if(!issue||!due||due<=issue){ ferr("Set the payout date and a later due date."); return; }
+      if(issue>todayISO()){ ferr("The payout date can't be in the future."); return; }
+      if(pr*(rate/100)+fee > pr*0.3+0.001){ ferr("Interest + fees are above the 30% cost-of-credit cap."); return; }
+      var btn=$("modalSave"); btn.disabled=true; btn.textContent="Saving…"; ferr("");
+      var newClient=null, newLoan=null;
+      var step = already ? Promise.resolve({ok:true}) : saveLedger(function(data){
+        var clientId=clientSel;
+        if(clientSel==="__new"){
+          newClient={ id:uid("client"), createdAt:new Date().toISOString(), name:a.full_name, phone:phoneLocal(a.phone), nationalId:a.national_id,
+            employer:a.employer||"", address:"", nextOfKin:[a.kin_name, phoneLocal(a.kin_phone)].filter(Boolean).join(" · "),
+            notes:"From online application "+a.id+(a.id_type==="passport"?" · passport"+(a.nationality?", "+a.nationality:""):"") };
+          data.clients.push(newClient); clientId=newClient.id;
+        }
+        newLoan={ id:uid("loan"), createdAt:new Date().toISOString(), status:"active", clientId:clientId, principal:pr, interestRate:rate, serviceFee:fee,
+          issueDate:issue, dueDate:due, purpose:cleanText(fval("f_purpose")), accountId:fval("f_lacct"), applicationRef:a.id };
+        data.loans.push(newLoan);
+        assignMissingRefs(data);
+      });
+      step.then(function(res){
+        if(res.auth===false){ closeModal(); signOut(); return; }
+        if(res.error){ btn.disabled=false; btn.textContent="Create loan"; ferr(res.error==="busy"?"Someone changed the book just now — try again.":"Couldn't save ("+res.error+")."); return; }
+        var loan=state.loans.find(function(l){ return l.applicationRef===a.id; }), cl=loan?client(loan.clientId):null;
+        if(!loan){ btn.disabled=false; btn.textContent="Create loan"; ferr("The loan wasn't found after saving. Refresh and check the Loans page."); return; }
+        appApi("POST","/v2/admin/applications/"+a.id+"/converted",{ clientId:loan.clientId, loanId:loan.id, clientRef:cl&&cl.ref, loanRef:loan.ref }).then(function(r){
+          btn.disabled=false; btn.textContent="Create loan";
+          if(!r._ok){ ferr("Loan "+loan.ref+" is in the ledger, but the application couldn't be updated ("+(r.error||r._status)+"). Click Create loan again to link it."); return; }
+          closeModal(); toast("Paid out: loan "+loan.ref+(cl&&cl.ref?" for "+cl.ref:"")+"."); render();
+        });
+      });
+    });
+  }
+
+  // ---- staff & roles (Settings, owners only) ----
+  function staffCardHtml(){ return '<div class="card" id="staffCard"><div class="ch"><h3>Staff &amp; roles</h3></div><div class="ledger" id="staffBody"><div class="lrow"><span class="lk" style="color:var(--muted)">Loading…</span></div></div></div>'; }
+  function wireStaffCard(){
+    var box=$("staffBody"); if(!box) return;
+    token().then(function(t){ return apiSB("/rest/v1/staff?select=user_id,email,role,approval_limit&order=role.desc,email",{headers:{Authorization:"Bearer "+t}}); })
+      .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, status:r.status, rows:j }; }); })
+      .then(function(res){
+        if(!res.ok){ box.innerHTML='<div class="lrow"><span class="lk" style="color:var(--warn)">Roles aren’t switched on yet. Run <span class="mono">supabase/migrations/020_staff_roles.sql</span> in Supabase (SQL Editor) once.</span></div>'; return; }
+        var self=(session()||{}).email||"";
+        box.innerHTML=res.rows.map(function(s){
+          return '<div class="lrow" style="flex-wrap:wrap"><span class="lk">'+esc(s.email)+(s.email===self?' <small>you</small>':'')+'</span><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
+            +'<select class="fld" style="width:auto;margin:0" data-srole="'+esc(s.user_id)+'"'+(s.email===self?" disabled":"")+'><option value="owner"'+(s.role==="owner"?" selected":"")+'>Owner</option><option value="analyst"'+(s.role==="analyst"?" selected":"")+'>Credit analyst</option></select>'
+            +(s.role==="analyst"?'<input class="fld num" style="width:120px;margin:0" data-slimit="'+esc(s.user_id)+'" type="number" step="100" value="'+esc(s.approval_limit!=null?Number(s.approval_limit):"")+'" placeholder="Limit N$" title="Approval limit (N$)">':'')
+            +(s.email===self?'':'<button class="btn ghost sm" data-ssave="'+esc(s.user_id)+'">Save</button><button class="btn ghost sm danger" data-sdel="'+esc(s.user_id)+'">Remove</button>')+'</span></div>';
+        }).join("")
+        +'<div class="lrow" style="flex-wrap:wrap;gap:6px"><input class="fld" id="stEmail" style="flex:1;min-width:180px;margin:0" placeholder="Login email to add"><select class="fld" id="stRole" style="width:auto;margin:0"><option value="analyst">Credit analyst</option><option value="owner">Owner</option></select><input class="fld num" id="stLimit" style="width:110px;margin:0" type="number" step="100" value="10000" title="Approval limit (N$)"><button class="btn sm" id="stAdd">Add</button></div>'
+        +'<div class="lrow"><span class="lk" style="color:var(--faint);font-size:11.5px">Create the login first in Supabase (Authentication → Users → Add user), then add it here. Credit analysts see only Applications and approve up to their limit.</span></div>';
+        function call(path, opts){ return token().then(function(t){ opts.headers=Object.assign({Authorization:"Bearer "+t,"Content-Type":"application/json"},opts.headers||{}); return apiSB(path,opts); }).then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ return { ok:r.ok, j:j }; }); }); }
+        Array.prototype.forEach.call(box.querySelectorAll("[data-ssave]"),function(b){ b.onclick=function(){
+          var id=b.dataset.ssave, role=box.querySelector('[data-srole="'+id+'"]').value, lim=box.querySelector('[data-slimit="'+id+'"]');
+          call("/rest/v1/staff?user_id=eq."+id,{ method:"PATCH", headers:{Prefer:"return=representation"}, body:JSON.stringify({ role:role, approval_limit: role==="analyst" ? (lim&&lim.value!==""?Number(lim.value):10000) : null }) })
+            .then(function(r){ toast(r.ok?"Saved.":(r.j.message||"Couldn't save."), r.ok?"":"err"); wireStaffCard(); });
+        }; });
+        Array.prototype.forEach.call(box.querySelectorAll("[data-sdel]"),function(b){ b.onclick=function(){
+          if(!confirm("Remove this person's access to the admin portal?")) return;
+          call("/rest/v1/staff?user_id=eq."+b.dataset.sdel,{ method:"DELETE" }).then(function(r){ toast(r.ok?"Removed.":(r.j.message||"Couldn't remove."), r.ok?"":"err"); wireStaffCard(); });
+        }; });
+        $("stAdd").onclick=function(){
+          var email=$("stEmail").value.trim(); if(!email) return;
+          call("/rest/v1/rpc/staff_add",{ method:"POST", body:JSON.stringify({ p_email:email, p_role:$("stRole").value, p_limit:Number($("stLimit").value)||null }) })
+            .then(function(r){ toast(r.ok?"Added.":(r.j.message||"Couldn't add."), r.ok?"":"err"); if(r.ok) wireStaffCard(); });
+        };
+      }).catch(function(){ box.innerHTML='<div class="lrow"><span class="lk">Couldn’t load staff.</span></div>'; });
   }
 
   // ---- reports ----
@@ -1450,6 +1754,7 @@ body.doc-open{overflow:hidden}
         + '<div class="lrow"><span class="lk" style="color:var(--faint);font-size:11.5px">Public apply form feeds the Applications tab.</span></div>'
         + '</div></div>'
       + '</div>'
+      + '<div style="margin-top:16px">'+staffCardHtml()+'</div>'
       + '<div class="card" style="margin-top:16px"><div class="ch"><h3>Export &amp; backup</h3><span class="asat">'+state.clients.length+' clients · '+state.loans.length+' loans · '+state.payments.length+' payments</span></div>'
         + '<div style="padding:14px 18px">'
         + '<p style="color:var(--muted);font-size:12.5px;margin:0 0 12px;max-width:640px">Download the live loan book. The JSON is a complete backup of everything — clients, loans, payments, expenses, bank accounts and transfers. Keep a copy off-device regularly.</p>'
@@ -1464,6 +1769,7 @@ body.doc-open{overflow:hidden}
         + '<p style="color:var(--muted);font-size:12px;margin:12px 0 0">Every save is also kept in <a href="#history">History &amp; backups</a>, where any recent version can be restored.</p></div></div>';
     $("expJson").addEventListener("click",exportBackup);
     $("coEdit").addEventListener("click",openCompanyForm);
+    wireStaffCard();
     $("expClients").addEventListener("click",exportClientsCSV);
     $("expLoans").addEventListener("click",exportLoansCSV);
     $("expPay").addEventListener("click",exportPaymentsCSV);
@@ -2992,6 +3298,15 @@ body.doc-open{overflow:hidden}
   function showApp(){ $("loginView").classList.add("hidden"); $("appView").classList.remove("hidden"); $("whoEmail").textContent=(session()||{}).email||"signed in"; loadData(); checkForUpdate(); }
   function loadData(){
     $("content").innerHTML='<div class="empty">Retrieving ledger…</div>';
+    loadMe().then(function(){
+      document.body.classList.toggle("analyst", me.role==="analyst");
+      if(me.role!=="analyst") return loadLedgerData();
+      // Credit analysts work on applications only; the loan book stays owner-only.
+      state={clients:[],loans:[],payments:[],expenses:[],capital:[],accounts:[],transfers:[],settings:{},updatedAt:""};
+      analyse(); go("applications");
+    });
+  }
+  function loadLedgerData(){
     pullLedger().then(function(res){
       if(res.auth===false){ signOut(); return; }
       if(res.error){ $("content").innerHTML='<div class="empty">Could not load the ledger ('+esc(res.error)+'). Try Refresh.</div>'; return; }

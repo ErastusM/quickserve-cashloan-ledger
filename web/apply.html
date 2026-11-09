@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--#head-->
+<title>Apply — QuickServe Cashloan</title>
+<meta name="description" content="Apply for a QuickServe payday loan online in about five minutes.">
+<meta name="robots" content="noindex">
+</head>
+<body>
+<div class="app-shell">
+  <header class="top" style="padding-bottom:0">
+    <div class="wrap" style="padding-bottom:10px">
+      <a class="brand" href="/" aria-label="QuickServe Cashloan home"><span class="brand-name"><b>Quick<span>Serve</span></b><small>CASHLOAN</small></span></a>
+      <span class="eyebrow" id="sheetLabel" style="color:var(--desk-soft);font-size:12px">Application · sheet 1 of 4</span>
+    </div>
+    <div class="wrap" style="display:block;padding-top:0"><div class="sheet-tabs" id="tabs" aria-hidden="true"><span>LOAN</span><span>YOU</span><span>DOCS</span><span>SIGN</span></div></div>
+  </header>
+
+  <main class="wrap" style="flex:1;width:100%">
+    <!-- SHEET 1: the loan -->
+    <section class="sheet" id="s1" aria-labelledby="h1">
+      <div class="sheet-col">
+        <h1 class="display" id="h1" tabindex="-1">The loan</h1>
+        <span class="field-label" id="amtLabel">1.1 Amount</span>
+        <div class="stepper">
+          <button type="button" id="less" aria-label="N$ 100 less">−</button>
+          <output class="amount num" id="amountOut" aria-labelledby="amtLabel" aria-live="polite">N$ 2 000</output>
+          <button type="button" id="more" aria-label="N$ 100 more">+</button>
+        </div>
+        <div class="chips" id="chips" role="group" aria-label="Quick amounts">
+          <button type="button" class="chip" data-amt="1000">N$ 1 000</button>
+          <button type="button" class="chip" data-amt="2000">N$ 2 000</button>
+          <button type="button" class="chip" data-amt="5000">N$ 5 000</button>
+          <button type="button" class="chip" data-amt="10000">N$ 10 000</button>
+          <button type="button" class="chip" id="bigChip">More than N$ 10 000</button>
+        </div>
+        <div id="bigBox" hidden>
+          <label class="field"><span class="label">Amount you need (N$)</span><input id="bigAmount" inputmode="numeric" class="mono"></label>
+        </div>
+        <p class="fine">Every loan is looked at case by case, against your pay and statements.</p>
+        <span class="field-label">1.2 Paying back</span>
+        <p class="payday-line" style="margin:0"><span>On my next payday</span><span class="mono" style="font-size:12px;font-weight:500;color:var(--ink-3)">ONE PAYMENT</span></p>
+        <p class="note-soon"><span class="tag">COMING SOON</span>Longer loans over several months.</p>
+        <fieldset style="border:0;margin:0;padding:0">
+          <legend class="field-label" style="padding:0">1.3 It’s for (tick one)</legend>
+          <div class="ticks" id="purposes"></div>
+          <span class="err" id="err-purpose" style="color:var(--rubber);font-weight:600;font-size:14px"></span>
+        </fieldset>
+        <div class="lines" style="margin-top:22px">
+          <div class="line"><span>Interest at 30%</span><span id="interestOut">N$ 600.00</span></div>
+          <div class="line total"><span>TOTAL TO REPAY</span><span id="totalOut">N$ 2 600.00</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SHEET 2: about you -->
+    <section class="sheet" id="s2" hidden aria-labelledby="h2">
+      <form class="sheet-col" id="detailsForm" novalidate>
+        <h1 class="display" id="h2" tabindex="-1">About you</h1>
+        <label class="field" data-f="fullName"><span class="label">2.1 Full name, as on your ID</span><input name="fullName" autocomplete="name" required><span class="err"></span></label>
+        <fieldset style="border:0;margin:0;padding:0">
+          <legend class="field-label" style="padding:0">2.2 I’m applying with</legend>
+          <div class="ticks" id="idTypes">
+            <label class="tick"><input type="radio" name="idType" value="nam_id"><span class="box" aria-hidden="true"></span>Namibian ID</label>
+            <label class="tick"><input type="radio" name="idType" value="passport"><span class="box" aria-hidden="true"></span>Passport</label>
+          </div>
+        </fieldset>
+        <label class="field" data-f="nationalId"><span class="label" id="idLabel">2.3 ID number · 11 digits</span><input name="nationalId" autocomplete="off" required class="mono"><span class="err"></span></label>
+        <label class="field" data-f="nationality" id="natField" hidden><span class="label">2.4 Nationality</span><input name="nationality" autocomplete="off" placeholder="e.g. Zambian"><span class="err"></span></label>
+        <label class="field" data-f="phone"><span class="label">2.5 Cellphone number</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="081 234 5678" required><span class="hint">We send your quotation and updates here, on WhatsApp if you have it.</span><span class="err"></span></label>
+        <label class="field" data-f="email"><span class="label">2.6 Email (optional)</span><input name="email" type="email" autocomplete="email"><span class="err"></span></label>
+        <div class="grid-2">
+          <label class="field" data-f="employer"><span class="label">2.7 Employer</span><input name="employer" autocomplete="organization" required><span class="err"></span></label>
+          <label class="field" data-f="payday"><span class="label">2.8 Payday</span><input name="payday" placeholder="e.g. 25th" required><span class="err"></span></label>
+        </div>
+        <label class="field" data-f="netIncome"><span class="label">2.9 Take-home pay a month (N$)</span><input name="netIncome" inputmode="decimal" placeholder="9 800" required><span class="err"></span></label>
+        <div class="grid-2">
+          <label class="field" data-f="kinName"><span class="label">2.10 Next of kin</span><input name="kinName" required><span class="err"></span></label>
+          <label class="field" data-f="kinPhone"><span class="label">2.11 Their number</span><input name="kinPhone" type="tel" inputmode="tel" required><span class="err"></span></label>
+        </div>
+        <p class="fine">We only contact your next of kin if we can’t reach you. We never tell them about your loan.</p>
+        <div class="ts" id="ts2"></div>
+        <p class="alert" id="alert2" role="alert" hidden></p>
+      </form>
+    </section>
+
+    <!-- SHEET 3: documents -->
+    <section class="sheet" id="s3" hidden aria-labelledby="h3">
+      <div class="sheet-col">
+        <h1 class="display" id="h3" tabindex="-1">Attach</h1>
+        <p style="margin:6px 0 0;color:var(--ink-2)">Take a photo or pick a PDF. Up to 10 MB each. Lay the page flat, in good light, with all four corners showing.</p>
+        <div id="docs"></div>
+        <p class="alert" id="alert3" role="alert" hidden></p>
+      </div>
+    </section>
+
+    <!-- SHEET 4: check & sign -->
+    <section class="sheet" id="s4" hidden aria-labelledby="h4">
+      <form class="sheet-col" id="signForm" novalidate>
+        <h1 class="display" id="h4" tabindex="-1">Check &amp; sign</h1>
+        <div class="lines" id="summary" style="margin-top:14px"></div>
+        <fieldset style="border:0;margin:18px 0 0;padding:0">
+          <legend class="field-label" style="padding:0;margin-top:0">4.1 I agree that (tick all)</legend>
+          <label class="consent"><input type="checkbox" name="creditCheck"><span>QuickServe may check my credit record and confirm my income and employment.</span></label>
+          <label class="consent"><input type="checkbox" name="privacy"><span>I’ve read the <a href="/privacy" target="_blank" rel="noopener">privacy notice</a> and agree to the consents in section 9, including contact by WhatsApp, SMS, phone and email.</span></label>
+          <label class="consent"><input type="checkbox" name="truthful"><span>What I’ve written here is true and complete.</span></label>
+        </fieldset>
+        <label class="field"><span class="label">4.2 Type your full name to sign</span>
+          <span class="signline"><span aria-hidden="true">✕</span><input name="signedName" autocomplete="off"></span></label>
+        <p class="fine">This is an application, not a loan agreement. You sign the agreement only after you’ve seen your Pre-Agreement Statement.</p>
+        <p class="alert" id="alert4" role="alert" hidden></p>
+      </form>
+    </section>
+
+    <!-- CUSTOMER COPY -->
+    <section id="s5" hidden aria-labelledby="h5" style="padding:36px 0 24px;color:var(--desk-ink)">
+      <div class="receipt">
+        <h1 class="display" id="h5" tabindex="-1" style="font-size:clamp(48px,10vw,64px)">Handed in.</h1>
+        <p style="color:var(--desk-soft);margin:10px 0 26px">This is your copy. Take a screenshot. This device remembers your application, so you can open the tracking page any time.</p>
+        <div class="slip-wrap" style="transform:rotate(-1.2deg)">
+          <div class="slip slip-canary">
+            <div class="slip-head"><b>Customer copy</b><span>QuickServe Cashloan</span></div>
+            <hr class="slip-rule" style="margin-bottom:14px">
+            <span class="mono" style="font-size:11px;letter-spacing:.14em">REFERENCE</span>
+            <p class="ref" id="rRef"></p>
+            <div class="lines" id="rLines" style="margin-top:14px"></div>
+          </div>
+          <span class="stamp drop" id="rStamp"></span>
+        </div>
+        <p class="eyebrow" style="color:var(--desk-muted);margin-top:28px;font-size:12px">What happens next</p>
+        <p style="color:var(--desk-soft);margin:8px 0 0">We check your documents and affordability, then send your Pre-Agreement Statement on WhatsApp. If something is missing, we’ll ask on the tracking page.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="sheet-foot wrap">
+    <div class="wrapline">
+      <div style="display:flex;gap:12px">
+        <button class="btn btn-ink" type="button" id="back" style="background:var(--desk-2);flex:0 0 auto" hidden>Back</button>
+        <button class="btn btn-leaf" type="button" id="next" style="flex:1">Next: about you</button>
+      </div>
+      <p id="footNote">Saved on this device as you go.</p>
+    </div>
+  </footer>
+</div>
+<script src="/common.js?v=__BUILD__"></script>
+<script src="/apply.js?v=__BUILD__"></script>
+</body>
+</html>
