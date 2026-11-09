@@ -1,23 +1,38 @@
-# QuickServe Cashloan — intake Worker configuration.
-# Fill in the two REPLACE_ values after creating the D1 database (see README.md).
-# Secrets (OWNER_TOKEN) are NOT stored here — set them with `wrangler secret put`.
+# QuickServe Cashloan — application service, on the QuickServe Cloudflare
+# account (quickservegroup1@gmail.com). Served at https://api.quickserve.group.
+# Secrets (OWNER_TOKEN, TURNSTILE_SECRET) are NOT stored here; set them with
+# `npx wrangler secret put <NAME>`.
 
-name = "quickserve-intake"
+name = "quickserve-api"
 main = "src/index.js"
-compatibility_date = "2024-11-01"
+compatibility_date = "2025-09-01"
+account_id = "8123123f3ff485f588fa2292ce6c8923"
+workers_dev = false
+routes = [{ pattern = "api.quickserve.group", custom_domain = true }]
 
 [vars]
-# The origin your apply.html / inbox.html are served from (for CORS).
-# The console now lives at https://admin.quickserve.group (GitHub Pages with a
-# custom domain; the old github.io address redirects there). Run
-# `npx wrangler deploy` after changing this.
-ALLOWED_ORIGIN = "https://admin.quickserve.group"
+ALLOWED_ORIGINS = "https://quickserve.group,https://www.quickserve.group,https://admin.quickserve.group"
+# Staff sign in to the admin console with Supabase; the service checks that
+# login. The publishable key is public by design (it is in the console too).
+SUPABASE_URL = "https://ptlwhpvzyfpxtpghwlqs.supabase.co"
+SUPABASE_KEY = "sb_publishable_jy5bMPcZ9uIwXHV2M7Sq0g_5uYtWcZH"
+# Loan rules: payday loans only, 30% interest. MAX_AMOUNT is a placeholder
+# until the owner confirms it.
+MIN_AMOUNT = "500"
+MAX_AMOUNT = "5000"
+INTEREST_RATE_BP = "3000"
+# Days to keep documents of declined or withdrawn applications.
+RETENTION_DAYS = "180"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "quickserve-intake"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "96d2f023-8945-4bda-8967-23056e0d4404"
+migrations_dir = "migrations"
 
 [[r2_buckets]]
 binding = "DOCS"
 bucket_name = "quickserve-docs"
+
+[triggers]
+crons = ["17 1 * * *"]   # daily clean-up, 01:17 UTC

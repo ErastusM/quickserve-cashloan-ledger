@@ -1,208 +1,493 @@
-// QuickServe Cashloan — loan-application intake Worker (Cloudflare)
+// QuickServe Cashloan — application service (Cloudflare Worker), v2.
 //
-// A small, single-owner backend for the WhatsApp intake flow. It receives loan
-// applications from the public apply form, stores the applicant's documents in
-// R2 and the structured details in D1, and lets the owner review, approve or
-// decline them from inbox.html.
+// Public (website, protected by Turnstile + per-IP limits)
+//   POST   /v2/applications                      create a draft (JSON) → { reference, uploadToken }
+//   PUT    /v2/applications/:id/files/:kind      upload one file (raw body)       X-Upload-Token
+//   DELETE /v2/applications/:id/files/:fileId    remove a file from a draft       X-Upload-Token
+//   POST   /v2/applications/:id/submit           hand in → { trackToken }         X-Upload-Token
+//   POST   /v2/track                             { reference, phone } or { trackToken } → status
+//   PUT    /v2/track/:id/files/:kind             upload a requested document      X-Track-Token
 //
-// Routes
-//   POST /applications                          public  submit (multipart/form-data)
-//   GET  /applications[?status=new|approved|declined]   owner   list
-//   GET  /applications/:id                      owner   one application (full)
-//   POST /applications/:id/status               owner   { status, note }
-//   GET  /applications/:id/file/:field[/:n]     owner   stream a document from R2
+// Staff (Authorization: Bearer <Supabase access token from the admin console>,
+//        or the OWNER_TOKEN secret as a fallback)
+//   GET    /v2/admin/me
+//   GET    /v2/admin/applications[?status=&q=]
+//   GET    /v2/admin/applications/:id
+//   GET    /v2/admin/applications/:id/files/:fileId
+//   POST   /v2/admin/applications/:id/status        { status, note, applicantMessage }
+//   PUT    /v2/admin/applications/:id/affordability { ...worksheet }
+//   POST   /v2/admin/applications/:id/converted     { clientId, loanId }
 //
-// Bindings (wrangler.toml):  DB (D1),  DOCS (R2)
-// Secret:                    OWNER_TOKEN   (wrangler secret put OWNER_TOKEN)
-// Var:                       ALLOWED_ORIGIN (your apply/inbox origin, for CORS)
+// Kept for the current admin console's Applications tab:
+//   GET    /applications                          staff list in the v1 shape
 //
-// Nothing here contains data or secrets — those live in Cloudflare, not the repo.
+// Bindings: DB (D1), DOCS (R2). Secrets: OWNER_TOKEN, TURNSTILE_SECRET.
+// Vars: ALLOWED_ORIGINS, SUPABASE_URL, SUPABASE_KEY, MIN_AMOUNT, MAX_AMOUNT,
+//       INTEREST_RATE_BP, RETENTION_DAYS.
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB, mirrors the form's client-side guard
-const STATUSES = ["new", "approved", "declined"];
+import {
+  HttpError, json, corsHeaders, makeReference, makeToken, makeId, sha256Hex, safeEqual,
+  validateApplication, normalisePhone, sniffMime, applicantStage, missingKinds,
+  MAX_FILE_BYTES, MAX_FILES, FILE_KINDS, STAFF_STATUSES, CONSENT_VERSION
+} from "./lib.js";
 
-function cors(env, extra = {}) {
-  return {
-    "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Authorization,Content-Type",
-    "Access-Control-Max-Age": "86400",
-    "Vary": "Origin",
-    ...extra
-  };
-}
-function json(obj, status, env) {
-  return new Response(JSON.stringify(obj), {
-    status: status || 200,
-    headers: { "Content-Type": "application/json", ...cors(env) }
-  });
-}
-
-// Human-friendly, unambiguous reference (no 0/O/1/I).
-function makeRef() {
-  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(6));
-  let s = "";
-  for (const b of bytes) s += alphabet[b % alphabet.length];
-  return "QS-" + s;
-}
-
-// Constant-time-ish bearer-token check against the OWNER_TOKEN secret.
-function ownerOk(request, env) {
-  const header = request.headers.get("Authorization") || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-  const expected = env.OWNER_TOKEN || "";
-  if (!expected || token.length !== expected.length) return false;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i += 1) diff |= token.charCodeAt(i) ^ expected.charCodeAt(i);
-  return diff === 0;
-}
-
-function safeParse(value) {
-  try { return JSON.parse(value || "[]"); } catch { return []; }
-}
+const now = () => new Date().toISOString();
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
-    const path = url.pathname.replace(/\/+$/, "") || "/";
-    const method = request.method;
-
-    if (method === "OPTIONS") return new Response(null, { headers: cors(env) });
-
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     try {
-      // Public: submit an application.
-      if (method === "POST" && path === "/applications") return submit(request, env);
-
-      // Everything else under /applications is owner-only.
-      if (path === "/applications" || path.startsWith("/applications/")) {
-        if (!ownerOk(request, env)) return json({ error: "unauthorized" }, 401, env);
-
-        if (method === "GET" && path === "/applications") return listApplications(request, env);
-
-        const m = path.match(/^\/applications\/([A-Za-z0-9-]+)(?:\/(status|file))?(?:\/([a-z]+))?(?:\/(\d+))?$/);
-        if (m) {
-          const [, id, action, field, n] = m;
-          if (!action && method === "GET") return getApplication(id, env);
-          if (action === "status" && method === "POST") return setStatus(id, request, env);
-          if (action === "file" && method === "GET") return getFile(id, field, n, env);
-        }
-      }
-
-      return json({ error: "not found" }, 404, env);
+      return await route(request, env);
     } catch (err) {
-      return json({ error: "server error", detail: String((err && err.message) || err) }, 500, env);
+      if (err instanceof HttpError) return json(request, env, err.body, err.status);
+      console.error(err && err.stack || err);
+      return json(request, env, { error: "Something went wrong on our side. Please try again." }, 500);
     }
+  },
+
+  // Daily clean-up: unsent drafts after 7 days; documents of declined or
+  // withdrawn applications after RETENTION_DAYS.
+  async scheduled(_event, env) {
+    await cleanUp(env);
   }
 };
 
-async function submit(request, env) {
-  let form;
-  try {
-    form = await request.formData();
-  } catch {
-    return json({ error: "expected multipart form data" }, 400, env);
+async function route(request, env) {
+  const url = new URL(request.url);
+  const path = url.pathname.replace(/\/+$/, "") || "/";
+  const m = request.method;
+  let p;
+
+  if (path === "/" && m === "GET") return json(request, env, { service: "quickserve-applications", ok: true });
+
+  // ---- public
+  if (path === "/v2/applications" && m === "POST") return createDraft(request, env);
+  if ((p = path.match(/^\/v2\/applications\/(AP-[A-Z0-9]{6})\/files\/([a-z]+)$/)) && m === "PUT") return uploadDraftFile(request, env, p[1], p[2]);
+  if ((p = path.match(/^\/v2\/applications\/(AP-[A-Z0-9]{6})\/files\/([0-9a-f-]{36})$/)) && m === "DELETE") return deleteDraftFile(request, env, p[1], p[2]);
+  if ((p = path.match(/^\/v2\/applications\/(AP-[A-Z0-9]{6})\/submit$/)) && m === "POST") return submit(request, env, p[1]);
+  if (path === "/v2/track" && m === "POST") return track(request, env);
+  if ((p = path.match(/^\/v2\/track\/(AP-[A-Z0-9]{6})\/files\/([a-z]+)$/)) && m === "PUT") return uploadRequestedFile(request, env, p[1], p[2]);
+
+  // ---- staff
+  if (path.startsWith("/v2/admin/") || path === "/applications") {
+    const staff = await requireStaff(request, env);
+    if (path === "/v2/admin/me" && m === "GET") return json(request, env, { email: staff.email });
+    if ((path === "/v2/admin/applications" || path === "/applications") && m === "GET") return listApplications(request, env, path === "/applications");
+    if ((p = path.match(/^\/v2\/admin\/applications\/(AP-[A-Z0-9]{6})$/)) && m === "GET") return getApplication(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(AP-[A-Z0-9]{6})\/files\/([0-9a-f-]{36})$/)) && m === "GET") return streamFile(request, env, p[1], p[2]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(AP-[A-Z0-9]{6})\/status$/)) && m === "POST") return setStatus(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(AP-[A-Z0-9]{6})\/affordability$/)) && m === "PUT") return saveAffordability(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(AP-[A-Z0-9]{6})\/converted$/)) && m === "POST") return markConverted(request, env, staff, p[1]);
   }
 
-  const field = (k) => (form.get(k) || "").toString().trim();
-  const required = ["fullName", "phone", "nationalId", "employer", "kinName", "kinPhone", "purpose", "repayDate"];
-  const missing = required.filter((k) => !field(k));
-  if (missing.length) return json({ error: "missing required fields", fields: missing }, 400, env);
-  if (field("consent") !== "yes") return json({ error: "consent required" }, 400, env);
+  throw new HttpError(404, "Not found.");
+}
 
-  const id = makeRef();
-  const now = new Date().toISOString();
+// ---- guards ------------------------------------------------------------------
 
-  async function store(name, file, index) {
-    if (!file || typeof file.arrayBuffer !== "function") return null;
-    if (file.size > MAX_FILE_BYTES) throw new Error(`${name} file too large`);
-    const safeName = (file.name || "file").replace(/[^A-Za-z0-9._-]/g, "_").slice(-80);
-    const key = `applications/${id}/${name}${index != null ? "-" + index : ""}-${safeName}`;
-    await env.DOCS.put(key, await file.arrayBuffer(), {
-      httpMetadata: { contentType: file.type || "application/octet-stream" }
+function clientIp(request) {
+  return request.headers.get("CF-Connecting-IP") || "unknown";
+}
+
+async function rateLimit(env, key, limit, windowSeconds) {
+  const nowS = Math.floor(Date.now() / 1000);
+  const start = nowS - (nowS % windowSeconds);
+  const row = await env.DB.prepare(
+    `INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, 1)
+     ON CONFLICT(key) DO UPDATE SET
+       count = CASE WHEN window_start = excluded.window_start THEN count + 1 ELSE 1 END,
+       window_start = excluded.window_start
+     RETURNING count`
+  ).bind(key, start).first();
+  if (row && row.count > limit) throw new HttpError(429, "Too many attempts. Please wait a while and try again.");
+}
+
+async function checkTurnstile(request, env, token) {
+  if (!env.TURNSTILE_SECRET) return; // not configured yet (staging)
+  if (!token) throw new HttpError(400, "Please complete the security check.");
+  const form = new FormData();
+  form.append("secret", env.TURNSTILE_SECRET);
+  form.append("response", token);
+  form.append("remoteip", clientIp(request));
+  const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form });
+  const out = await res.json().catch(() => ({}));
+  if (!out.success) throw new HttpError(400, "The security check didn't pass. Please try again.");
+}
+
+const staffCache = new Map(); // token hash -> { email, until }
+
+async function requireStaff(request, env) {
+  const header = request.headers.get("Authorization") || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  if (!token) throw new HttpError(401, "Sign in to the admin console first.");
+  if (env.OWNER_TOKEN && safeEqual(token, env.OWNER_TOKEN)) return { email: "owner" };
+
+  const key = await sha256Hex(token);
+  const hit = staffCache.get(key);
+  if (hit && hit.until > Date.now()) return hit;
+
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new HttpError(401, "Staff sign-in is not configured.");
+  const res = await fetch(env.SUPABASE_URL + "/auth/v1/user", {
+    headers: { apikey: env.SUPABASE_KEY, Authorization: "Bearer " + token }
+  });
+  if (!res.ok) throw new HttpError(401, "Your session has expired. Sign in again.");
+  const user = await res.json();
+  const staff = { email: user.email || user.id, until: Date.now() + 60_000 };
+  staffCache.set(key, staff);
+  return staff;
+}
+
+async function loadApp(env, id) {
+  const app = await env.DB.prepare(`SELECT * FROM applications WHERE id = ?`).bind(id).first();
+  if (!app) throw new HttpError(404, "We couldn't find that application.");
+  return app;
+}
+
+async function requireToken(request, env, id, header, column) {
+  const token = request.headers.get(header) || "";
+  const app = await loadApp(env, id);
+  if (!token || !app[column] || !safeEqual(await sha256Hex(token), app[column])) {
+    throw new HttpError(403, "This link has expired. Start again or contact us on WhatsApp.");
+  }
+  return app;
+}
+
+async function event(env, id, actor, type, detail) {
+  await env.DB.prepare(
+    `INSERT INTO application_events (application_id, at, actor, type, detail_json) VALUES (?,?,?,?,?)`
+  ).bind(id, now(), actor, type, detail ? JSON.stringify(detail) : null).run();
+}
+
+async function readJson(request) {
+  try { return await request.json(); } catch { throw new HttpError(400, "Expected a JSON body."); }
+}
+
+// ---- public: draft → files → submit -----------------------------------------
+
+async function createDraft(request, env) {
+  await rateLimit(env, "draft:" + clientIp(request), Number(env.DRAFTS_PER_HOUR || 5), 3600);
+  const body = await readJson(request);
+  await checkTurnstile(request, env, body.turnstileToken);
+
+  const { row, errors } = validateApplication(body, env);
+  if (Object.keys(errors).length) throw new HttpError(400, "Some details need fixing.", { fields: errors });
+
+  const uploadToken = makeToken();
+  const t = now();
+  let id;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    id = makeReference();
+    const exists = await env.DB.prepare(`SELECT 1 FROM applications WHERE id = ?`).bind(id).first();
+    if (!exists) break;
+  }
+  const cols = { id, created_at: t, updated_at: t, status: "draft", source: "web", upload_token_hash: await sha256Hex(uploadToken), ...row };
+  const names = Object.keys(cols);
+  await env.DB.prepare(`INSERT INTO applications (${names.join(",")}) VALUES (${names.map(() => "?").join(",")})`)
+    .bind(...names.map((k) => cols[k])).run();
+  await event(env, id, "applicant", "draft_created", null);
+
+  return json(request, env, {
+    reference: id,
+    uploadToken,
+    amountCents: row.amount_cents,
+    interestCents: row.interest_cents,
+    totalCents: row.total_cents
+  }, 201);
+}
+
+async function storeFile(request, env, app, kind, uploadedBy) {
+  if (!FILE_KINDS.includes(kind)) throw new HttpError(400, "Unknown document type.");
+  const length = Number(request.headers.get("Content-Length") || 0);
+  if (length > MAX_FILE_BYTES) throw new HttpError(413, "That file is over 10 MB. Try a photo instead of a scan.");
+
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (!bytes.length) throw new HttpError(400, "The file is empty.");
+  if (bytes.length > MAX_FILE_BYTES) throw new HttpError(413, "That file is over 10 MB. Try a photo instead of a scan.");
+  const mime = sniffMime(bytes);
+  if (!mime) throw new HttpError(415, "Use a photo (JPG, PNG, HEIC) or a PDF.");
+
+  const count = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM application_files WHERE application_id = ? AND deleted_at IS NULL`
+  ).bind(app.id).first();
+  if (count.n >= MAX_FILES) throw new HttpError(400, `You can attach up to ${MAX_FILES} files.`);
+
+  const fileId = makeId();
+  const key = `applications/${app.id}/${kind}/${fileId}`;
+  await env.DOCS.put(key, bytes, { httpMetadata: { contentType: mime } });
+  const label = (new URL(request.url).searchParams.get("label") || "").slice(0, 60) || null;
+  await env.DB.prepare(
+    `INSERT INTO application_files (id, application_id, kind, label, r2_key, mime, bytes, sha256, uploaded_at, uploaded_by)
+     VALUES (?,?,?,?,?,?,?,?,?,?)`
+  ).bind(fileId, app.id, kind, label, key, mime, bytes.length, await sha256Hex(bytes), now(), uploadedBy).run();
+  return { fileId, kind, mime, bytes: bytes.length };
+}
+
+async function uploadDraftFile(request, env, id, kind) {
+  const app = await requireToken(request, env, id, "X-Upload-Token", "upload_token_hash");
+  if (app.status !== "draft") throw new HttpError(409, "This application has already been handed in.");
+  const file = await storeFile(request, env, app, kind, "applicant");
+  return json(request, env, file, 201);
+}
+
+async function deleteDraftFile(request, env, id, fileId) {
+  const app = await requireToken(request, env, id, "X-Upload-Token", "upload_token_hash");
+  if (app.status !== "draft") throw new HttpError(409, "This application has already been handed in.");
+  const file = await env.DB.prepare(`SELECT * FROM application_files WHERE id = ? AND application_id = ?`).bind(fileId, id).first();
+  if (!file) throw new HttpError(404, "File not found.");
+  await env.DOCS.delete(file.r2_key);
+  await env.DB.prepare(`DELETE FROM application_files WHERE id = ?`).bind(fileId).run();
+  return json(request, env, { ok: true });
+}
+
+async function submit(request, env, id) {
+  const app = await requireToken(request, env, id, "X-Upload-Token", "upload_token_hash");
+  if (app.status !== "draft") throw new HttpError(409, "This application has already been handed in.");
+  const body = await readJson(request);
+
+  const consent = body.consent || {};
+  if (!consent.creditCheck || !consent.privacy || !consent.truthful) {
+    throw new HttpError(400, "Tick all three boxes to hand in your application.");
+  }
+  const signed = String(body.signedName || "").trim().replace(/\s+/g, " ");
+  if (signed.toLowerCase() !== String(app.full_name).toLowerCase()) {
+    throw new HttpError(400, "Type your full name exactly as on sheet 2 to sign.");
+  }
+  const { results: files } = await env.DB.prepare(
+    `SELECT kind, deleted_at FROM application_files WHERE application_id = ?`
+  ).bind(id).all();
+  const missing = missingKinds(files);
+  if (missing.length) throw new HttpError(400, "Some documents are missing.", { missing });
+
+  const trackToken = makeToken();
+  const t = now();
+  await env.DB.prepare(
+    `UPDATE applications SET status = 'new', submitted_at = ?, updated_at = ?, consent_version = ?, consent_at = ?,
+       consent_ip = ?, consent_ua = ?, signed_name = ?, upload_token_hash = NULL, track_token_hash = ?
+     WHERE id = ? AND status = 'draft'`
+  ).bind(t, t, CONSENT_VERSION, t, clientIp(request), (request.headers.get("User-Agent") || "").slice(0, 300),
+    signed, await sha256Hex(trackToken), id).run();
+  await event(env, id, "applicant", "submitted", { files: files.length });
+
+  return json(request, env, { reference: id, submittedAt: t, trackToken });
+}
+
+// ---- public: tracking ----------------------------------------------------------
+
+async function track(request, env) {
+  await rateLimit(env, "track:" + clientIp(request), Number(env.TRACKS_PER_HOUR || 20), 3600);
+  const body = await readJson(request);
+  let app = null;
+
+  if (body.trackToken) {
+    app = await env.DB.prepare(`SELECT * FROM applications WHERE track_token_hash = ?`).bind(await sha256Hex(String(body.trackToken))).first();
+  } else {
+    await checkTurnstile(request, env, body.turnstileToken);
+    const ref = String(body.reference || "").trim().toUpperCase();
+    const phone = normalisePhone(body.phone);
+    if (/^AP-[A-Z0-9]{6}$/.test(ref) && phone) {
+      app = await env.DB.prepare(`SELECT * FROM applications WHERE id = ? AND phone = ?`).bind(ref, phone).first();
+    }
+  }
+  if (!app || app.status === "draft") throw new HttpError(404, "We couldn't find an application with those details.");
+
+  const { results: files } = await env.DB.prepare(
+    `SELECT kind, deleted_at FROM application_files WHERE application_id = ?`
+  ).bind(app.id).all();
+  const { results: events } = await env.DB.prepare(
+    `SELECT at, type, detail_json FROM application_events WHERE application_id = ? AND type IN ('submitted','status') ORDER BY id`
+  ).bind(app.id).all();
+
+  const stamps = [{ stamp: "received", at: app.submitted_at }];
+  for (const e of events) {
+    if (e.type !== "status") continue;
+    const to = JSON.parse(e.detail_json || "{}").to;
+    if (to === "approved") stamps.push({ stamp: "quoted", at: e.at });
+  }
+  if (app.status === "converted") stamps.push({ stamp: "paid", at: app.converted_at });
+
+  return json(request, env, {
+    reference: app.id,
+    stage: applicantStage(app.status),
+    stamps,
+    message: app.status === "info_requested" || app.status === "declined" ? app.applicant_message : null,
+    amountCents: app.amount_cents,
+    totalCents: app.total_cents,
+    submittedAt: app.submitted_at,
+    missing: missingKinds(files),
+    canUpload: app.status === "info_requested" && Boolean(body.trackToken)
+  });
+}
+
+async function uploadRequestedFile(request, env, id, kind) {
+  const app = await requireToken(request, env, id, "X-Track-Token", "track_token_hash");
+  if (app.status !== "info_requested") throw new HttpError(409, "We're not waiting for any documents on this application.");
+  const file = await storeFile(request, env, app, kind, "applicant");
+  await env.DB.prepare(`UPDATE applications SET status = 'in_review', updated_at = ? WHERE id = ?`).bind(now(), id).run();
+  await event(env, id, "applicant", "document_added", { kind, fileId: file.fileId });
+  await event(env, id, "system", "status", { from: "info_requested", to: "in_review" });
+  return json(request, env, file, 201);
+}
+
+// ---- staff ---------------------------------------------------------------------
+
+async function listApplications(request, env, legacyShape) {
+  const url = new URL(request.url);
+  const status = url.searchParams.get("status");
+  const q = (url.searchParams.get("q") || "").trim();
+  const where = ["status <> 'draft'"];
+  const binds = [];
+  if (status && STAFF_STATUSES.concat(["new", "converted"]).includes(status)) { where.push("status = ?"); binds.push(status); }
+  if (q) {
+    const like = "%" + q.replace(/[%_]/g, "") + "%";
+    const digits = q.replace(/\D/g, "");
+    where.push("(full_name LIKE ? OR id LIKE ?" + (digits.length >= 4 ? " OR national_id LIKE ? OR phone LIKE ?" : "") + ")");
+    binds.push(like, like);
+    if (digits.length >= 4) binds.push("%" + digits + "%", "%" + digits + "%");
+  }
+  const { results } = await env.DB.prepare(
+    `SELECT id, created_at, submitted_at, status, full_name, phone, national_id, employer, purpose,
+            amount_cents, total_cents, payday
+     FROM applications WHERE ${where.join(" AND ")} ORDER BY submitted_at DESC LIMIT 300`
+  ).bind(...binds).all();
+  const { results: counts } = await env.DB.prepare(
+    `SELECT status, COUNT(*) AS n FROM applications WHERE status <> 'draft' GROUP BY status`
+  ).all();
+
+  if (legacyShape) {
+    return json(request, env, {
+      applications: results.map((a) => ({ ...a, created_at: a.submitted_at || a.created_at, repay_date: a.payday }))
     });
-    return key;
   }
+  return json(request, env, {
+    applications: results,
+    counts: Object.fromEntries(counts.map((c) => [c.status, c.n]))
+  });
+}
 
-  const docIdKey = await store("id", form.get("docId"));
-  const payslipKey = await store("payslip", form.get("docPayslip"));
-  const bankKeys = [];
-  const bankFiles = form.getAll("docBank");
-  for (let i = 0; i < bankFiles.length; i += 1) {
-    const key = await store("bank", bankFiles[i], i);
-    if (key) bankKeys.push(key);
+async function getApplication(request, env, staff, id) {
+  let app = await loadApp(env, id);
+  if (app.status === "draft") throw new HttpError(404, "This application hasn't been handed in yet.");
+  if (app.status === "new") {
+    await env.DB.prepare(`UPDATE applications SET status = 'in_review', updated_at = ? WHERE id = ? AND status = 'new'`).bind(now(), id).run();
+    await event(env, id, "staff:" + staff.email, "status", { from: "new", to: "in_review" });
+    app = await loadApp(env, id);
   }
-  if (!docIdKey || !payslipKey || !bankKeys.length) {
-    return json({ error: "all three documents are required" }, 400, env);
-  }
+  const { results: files } = await env.DB.prepare(
+    `SELECT id, kind, label, mime, bytes, uploaded_at, uploaded_by FROM application_files
+     WHERE application_id = ? AND deleted_at IS NULL ORDER BY uploaded_at`
+  ).bind(id).all();
+  const { results: events } = await env.DB.prepare(
+    `SELECT at, actor, type, detail_json FROM application_events WHERE application_id = ? ORDER BY id DESC`
+  ).bind(id).all();
+  const { results: others } = await env.DB.prepare(
+    `SELECT id, status, submitted_at, amount_cents FROM applications
+     WHERE id <> ? AND status <> 'draft' AND (national_id = ? OR phone = ?) ORDER BY submitted_at DESC LIMIT 10`
+  ).bind(id, app.national_id, app.phone).all();
+
+  for (const k of ["upload_token_hash", "track_token_hash"]) delete app[k];
+  app.affordability = app.affordability_json ? JSON.parse(app.affordability_json) : null;
+  delete app.affordability_json;
+  return json(request, env, {
+    application: app,
+    files,
+    events: events.map((e) => ({ ...e, detail: e.detail_json ? JSON.parse(e.detail_json) : null, detail_json: undefined })),
+    otherApplications: others
+  });
+}
+
+async function streamFile(request, env, id, fileId) {
+  const file = await env.DB.prepare(
+    `SELECT * FROM application_files WHERE id = ? AND application_id = ? AND deleted_at IS NULL`
+  ).bind(fileId, id).first();
+  if (!file) throw new HttpError(404, "File not found.");
+  const object = await env.DOCS.get(file.r2_key);
+  if (!object) throw new HttpError(404, "File missing from storage.");
+  return new Response(object.body, {
+    headers: {
+      ...corsHeaders(request, env),
+      "Content-Type": file.mime,
+      "Content-Disposition": `inline; filename="${id}-${file.kind}"`,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  });
+}
+
+async function setStatus(request, env, staff, id) {
+  const app = await loadApp(env, id);
+  const body = await readJson(request);
+  const to = String(body.status || "");
+  if (!STAFF_STATUSES.includes(to)) throw new HttpError(400, "Unknown status.");
+  if (app.status === "draft" || app.status === "converted") throw new HttpError(409, `Can't change an application that is ${app.status}.`);
+  const message = String(body.applicantMessage || "").trim().slice(0, 500) || null;
+  if (to === "info_requested" && !message) throw new HttpError(400, "Write what the applicant needs to send.");
+  const note = String(body.note || "").trim().slice(0, 1000) || null;
+  const t = now();
+  const decided = to === "approved" || to === "declined";
 
   await env.DB.prepare(
-    `INSERT INTO applications
-       (id, created_at, status, full_name, phone, national_id, address, employer, income,
-        kin_name, kin_phone, purpose, repay_date, consent, doc_id_key, doc_bank_keys, doc_payslip_key)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-  ).bind(
-    id, now, "new",
-    field("fullName"), field("phone"), field("nationalId"), field("address"),
-    field("employer"), field("income"), field("kinName"), field("kinPhone"),
-    field("purpose"), field("repayDate"), "yes",
-    docIdKey, JSON.stringify(bankKeys), payslipKey
-  ).run();
-
-  return json({ ok: true, reference: id }, 201, env);
+    `UPDATE applications SET status = ?, updated_at = ?, applicant_message = ?,
+       decided_at = CASE WHEN ? THEN ? ELSE decided_at END,
+       decided_by = CASE WHEN ? THEN ? ELSE decided_by END,
+       decided_note = COALESCE(?, decided_note)
+     WHERE id = ?`
+  ).bind(to, t, message, decided ? 1 : 0, t, decided ? 1 : 0, staff.email, note, id).run();
+  await event(env, id, "staff:" + staff.email, "status", { from: app.status, to, note, applicantMessage: message });
+  return json(request, env, { ok: true, status: to });
 }
 
-async function listApplications(request, env) {
-  const status = new URL(request.url).searchParams.get("status");
-  let sql = `SELECT id, created_at, status, full_name, phone, national_id, employer, purpose, repay_date
-             FROM applications`;
-  const binds = [];
-  if (status && STATUSES.includes(status)) { sql += ` WHERE status = ?`; binds.push(status); }
-  sql += ` ORDER BY created_at DESC LIMIT 300`;
-  const { results } = await env.DB.prepare(sql).bind(...binds).all();
-  return json({ applications: results }, 200, env);
+async function saveAffordability(request, env, staff, id) {
+  await loadApp(env, id);
+  const body = await readJson(request);
+  const sheet = JSON.stringify(body).slice(0, 8000);
+  await env.DB.prepare(`UPDATE applications SET affordability_json = ?, updated_at = ? WHERE id = ?`).bind(sheet, now(), id).run();
+  await event(env, id, "staff:" + staff.email, "affordability_saved", null);
+  return json(request, env, { ok: true });
 }
 
-async function getApplication(id, env) {
-  const row = await env.DB.prepare(`SELECT * FROM applications WHERE id = ?`).bind(id).first();
-  if (!row) return json({ error: "not found" }, 404, env);
-  row.doc_bank_keys = safeParse(row.doc_bank_keys);
-  row.doc_bank_count = row.doc_bank_keys.length;
-  delete row.doc_id_key;      // don't leak raw R2 keys to the client
-  delete row.doc_payslip_key;
-  row.doc_bank_keys = undefined;
-  return json({ application: row }, 200, env);
+async function markConverted(request, env, staff, id) {
+  const app = await loadApp(env, id);
+  if (app.status !== "approved") throw new HttpError(409, "Approve the application before creating the loan.");
+  const body = await readJson(request);
+  const clientId = String(body.clientId || "").slice(0, 80), loanId = String(body.loanId || "").slice(0, 80);
+  if (!clientId || !loanId) throw new HttpError(400, "clientId and loanId are required.");
+  const t = now();
+  await env.DB.prepare(
+    `UPDATE applications SET status = 'converted', ledger_client_id = ?, ledger_loan_id = ?, converted_at = ?, updated_at = ? WHERE id = ?`
+  ).bind(clientId, loanId, t, t, id).run();
+  await event(env, id, "staff:" + staff.email, "status", { from: "approved", to: "converted", clientId, loanId });
+  return json(request, env, { ok: true });
 }
 
-async function setStatus(id, request, env) {
-  const body = await request.json().catch(() => ({}));
-  if (!STATUSES.includes(body.status)) return json({ error: "bad status" }, 400, env);
-  const res = await env.DB.prepare(
-    `UPDATE applications SET status = ?, decided_at = ?, decided_note = ? WHERE id = ?`
-  ).bind(body.status, new Date().toISOString(), (body.note || "").toString().slice(0, 500), id).run();
-  if (!res.meta.changes) return json({ error: "not found" }, 404, env);
-  return json({ ok: true }, 200, env);
-}
+// ---- retention -------------------------------------------------------------------
 
-async function getFile(id, field, n, env) {
-  const row = await env.DB.prepare(
-    `SELECT doc_id_key, doc_bank_keys, doc_payslip_key FROM applications WHERE id = ?`
-  ).bind(id).first();
-  if (!row) return new Response("not found", { status: 404, headers: cors(env) });
+export async function cleanUp(env) {
+  const day = 86_400_000;
+  const draftCutoff = new Date(Date.now() - 7 * day).toISOString();
+  const keepDays = Number(env.RETENTION_DAYS || 180);
+  const closedCutoff = new Date(Date.now() - keepDays * day).toISOString();
 
-  let key = null;
-  if (field === "id") key = row.doc_id_key;
-  else if (field === "payslip") key = row.doc_payslip_key;
-  else if (field === "bank") key = safeParse(row.doc_bank_keys)[Number(n || 0)];
-  if (!key) return new Response("no such file", { status: 404, headers: cors(env) });
+  const { results: drafts } = await env.DB.prepare(
+    `SELECT id FROM applications WHERE status = 'draft' AND created_at < ?`
+  ).bind(draftCutoff).all();
+  for (const d of drafts) {
+    const { results: files } = await env.DB.prepare(`SELECT r2_key FROM application_files WHERE application_id = ?`).bind(d.id).all();
+    for (const f of files) await env.DOCS.delete(f.r2_key);
+    await env.DB.batch([
+      env.DB.prepare(`DELETE FROM application_files WHERE application_id = ?`).bind(d.id),
+      env.DB.prepare(`DELETE FROM application_events WHERE application_id = ?`).bind(d.id),
+      env.DB.prepare(`DELETE FROM applications WHERE id = ?`).bind(d.id)
+    ]);
+  }
 
-  const object = await env.DOCS.get(key);
-  if (!object) return new Response("file missing", { status: 404, headers: cors(env) });
-
-  return new Response(object.body, {
-    headers: cors(env, {
-      "Content-Type": object.httpMetadata?.contentType || "application/octet-stream",
-      "Cache-Control": "private, no-store"
-    })
-  });
+  const { results: old } = await env.DB.prepare(
+    `SELECT f.id, f.r2_key, f.application_id FROM application_files f JOIN applications a ON a.id = f.application_id
+     WHERE a.status IN ('declined','withdrawn') AND a.updated_at < ? AND f.deleted_at IS NULL`
+  ).bind(closedCutoff).all();
+  const t = now();
+  for (const f of old) {
+    await env.DOCS.delete(f.r2_key);
+    await env.DB.prepare(`UPDATE application_files SET deleted_at = ? WHERE id = ?`).bind(t, f.id).run();
+  }
+  return { draftsRemoved: drafts.length, filesRemoved: old.length };
 }

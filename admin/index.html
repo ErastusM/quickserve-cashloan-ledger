@@ -444,7 +444,7 @@ body.doc-open{overflow:hidden}
 (function(){
   "use strict";
   var SB = { url:"https://ptlwhpvzyfpxtpghwlqs.supabase.co", key:"sb_publishable_jy5bMPcZ9uIwXHV2M7Sq0g_5uYtWcZH" };
-  var WORKER_BASE = "https://quickserve-intake.quickservefinance.workers.dev";
+  var WORKER_BASE = "https://api.quickserve.group";
   var SESSION_KEY = "quickserve_cloud_v1";
   var OWNER_KEY = "qs_owner_token";
 
@@ -860,11 +860,19 @@ body.doc-open{overflow:hidden}
     return attempt(0);
   }
   function ownerToken(){ return localStorage.getItem(OWNER_KEY)||""; }
+  // The application service accepts the staff member's own console login.
+  // The owner password is only a fallback if that is refused.
   function loadApps(){
-    var tk=ownerToken(); if(!tk) return Promise.resolve({needOwner:true});
-    return fetch(WORKER_BASE+"/applications",{headers:{Authorization:"Bearer "+tk}})
-      .then(function(r){ if(r.status===401) return {needOwner:true,bad:true}; if(!r.ok) return {error:r.status}; return r.json(); })
-      .catch(function(){ return {error:"offline"}; });
+    function get(tk){ return fetch(WORKER_BASE+"/applications",{headers:{Authorization:"Bearer "+tk}}); }
+    return token().then(function(tk){
+      return (tk ? get(tk) : Promise.resolve({status:401})).then(function(r){
+        if(r.status===401){
+          var ow=ownerToken(); if(!ow) return {needOwner:true};
+          return get(ow).then(function(r2){ if(r2.status===401) return {needOwner:true,bad:true}; if(!r2.ok) return {error:r2.status}; return r2.json(); });
+        }
+        if(!r.ok) return {error:r.status}; return r.json();
+      });
+    }).catch(function(){ return {error:"offline"}; });
   }
 
   // ---- routing ----

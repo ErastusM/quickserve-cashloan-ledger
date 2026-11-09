@@ -151,10 +151,18 @@ Follows the "Admin · application review" design.
 
 ## 7. Hosting and deploy
 
-- `site/assemble.sh` gains a second output, `_web/`, built from `web/` (new folder).
-- `.github/workflows/pages.yml`: a new job commits `_web/` to a **`hostinger-web`** branch. Hostinger Git deploy pulls it into `public_html` (the root domain), the same way the `hostinger` branch feeds the `admin` subdomain today.
-- Worker: `wrangler d1 migrations apply`, then `wrangler deploy`. A **staging** Worker and D1 (`quickserve-intake-staging`) let us test without touching real applications.
-- The old `apply.html` and `inbox.html` are deleted once v2 has run in production for 2 weeks.
+Everything runs on the QuickServe Cloudflare account. Hostinger is only the domain registrar.
+
+| Address | What | How it's served |
+|---|---|---|
+| admin.quickserve.group | Admin console | Worker `quickserve-admin` (`site/admin-worker/`), packed from `admin/index.html` |
+| api.quickserve.group | Application service | Worker `quickserve-api` (`intake-worker/`), with D1 `quickserve-intake` and R2 `quickserve-docs` |
+| quickserve.group | Public website (phase 2) | Cloudflare Pages or a Worker, same pattern |
+
+- **Deploying today:** run from a Claude session with the `quickserve-deploy` token.
+- **Next:** a GitHub Actions job deploys on every push to `main`, using its own `CLOUDFLARE_API_TOKEN` repository secret.
+- **Retiring the old setup:** the GitHub Pages and `hostinger` branch jobs are no longer needed once that job is in place.
+- **Testing changes:** use a staging copy (`quickserve-api-staging`) when testing risky changes.
 
 ## 8. Testing
 
