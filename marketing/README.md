@@ -65,3 +65,29 @@ See `documents/README.md` for the full compliance picture. Wording that states t
 charge unambiguously — for example *"30% of the loan amount, charged once, repayable
 within 30 days"* — is both safer and a stronger selling point, because it is a
 genuinely competitive claim once a borrower understands it.
+
+## `how-to-apply-video.mp4`
+
+An 89-second vertical video (780 × 1688, MP4/H.264, no sound) that walks a
+client through applying on quickserve.group on a phone. It covers the quote
+slip, the four application sheets, documents, the customer copy and the
+tracking page, with large on-screen captions and a tap marker. It plays
+inline on WhatsApp, Facebook and Instagram.
+
+It was recorded from a local copy of the site with clearly marked SAMPLE
+documents (`how-to-apply/*-sample.jpg`), so no real application was made.
+
+### Re-recording after the website changes
+
+`how-to-apply/record.cjs` drives a phone-sized browser and saves a frame
+about every 0.1 s, then `ffmpeg` joins them. It expects the website on
+`http://localhost:8788` and the application service on
+`http://localhost:8787`, both with the bot check off. Captions and timing are
+in the script.
+
+```bash
+node marketing/how-to-apply/record.cjs
+ffmpeg -f concat -safe 0 -i marketing/how-to-apply/frames.ffconcat \
+  -vf "scale=780:1688:force_original_aspect_ratio=decrease,pad=780:1688:(ow-iw)/2:0:color=0x053437,setsar=1,fps=30,format=yuv420p" \
+  -c:v libx264 -preset slow -crf 20 -movflags +faststart -an marketing/how-to-apply-video.mp4
+```
