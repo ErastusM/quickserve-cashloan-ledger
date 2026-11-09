@@ -186,6 +186,14 @@ button{font:inherit; cursor:pointer; color:inherit}
 .scorenote{font-size:11.5px; color:var(--muted); margin:8px 0 0} .scorenote a{color:var(--accent)}
 .scorehint{font-size:12px; color:var(--ink-2); margin:-4px 0 12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
 .scorehint.over{color:var(--warn)}
+.lateflag{font-family:var(--mono); font-size:9.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; padding:1px 6px; border-radius:4px; border:1px solid currentColor; margin-left:7px; vertical-align:middle; white-space:nowrap; display:inline-block; line-height:1.5}
+.lateflag.mild{color:var(--steel)} .lateflag.late{color:var(--warn); background:var(--warn-soft)} .lateflag.very{color:var(--bad); background:var(--bad-soft)}
+.latetag{font-size:11.5px; font-weight:600; white-space:nowrap} .latetag.ok{color:var(--good); font-weight:500} .latetag.mild{color:var(--steel)} .latetag.late{color:var(--warn)} .latetag.very{color:var(--bad)}
+.latebox{font-size:12.5px; line-height:1.5; padding:9px 12px; border:1px solid var(--line); border-radius:8px; margin:6px 0 8px}
+.latebox.ok{border-color:var(--good)} .latebox.ok b{color:var(--good)} .latebox.mild b{color:var(--steel)} .latebox.late{border-color:var(--warn)} .latebox.late b{color:var(--warn)} .latebox.very{border-color:var(--bad)} .latebox.very b{color:var(--bad)}
+.who-cell span.lateflag{display:inline-block; margin-top:0; font-size:9.5px; font-family:var(--mono)} .who-cell span.lateflag.mild{color:var(--steel)} .who-cell span.lateflag.late{color:var(--warn)} .who-cell span.lateflag.very{color:var(--bad)}
+.who-cell span.latetag{display:inline; font-family:var(--sans); margin:0}
+.latehint{flex-basis:100%; font-size:12px} .latehint.late,.latehint.very{color:var(--warn)} .latehint.very{color:var(--bad)}
 .scorehelp{font-size:13px; line-height:1.55} .scorehelp p{margin:0 0 10px} .scorehelp table{margin:0 0 12px}
 
 /* ---------- toolbar / tables ---------- */
@@ -468,7 +476,7 @@ body.doc-open{overflow:hidden}
   var rows = [];
   var apps = null;
   var route = "dashboard";
-  var ui = { loanFilter:"open", clientQ:"", loanQ:"", payQ:"", expQ:"", lastAccount:"", colFilter:"overdue", pnlPeriod:"", audQ:"", audType:"edits", audKind:"all", audShow:200 };
+  var ui = { loanFilter:"open", clientQ:"", loanQ:"", payQ:"", expQ:"", lastAccount:"", colFilter:"overdue", pnlPeriod:"", clientLate:false, audQ:"", audType:"edits", audKind:"all", audShow:200 };
 
   // ---- format helpers ----
   function num(v){ return Math.round((Number(v||0)+Number.EPSILON)*100)/100; }
@@ -969,6 +977,11 @@ body.doc-open{overflow:hidden}
       txt:'<b>'+due.length+' loan'+(due.length>1?'s':'')+'</b> due within 24 hours — <b>'+money(due.reduce(function(s,r){return s+r.outstanding;},0))+'</b> to collect.'});
     if(t.overdueN) items.push({tag:"bad",label:"Overdue",go:function(){ui.loanFilter="overdue";go("loans");},
       txt:'<b>'+t.overdueN+' loan'+(t.overdueN>1?'s':'')+'</b> past due — <b>'+money(t.overdueAmt)+'</b> outstanding.'});
+    // Repayments that arrived after their due date in the last 7 days.
+    var wk=addDays(todayISO(),-7), lateIn=(state.payments||[]).map(function(p){ var l=(state.loans||[]).find(function(x){ return x.id===p.loanId; }); return l&&p.date>wk ? {p:p, l:l, d:paymentLateDays(l,p.date)} : null; })
+      .filter(function(x){ return x&&x.d>0; }).sort(function(a,b){ return b.d-a.d; });
+    if(lateIn.length) items.push({tag:lateIn[0].d>LATE_MILD?"warn":"info",label:"Late",go:function(){ ui.clientQ=""; ui.clientLate=true; go("clients"); },
+      txt:"<b>"+lateIn.length+" repayment"+(lateIn.length===1?"":"s")+"</b> came in after the due date this week: "+lateIn.slice(0,4).map(function(x){ return esc(clientName(x.l.clientId))+" ("+plural(x.d,"day")+")"; }).join(", ")+(lateIn.length>4?" and "+(lateIn.length-4)+" more":"")+". They're flagged as late payers."});
     if(top.share>=0.25 && t.receivable>5000) items.push({tag:"warn",label:"Concentration",go:function(){openClient(top.id);},
       txt:'Single-borrower risk: <b>'+esc(top.name)+'</b> holds <b>'+pct(top.share)+'</b> of the book ('+money(top.amt)+').'});
     var pr=promiseCounts();
@@ -1222,23 +1235,28 @@ body.doc-open{overflow:hidden}
   // ---- clients ----
   function renderClients(c){
     var q=ui.clientQ.toLowerCase();
-    var list=state.clients.filter(function(cl){ return [cl.name,cl.ref,cl.phone,cl.nationalId,cl.employer].join(" ").toLowerCase().indexOf(q)>=0; })
-      .sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
-    setSub(list.length+" of "+state.clients.length);
+    var LR={very:0,late:1,mild:2}, nLate=state.clients.filter(function(cl){ return clientLate(cl.id); }).length;
+    var list=state.clients.filter(function(cl){ return (!ui.clientLate||clientLate(cl.id)) && [cl.name,cl.ref,cl.phone,cl.nationalId,cl.employer].join(" ").toLowerCase().indexOf(q)>=0; })
+      .sort(function(a,b){
+        if(ui.clientLate){ var x=clientLate(a.id), y=clientLate(b.id), d=LR[x.level]-LR[y.level]||y.late.length-x.late.length||y.worst-x.worst; if(d) return d; }
+        return (a.name||"").localeCompare(b.name||""); });
+    setSub(list.length+" of "+state.clients.length+(ui.clientLate?" · late payers":""));
     var body=list.map(function(cl){
       var ag=clientAgg(cl.id), sc=clientScore(cl.id);
       var idcell = String(cl.nationalId||"").trim() ? '<span class="mono">'+esc(cl.nationalId)+'</span>' : '<span class="miss">Missing</span>';
-      return '<tr class="rowlink" data-client="'+esc(cl.id)+'"><td class="who-cell"><b>'+esc(cl.name||"—")+'</b><span>'+esc([cl.ref, cl.phone||"no phone"].filter(Boolean).join(" · "))+'</span></td>'
+      var lm=ui.clientLate?clientLate(cl.id):null;
+      return '<tr class="rowlink" data-client="'+esc(cl.id)+'"><td class="who-cell"><b>'+esc(cl.name||"—")+lateFlag(cl.id)+'</b><span>'+esc(lm?lateSummary(lm):[cl.ref, cl.phone||"no phone"].filter(Boolean).join(" · "))+'</span></td>'
         +'<td style="white-space:nowrap">'+gradeBadge(sc)+(sc&&!sc.isNew?'<span class="gscore">'+sc.score+'</span>':'')+'</td>'
         +'<td>'+idcell+'</td><td>'+esc(cl.employer||"—")+'</td>'
         +'<td class="r num">'+ag.openCount+'</td>'
         +'<td class="r num">'+(ag.outstanding>0?money(ag.outstanding):"—")+'</td></tr>';
     }).join("");
-    c.innerHTML=searchbar("clientQ","Search name, phone, ID, employer…",'<button class="btn sm" id="newClientBtn">+ New client</button>')
+    c.innerHTML=searchbar("clientQ","Search name, phone, ID, employer…",'<div class="seg"><button data-cl="all" class="'+(ui.clientLate?"":"on")+'">All</button><button data-cl="late" class="'+(ui.clientLate?"on":"")+'">Late payers ('+nLate+')</button></div><button class="btn sm" id="newClientBtn">+ New client</button>')
       + '<div class="panel"><div class="ph"><h3>Clients</h3><span class="n">'+list.length+'</span></div>'
       + '<div class="table-scroll"><table><thead><tr><th>Client</th><th>Score</th><th>National ID</th><th>Employer</th><th class="r">Open</th><th class="r">Outstanding</th></tr></thead><tbody>'
       + (body||'<tr><td colspan="6" class="empty">No clients match.</td></tr>') + '</tbody></table></div></div>';
     wireSearch("clientQ");
+    Array.prototype.forEach.call(c.querySelectorAll("[data-cl]"),function(b){ b.addEventListener("click",function(){ ui.clientLate=b.dataset.cl==="late"; render(); }); });
     wireRows(c,"client",openClient);
     var ncb=$("newClientBtn"); if(ncb) ncb.addEventListener("click",function(){ openClientForm(); });
   }
@@ -1253,7 +1271,7 @@ body.doc-open{overflow:hidden}
     }).sort(function(a,b){ return String(a.loan.dueDate).localeCompare(String(b.loan.dueDate)); });
     setSub(list.length+" loan"+(list.length===1?"":"s"));
     var body=list.map(function(r){
-      return '<tr class="rowlink" data-loan="'+esc(r.loan.id)+'"><td class="who-cell"><b>'+esc(clientName(r.loan.clientId))+'</b><span>'+esc([r.loan.ref, r.loan.purpose].filter(Boolean).join(" · ")||"—")+'</span></td>'
+      return '<tr class="rowlink" data-loan="'+esc(r.loan.id)+'"><td class="who-cell"><b>'+esc(clientName(r.loan.clientId))+lateFlag(r.loan.clientId)+'</b><span>'+esc([r.loan.ref, r.loan.purpose].filter(Boolean).join(" · ")||"—")+'</span></td>'
         +'<td class="r num">'+money(r.loan.principal)+'</td>'
         +'<td class="num">'+fmtDate(r.loan.issueDate)+'</td>'
         +'<td class="num">'+fmtDate(r.loan.dueDate)+'</td>'
@@ -1282,7 +1300,8 @@ body.doc-open{overflow:hidden}
     setSub(list.length+" payment"+(list.length===1?"":"s"));
     var total=list.reduce(function(s,x){return s+num(x.p.amount);},0);
     var body=list.map(function(x){
-      return '<tr'+(x.loan?' class="rowlink" data-loan="'+esc(x.loan.id)+'"':'')+'><td class="who-cell"><b>'+esc(x.name)+'</b><span>'+esc(x.p.method||"—")+(x.p.reference?" · "+esc(x.p.reference):"")+(multiAccounts()?" · into "+esc(accountNameById(acctOf(x.p))):"")+'</span></td>'
+      var pl=x.loan?paymentLateDays(x.loan,x.p.date):0;
+      return '<tr'+(x.loan?' class="rowlink" data-loan="'+esc(x.loan.id)+'"':'')+'><td class="who-cell"><b>'+esc(x.name)+(x.loan?lateFlag(x.loan.clientId):'')+'</b><span>'+esc(x.p.method||"—")+(x.p.reference?" · "+esc(x.p.reference):"")+(multiAccounts()?" · into "+esc(accountNameById(acctOf(x.p))):"")+(pl?' · '+lateTag(pl):'')+'</span></td>'
         +'<td class="num">'+fmtDate(x.p.date)+'</td>'
         +'<td class="r num">'+money(x.p.amount)+'</td></tr>';
     }).join("");
@@ -1551,7 +1570,9 @@ body.doc-open{overflow:hidden}
         +L("Next of kin", esc(a.kin_name||"—")+(a.kin_phone?" · "+esc(phoneLocal(a.kin_phone)):""))+L("Signed as", '<i>'+esc(a.signed_name||"—")+'</i>')+'</div></div>';
       h+='<div class="card"><div class="ch"><h3>Returning client?</h3></div><div class="ledger">'
         +(matches==null?'<div class="lrow"><span class="lk" style="color:var(--muted)">The ledger lookup isn\'t available yet.</span></div>'
-          : matches.length? matches.map(function(m){ return L(esc(m.ref||"")+" · "+esc(m.name||""), m.loans+" loan"+(m.loans===1?"":"s")+" · "+money0(m.borrowed||0)+" borrowed"+(m.lastIssue?" · last "+esc(fmtDate(m.lastIssue)):"")); }).join("")
+          : matches.length? matches.map(function(m){ var lc=m.ref&&(state.clients||[]).find(function(x){ return x.ref===m.ref; }), lm=lc&&clientLate(lc.id);
+              return L(esc(m.ref||"")+" · "+esc(m.name||"")+(lm?lateFlag(lc.id):""), m.loans+" loan"+(m.loans===1?"":"s")+" · "+money0(m.borrowed||0)+" borrowed"+(m.lastIssue?" · last "+esc(fmtDate(m.lastIssue)):""))
+                + (lm?'<div class="lrow"><span class="lk" style="color:var(--'+(lm.level==="mild"?"steel":(lm.level==="late"?"warn":"bad"))+')">Late payer: '+esc(lateSummary(lm))+'</span></div>':''); }).join("")
           : '<div class="lrow"><span class="lk">No match on ID, passport or cellphone. New client.</span></div>')
         +(others.length?'<div class="lrow"><span class="lk" style="color:var(--muted)">Other applications: '+others.map(function(o){ return esc(o.id)+" ("+esc(APP_STATUS[o.status]||o.status)+")"; }).join(", ")+'</span></div>':'')
         +'</div></div>';
@@ -1679,7 +1700,7 @@ body.doc-open{overflow:hidden}
     var today=todayISO(), principal=(a.amount_cents||0)/100;
     var body=(already?'<p style="color:var(--warn);margin:0 0 10px">Loan '+esc(already.ref||"")+' was already created from this application. Saving links it without creating another.</p>':'')
       +'<div class="field"><label>Client</label><select id="f_client">'
-        +matches.map(function(c){ return '<option value="'+esc(c.id)+'">'+esc((c.ref?c.ref+" · ":"")+c.name)+' (existing)</option>'; }).join("")
+        +matches.map(function(c){ var lm=clientLate(c.id); return '<option value="'+esc(c.id)+'">'+esc((c.ref?c.ref+" · ":"")+c.name)+' (existing'+(lm?" · late payer ×"+lm.late.length:"")+')</option>'; }).join("")
         +'<option value="__new">New client: '+esc(a.full_name)+'</option></select></div>'
       +'<div class="field row"><div><label>Amount paid out (N$)</label><input id="f_principal" class="num" type="number" step="0.01" value="'+esc(principal)+'"></div><div><label>Interest rate (%)</label><input id="f_rate" class="num" type="number" step="0.01" value="30"></div></div>'
       +'<div class="field row"><div><label>Service fee (N$)</label><input id="f_fee" class="num" type="number" step="0.01" value="0"></div><div><label>Purpose</label><input id="f_purpose" value="'+esc(a.purpose||"")+'"></div></div>'
@@ -1888,16 +1909,16 @@ body.doc-open{overflow:hidden}
   function csvCell(v){ v=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(v) && !/^-?\d+(\.\d+)?$/.test(v)) v="'"+v; return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
   function toCSV(headers, rowsArr){ return [headers.map(csvCell).join(",")].concat(rowsArr.map(function(r){return r.map(csvCell).join(",");})).join("\r\n"); }
   function exportClientsCSV(){
-    var body=state.clients.map(function(c){ var ag=clientAgg(c.id), sc=clientScore(c.id)||{}; return [c.name,c.phone,c.nationalId,c.employer,c.address,c.nextOfKin,ag.openCount,num(ag.borrowed),num(ag.repaid),num(ag.outstanding),sc.isNew?"":sc.score,sc.isNew?"New":(sc.grade?sc.grade.g:""),sc.available==null?"":sc.available]; });
-    if(downloadFile("quickserve-clients-"+todayISO()+".csv", toCSV(["Name","Phone","National ID","Employer","Address","Next of kin","Open loans","Total borrowed","Total repaid","Outstanding","Credit score","Grade","Suggested next loan"], body),"text/csv")) toast("Clients CSV downloaded.");
+    var body=state.clients.map(function(c){ var ag=clientAgg(c.id), sc=clientScore(c.id)||{}; return [c.name,c.phone,c.nationalId,c.employer,c.address,c.nextOfKin,ag.openCount,num(ag.borrowed),num(ag.repaid),num(ag.outstanding),sc.isNew?"":sc.score,sc.isNew?"New":(sc.grade?sc.grade.g:""),sc.available==null?"":sc.available,(lateRecords()[c.id]||{late:[]}).late.length,(lateRecords()[c.id]||{}).worst||0]; });
+    if(downloadFile("quickserve-clients-"+todayISO()+".csv", toCSV(["Name","Phone","National ID","Employer","Address","Next of kin","Open loans","Total borrowed","Total repaid","Outstanding","Credit score","Grade","Suggested next loan","Loans repaid late","Worst days late"], body),"text/csv")) toast("Clients CSV downloaded.");
   }
   function exportLoansCSV(){
     var body=rows.map(function(r){ var l=r.loan; return [clientName(l.clientId),num(l.principal),num(l.interestRate),num(l.serviceFee),num(r.rev),num(r.totalDue),l.issueDate,l.dueDate,pillTxt(r.status),num(r.paid),num(r.outstanding),l.purpose||""]; });
     if(downloadFile("quickserve-loans-"+todayISO()+".csv", toCSV(["Client","Principal","Interest %","Service fee","Interest+fees","Total repayable","Issued","Due","Status","Paid","Outstanding","Purpose"], body),"text/csv")) toast("Loans CSV downloaded.");
   }
   function exportPaymentsCSV(){
-    var body=(state.payments||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}).map(function(p){ var loan=(state.loans||[]).find(function(l){return l.id===p.loanId;}); return [p.date, loan?clientName(loan.clientId):"—", num(p.amount), p.method||"", p.reference||"", accountNameById(acctOf(p))]; });
-    if(downloadFile("quickserve-payments-"+todayISO()+".csv", toCSV(["Date","Client","Amount","Method","Reference","Account"], body),"text/csv")) toast("Payments CSV downloaded.");
+    var body=(state.payments||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}).map(function(p){ var loan=(state.loans||[]).find(function(l){return l.id===p.loanId;}); return [p.date, loan?clientName(loan.clientId):"—", num(p.amount), p.method||"", p.reference||"", accountNameById(acctOf(p)), loan?paymentLateDays(loan,p.date):""]; });
+    if(downloadFile("quickserve-payments-"+todayISO()+".csv", toCSV(["Date","Client","Amount","Method","Reference","Account","Days late"], body),"text/csv")) toast("Payments CSV downloaded.");
   }
   function exportTransfersCSV(){
     var body=(state.transfers||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}).map(function(t){ return [t.date, accountNameById(acctOf({accountId:t.fromAccountId})), accountNameById(acctOf({accountId:t.toAccountId})), num(t.amount), t.reference||"", t.note||""]; });
@@ -1915,7 +1936,7 @@ body.doc-open{overflow:hidden}
   function openClient(id){
     var cl=client(id); if(!cl) return;
     var ag=clientAgg(id);
-    drawerHead("Client"+(cl.ref?" · "+cl.ref:""),"" + (cl.name||"—"));
+    drawerHead("Client"+(cl.ref?" · "+cl.ref:"")+(clientLate(id)?" · late payer":""),"" + (cl.name||"—"));
     var phone=String(cl.phone||"").trim();
     var idv = phone.replace(/[^\d+]/g,"");
     var h='<div class="drawer-actions">'
@@ -1925,6 +1946,7 @@ body.doc-open{overflow:hidden}
       + '<button class="btn ghost sm danger" id="dcDelete">Delete</button>'
       + '</div>'
       + '<div class="dsect">Credit score</div>' + scoreBlock(clientScore(id))
+      + lateSection(id)
       + '<div class="dsect">Financial summary</div>'
       + frow("Total borrowed", money(ag.borrowed), "num")
       + frow("Total repaid", money(ag.repaid), "num")
@@ -1995,7 +2017,9 @@ body.doc-open{overflow:hidden}
     h+='<div class="dsect">Schedule</div>'
       + frow("Issued", fmtDate(l.issueDate), "num")
       + frow("Due", fmtDate(l.dueDate), "num")
-      + frow("Term status", esc(termNote));
+      + frow("Term status", esc(termNote))
+      + frow("Timeliness", loanLateText(loanLateness(r, pays.slice().sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); }))))
+      + (clientLate(l.clientId) ? frow("Client", lateFlag(l.clientId)+' <span style="font-size:12px">'+esc(lateSummary(clientLate(l.clientId)))+'</span>') : "");
     h+='<div class="dsect">Position</div>'
       + frow("Paid to date", money(r.paid), "num")
       + frow("Outstanding", money(r.outstanding), "num")
@@ -2024,7 +2048,7 @@ body.doc-open{overflow:hidden}
     h+='<div class="dsect">Payments ('+pays.length+')</div>';
     if(pays.length){
       h+='<table class="dtable"><thead><tr><th>Date</th><th>Method</th><th class="r">Amount</th></tr></thead><tbody>'
-        + pays.map(function(p){ return '<tr><td class="num">'+fmtDate(p.date)+'</td><td>'+esc(p.method||"—")+'</td><td class="r num">'+money(p.amount)+'<button class="pdel" data-pdel="'+esc(p.id)+'" title="Delete payment">×</button></td></tr>'; }).join("")
+        + pays.map(function(p){ var pl=paymentLateDays(l,p.date); return '<tr><td class="num">'+fmtDate(p.date)+(pl?'<div>'+lateTag(pl)+'</div>':'')+'</td><td>'+esc(p.method||"—")+'</td><td class="r num">'+money(p.amount)+'<button class="pdel" data-pdel="'+esc(p.id)+'" title="Delete payment">×</button></td></tr>'; }).join("")
         + '</tbody></table>';
     } else h+='<p style="font-size:12.5px;color:var(--muted)">No payments recorded against this loan.</p>';
     var audBox="aud_l_"+Date.now();
@@ -3015,6 +3039,91 @@ body.doc-open{overflow:hidden}
     return keys.map(function(k){ return out[k]; });
   }
 
+  // ---- late payments ----
+  // A repayment is late when it reaches us after the due date in force on that
+  // day (a rollover moves the due date from the day it is agreed). Every day
+  // counts: up to 3 days is "slightly late" (the credit score's grace), up to
+  // 30 days late, beyond that very late. A client is flagged as soon as one of
+  // their loans was repaid late, rolled over, written off or is overdue now.
+  // Worked out from the book every time; nothing is stored.
+  var LATE_MILD=3, LATE_VERY=30;
+  function dueInForce(l, day){
+    var ex=(l.extensions||[]).slice().sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+    var due=(ex.length&&ex[0].previousDueDate)||l.dueDate;
+    ex.forEach(function(e){ if(e.newDueDate && String(e.date)<=String(day)) due=e.newDueDate; });
+    return due;
+  }
+  function paymentLateDays(l, date){ var due=dueInForce(l,date); return (due&&date) ? Math.max(0, dayDiff(due,date)) : 0; }
+  function lateLevel(days){ return days<=0 ? "" : (days<=LATE_MILD ? "mild" : (days<=LATE_VERY ? "late" : "very")); }
+  function lateTag(days, word){ var lv=lateLevel(days); return lv ? '<span class="latetag '+lv+'">'+esc(plural(days,"day")+" "+(word||"late"))+'</span>' : ''; }
+  function loanLateness(r, pays){
+    var l=r.loan, x={ r:r, payLate:[], rolled:(r.extensions||[]).length, settled:"", settledDays:0, overdue:0, writtenOff:r.status==="written-off", worst:0, last:"" };
+    pays.forEach(function(p){ var d=paymentLateDays(l, p.date); if(d>0){ x.payLate.push({ p:p, days:d }); if(String(p.date)>x.last) x.last=String(p.date); } });
+    if(r.status==="paid"){ x.settled=settledOn(r,pays)||l.dueDate; x.settledDays=Math.max(0, dayDiff(l.dueDate, x.settled)); }
+    else if(r.status==="overdue") x.overdue=daysLate(r);
+    x.worst=Math.max(x.settledDays, x.overdue, x.payLate.reduce(function(m,y){ return Math.max(m,y.days); },0));
+    x.late = x.worst>0 || x.rolled>0 || x.writtenOff;
+    return x;
+  }
+  // How the loan stands for timeliness, in a few words (with its tag).
+  function loanLateText(x){
+    if(x.writtenOff) return '<span class="latetag very">Written off</span>';
+    var bits=[];
+    if(x.overdue) bits.push(lateTag(x.overdue,"overdue"));
+    else if(x.settled) bits.push(x.settledDays ? lateTag(x.settledDays,"late") : '<span class="latetag ok">On time</span>');
+    else if(x.payLate.length) bits.push(lateTag(x.worst,"late"));
+    if(x.rolled) bits.push('<span class="latetag late">Rolled over'+(x.rolled>1?" ×"+x.rolled:"")+'</span>');
+    return bits.join(" ") || '<span class="latetag ok">Not due yet</span>';
+  }
+  var lateCache={rows:null, today:"", map:{}};
+  function lateRecords(){
+    var today=todayISO();
+    if(lateCache.rows===rows && lateCache.today===today) return lateCache.map;
+    var paysBy={}, map={};
+    (state.payments||[]).forEach(function(p){ (paysBy[p.loanId]=paysBy[p.loanId]||[]).push(p); });
+    Object.keys(paysBy).forEach(function(k){ paysBy[k].sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); }); });
+    rows.forEach(function(r){
+      if(!(num(r.loan.principal)>0)) return;
+      var x=loanLateness(r, paysBy[r.loan.id]||[]);
+      var m=map[r.loan.clientId]||(map[r.loan.clientId]={ loans:[], late:[], latePays:0, worst:0, rolled:0, overdue:0, writtenOff:0, last:"", level:"" });
+      m.loans.push(x);
+      if(x.late) m.late.push(x);
+      m.latePays+=x.payLate.length; m.worst=Math.max(m.worst, x.worst); m.rolled+=x.rolled;
+      if(x.overdue) m.overdue++;
+      if(x.writtenOff) m.writtenOff++;
+      var lastDay=x.settledDays?x.settled:x.last; if(lastDay>m.last) m.last=lastDay;
+    });
+    Object.keys(map).forEach(function(k){ var m=map[k], n=m.late.length;
+      m.level = !n ? "" : ((m.writtenOff || m.worst>LATE_VERY || n>=3) ? "very" : ((m.worst>LATE_MILD || n>=2 || m.rolled) ? "late" : "mild")); });
+    lateCache={rows:rows, today:today, map:map};
+    return map;
+  }
+  function clientLate(id){ var m=lateRecords()[id]; return m&&m.level ? m : null; }
+  function lateSummary(m){
+    if(!m) return "";
+    var p=[];
+    p.push("Late on "+m.late.length+" of "+plural(m.loans.length,"loan"));
+    if(m.worst) p.push("worst "+plural(m.worst,"day"));
+    if(m.latePays) p.push(plural(m.latePays,"payment")+" after the due date");
+    if(m.rolled) p.push(plural(m.rolled,"rollover"));
+    if(m.overdue) p.push(m.overdue+" overdue now");
+    if(m.writtenOff) p.push(m.writtenOff+" written off");
+    if(m.last && !m.overdue) p.push("last late "+fmtDate(m.last));
+    return p.join(" · ");
+  }
+  function lateFlag(id){ var m=clientLate(id); return m ? '<span class="lateflag '+m.level+'" title="'+esc(lateSummary(m))+'">Late ×'+m.late.length+'</span>' : ''; }
+  // The client drawer's record of every loan: due, repaid, how late.
+  function lateSection(id){
+    var m=lateRecords()[id]; if(!m||!m.loans.length) return "";
+    var list=m.loans.slice().sort(function(a,b){ return String(b.r.loan.issueDate).localeCompare(String(a.r.loan.issueDate)); });
+    var head = m.level ? '<div class="latebox '+m.level+'"><b>'+(m.level==="mild"?"Slightly late payer":(m.level==="late"?"Late payer":"Repeat or serious late payer"))+'</b><div>'+esc(lateSummary(m))+'</div></div>'
+      : '<div class="latebox ok"><b>Always on time</b><div>'+plural(m.loans.length,"loan")+', no payment after a due date.</div></div>';
+    return '<div class="dsect">Repayment timeliness</div>'+head
+      + '<table class="dtable"><thead><tr><th>Loan</th><th>Due</th><th>Repaid</th><th>Timeliness</th></tr></thead><tbody>'
+      + list.map(function(x){ var l=x.r.loan; return '<tr class="rowlink" data-dloan="'+esc(l.id)+'"><td class="num">'+esc(l.ref||fmtDate(l.issueDate))+'</td><td class="num">'+fmtDate(l.dueDate)+'</td><td class="num">'+(x.settled?fmtDate(x.settled):"—")+'</td><td>'+loanLateText(x)+'</td></tr>'; }).join("")
+      + '</tbody></table>';
+  }
+
   // ---- paid-up letter ----
   // A print-ready settlement letter for a fully repaid loan, on the company
   // letterhead, straight from the book (the same letter the phone app issued).
@@ -3485,7 +3594,9 @@ body.doc-open{overflow:hidden}
         var txt = sc.isNew ? "New client — no repayment history yet. Check affordability."
           : sc.score+"/100 · "+sc.grade.label+" · "+(sc.limit==null ? "no loan repaid yet — check affordability" : (sc.limit===0 ? "no new loan suggested ("+sc.why.replace(/\.$/,"")+")" : "suggested up to "+money0(sc.available)));
         box.className="scorehint"+(over?" over":"");
-        box.innerHTML=gradeBadge(sc)+'<span>'+esc(txt)+(over&&amt>0&&sc.limit>0?" — "+esc(money0(amt))+" is above that":"")+'</span> <a href="#" data-scorehelp style="color:var(--accent)">How?</a>';
+        var lm=clientLate(fval("f_client"));
+        box.innerHTML=gradeBadge(sc)+'<span>'+esc(txt)+(over&&amt>0&&sc.limit>0?" — "+esc(money0(amt))+" is above that":"")+'</span> <a href="#" data-scorehelp style="color:var(--accent)">How?</a>'
+          +(lm?'<div class="latehint '+lm.level+'">'+lateFlag(fval("f_client"))+' Late payer — '+esc(lateSummary(lm))+'</div>':'');
         Array.prototype.forEach.call(box.querySelectorAll("[data-scorehelp]"),function(a){ a.addEventListener("click",function(ev){ ev.preventDefault(); var c=fval("f_client"), a=fval("f_principal"); openScoreHelp(function(){ openLoanForm(null,c); var pe=$("f_principal"); if(pe){ pe.value=a; pe.dispatchEvent(new Event("input")); } }); }); });
       };
       $("f_client").addEventListener("change",hint); $("f_principal").addEventListener("input",hint); hint();
@@ -3500,6 +3611,7 @@ body.doc-open{overflow:hidden}
     var body=''
       +'<div class="field"><label>Loan</label><select id="f_loan">'+opts+'</select></div>'
       +'<div class="field row"><div><label>Amount paid (N$)</label><input id="f_amount" class="num" type="number" min="0" step="0.01" placeholder="0.00"></div><div><label>Date</label><input id="f_date" type="date" value="'+todayISO()+'"></div></div>'
+      +'<div class="scorehint" id="f_latehint"></div>'
       +'<div class="field row"><div><label>Method</label><select id="f_method"><option>Cash</option><option>Bank transfer</option><option>E-wallet</option><option>Other</option></select></div><div><label>Reference</label><input id="f_ref" placeholder="Optional"></div></div>'
       +'<div class="field"><label>Notes</label><textarea id="f_pnotes" placeholder="Optional"></textarea></div>'
       + accountSelectHtml("f_pacct", preferredAccountId(), "Received into")
@@ -3511,8 +3623,21 @@ body.doc-open{overflow:hidden}
       if(amount>r.outstanding+0.01 && !confirm("This payment ("+money(amount)+") is more than the outstanding "+money(r.outstanding)+". Save it anyway?")){ return; }
       var rec={ id:uid("payment"), loanId:loanId, amount:amount, date:fval("f_date"), method:fval("f_method"), reference:cleanText(fval("f_ref")), notes:cleanText(fval("f_pnotes")), accountId:fval("f_pacct"), createdAt:new Date().toISOString() };
       ui.lastAccount=rec.accountId;
-      commit(function(data){ data.payments.push(rec); }, "Payment recorded.");
+      var pl=paymentLateDays(r.loan, rec.date);
+      commit(function(data){ data.payments.push(rec); }, pl ? "Payment recorded — "+plural(pl,"day")+" late. "+clientName(r.loan.clientId)+" is flagged as a late payer." : "Payment recorded.");
     });
+    // Says straight away whether this payment is late and what that means for the client.
+    function lateHint(){
+      var box=$("f_latehint"); if(!box) return;
+      var r=rows.find(function(x){ return x.loan.id===fval("f_loan"); }), d=fval("f_date");
+      if(!r||!d){ box.innerHTML=""; return; }
+      var due=dueInForce(r.loan, d), days=paymentLateDays(r.loan, d), m=clientLate(r.loan.clientId), nm=clientName(r.loan.clientId);
+      var h = days ? lateTag(days)+'<span>Due '+esc(fmtDate(due))+(m?'':' — '+esc(nm)+' will be flagged as a late payer')+'.</span>'
+                   : '<span class="latetag ok">On time</span><span>Due '+esc(fmtDate(due))+'.</span>';
+      if(m) h+='<div class="latehint '+m.level+'">'+lateFlag(r.loan.clientId)+' '+esc(nm)+': '+esc(lateSummary(m))+'</div>';
+      box.className="scorehint"; box.innerHTML=h;
+    }
+    $("f_loan").addEventListener("change",lateHint); $("f_date").addEventListener("change",lateHint); $("f_date").addEventListener("input",lateHint); lateHint();
   }
   // deletes run outside the modal (triggered from a drawer), so they show a toast
   function runDelete(mutate, okMsg){

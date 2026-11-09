@@ -117,6 +117,27 @@ screen:
   a backup file, a reminder when no backup has been downloaded for 7 days, and
   automatic sign-out after 20 minutes without activity. Needs
   `supabase/migrations/010_ledger_history.sql` run once (see below).
+- **Late payers** — a repayment is late when it arrives after the due date in
+  force that day (a rollover moves the due date from the day it is agreed).
+  Every day counts: up to 3 days shows as slightly late (grey), up to 30 as
+  late (amber), more as very late (red). A client is flagged *Late ×n* (n =
+  loans repaid late, rolled over, written off or overdue now). The flag colour
+  is red for 3+ late loans, more than 30 days late or a write-off, amber for 2
+  late loans, more than 3 days or a rollover, and grey otherwise. The flag
+  shows:
+  - in the client, loan and payment lists, with a *Late payers* filter on
+    Clients (most serious first);
+  - in the client drawer (*Repayment timeliness*: every loan with due date,
+    repaid date and days late);
+  - in the loan drawer (timeliness row; each late payment tagged);
+  - when recording a payment: it says straight away whether the payment is
+    late and by how many days, and the confirmation says the client is now
+    flagged;
+  - in the new-loan form and on an application's *Returning client?* card;
+  - on the dashboard, as the repayments that came in late this week.
+
+  The clients and payments CSVs include the late counts and days. Worked out
+  from the book each time; nothing is stored.
 - **Audit trail** — every entry, edit and deletion, per record, read from that
   same database change log (so it can't be edited, and restoring an old
   version doesn't erase it). The *Audit trail* page lists them newest first,
