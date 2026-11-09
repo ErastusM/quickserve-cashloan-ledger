@@ -66,7 +66,7 @@
     withdrawn: "This application was withdrawn."
   };
 
-  // A tracking link (#t=…) or the copy saved on this phone.
+  // A tracking link (#t=…) or the copy saved on this device.
   var m = location.hash.match(/t=([A-Za-z0-9_-]{20,})/);
   if (m) { token = m[1]; history.replaceState(null, "", location.pathname); }
   else { var rc = QS.store.get("qs_receipt"); if (rc && rc.trackToken) token = rc.trackToken; }

@@ -201,7 +201,7 @@
     } else {
       next.textContent = LABELS[n];
       next.className = "btn " + (n === 4 ? "btn-canary" : "btn-leaf");
-      $("footNote").textContent = n === 3 ? "Stored privately. Only our credit staff can open them." : "Saved on this phone as you go.";
+      $("footNote").textContent = n === 3 ? "Stored privately. Only our credit staff can open them." : "Saved on this device as you go.";
     }
     if (n === 2 && !st.ref && !bot) bot = QS.botCheck($("ts2"));
     if (n === 2 && st.ref) $("ts2").hidden = true;
