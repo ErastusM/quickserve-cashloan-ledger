@@ -690,17 +690,25 @@ body.doc-open{overflow:hidden}
   }
   function missingKyc(){ return state.clients.filter(function(c){ return !String(c.nationalId||"").trim(); }); }
   // ---- reference numbers ----
-  // Clients carry QS-0001…, loans QSL-0001… (the phone app's scheme). A number is
-  // stored on the record and never recomputed, so deleting one never renumbers
-  // the others. New records get the next number; any record without one is
+  // Clients carry QS-0001…; loans carry the year and month they were issued,
+  // then a running number that never restarts: QSL-2611-0137 (loans made
+  // before November 2026 keep their QSL-0001… numbers). A number is stored on
+  // the record and never recomputed, so deleting one never renumbers the
+  // others. New records get the next number; any record without one is
   // numbered in the order it was created.
-  function refNumber(ref){ var m=String(ref||"").match(/(\d+)/); return m?Number(m[1]):0; }
-  function formatRef(prefix,n){ return prefix+"-"+String(n).padStart(4,"0"); }
+  function refNumber(ref){ var m=String(ref||"").match(/(\d+)\D*$/); return m?Number(m[1]):0; }
+  function refPeriod(x){
+    var d=x&&x.issueDate?new Date(String(x.issueDate).slice(0,10)+"T12:00:00Z"):new Date(x&&x.createdAt||Date.now());
+    if(isNaN(d)) d=new Date();
+    d=new Date(d.getTime()+2*3600000); // Namibian time
+    return String(d.getUTCFullYear()).slice(2)+String(d.getUTCMonth()+1).padStart(2,"0");
+  }
+  function formatRef(prefix,n,x){ return prefix+"-"+(prefix==="QSL"?refPeriod(x)+"-":"")+String(n).padStart(4,"0"); }
   function assignRefs(list, prefix){
     var top=(list||[]).reduce(function(mx,x){ return Math.max(mx, refNumber(x.ref)); },0), added=[];
     (list||[]).filter(function(x){ return !x.ref; })
       .sort(function(a,b){ return String(a.createdAt||a.issueDate||"").localeCompare(String(b.createdAt||b.issueDate||"")); })
-      .forEach(function(x){ x.ref=formatRef(prefix,++top); added.push(x.ref); });
+      .forEach(function(x){ x.ref=formatRef(prefix,++top,x); added.push(x.ref); });
     return added;
   }
   function assignMissingRefs(data){

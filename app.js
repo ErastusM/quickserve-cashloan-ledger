@@ -169,7 +169,8 @@ function normalizeState(value) {
 // recomputed once set, so deleting one client never renumbers the others.
 
 function clientRefNumber(ref) {
-  const match = String(ref || "").match(/(\d+)/);
+  // The last number in the reference: QS-0007 -> 7, QSL-2611-0137 -> 137.
+  const match = String(ref || "").match(/(\d+)\D*$/);
   return match ? Number(match[1]) : 0;
 }
 
@@ -197,19 +198,28 @@ function assignClientRefs(next) {
   return next;
 }
 
-// Loan reference numbers (QSL-0001, QSL-0002, …), same idea as client
-// references: stored on the loan, backfilled in creation order, never
-// recomputed, so deleting a loan never renumbers the others.
-function formatLoanRef(n) {
-  return `QSL-${String(n).padStart(4, "0")}`;
+// Loan reference numbers: the year and month the loan was issued, then a
+// running number that never restarts (QSL-2611-0137). Loans made before
+// November 2026 keep their QSL-0001… numbers. Stored on the loan, backfilled
+// in creation order, never recomputed, so deleting a loan never renumbers
+// the others.
+function loanRefPeriod(loan) {
+  let d = loan && loan.issueDate ? new Date(String(loan.issueDate).slice(0, 10) + "T12:00:00Z") : new Date((loan && loan.createdAt) || Date.now());
+  if (Number.isNaN(d.getTime())) d = new Date();
+  d = new Date(d.getTime() + 2 * 3600000); // Namibian time
+  return String(d.getUTCFullYear()).slice(2) + String(d.getUTCMonth() + 1).padStart(2, "0");
+}
+
+function formatLoanRef(n, loan) {
+  return `QSL-${loanRefPeriod(loan)}-${String(n).padStart(4, "0")}`;
 }
 
 function highestLoanRef(loans) {
   return loans.reduce((max, loan) => Math.max(max, clientRefNumber(loan.ref)), 0);
 }
 
-function nextLoanRef() {
-  return formatLoanRef(highestLoanRef(state.loans) + 1);
+function nextLoanRef(loan) {
+  return formatLoanRef(highestLoanRef(state.loans) + 1, loan);
 }
 
 function assignLoanRefs(next) {
@@ -217,7 +227,7 @@ function assignLoanRefs(next) {
   next.loans
     .filter((loan) => !loan.ref)
     .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
-    .forEach((loan) => { loan.ref = formatLoanRef(++highest); });
+    .forEach((loan) => { loan.ref = formatLoanRef(++highest, loan); });
   return next;
 }
 
@@ -2947,7 +2957,7 @@ function openLoanForm(loan = null, forcedClientId = "") {
     } else {
       state.loans.push({
         id: uid("loan"),
-        ref: nextLoanRef(),
+        ref: nextLoanRef(record),
         createdAt: new Date().toISOString(),
         status: "active",
         ...record
