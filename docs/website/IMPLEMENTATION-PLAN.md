@@ -49,13 +49,31 @@ admin.quickserve.group (console)
   └─ Applications → detail → Approve & create loan ──► Supabase ledger (client + loan)
 ```
 
+## 3a. Product scope at launch
+
+- **Payday loans only:** one repayment on the applicant's next payday, at a 30% interest rate. Longer loans show a "Coming soon" banner on the site and in the application.
+- **Online only:** no branch and no physical address on the site.
+
+## 3b. Running costs (customer data storage)
+
+Applications stay on Cloudflare (D1 for details, R2 for documents). The loan book stays on Supabase. At QuickServe's volume both fit inside the free tiers, so storage should cost **nothing** for a long time:
+
+| Service | Free allowance | What it holds | When it starts costing |
+|---|---|---|---|
+| Cloudflare R2 | 10 GB, no download fees | ID, payslip and statement files | After roughly 3,000 applications (about 3 MB each once photos are compressed on the phone); then about US$0.015 per GB per month |
+| Cloudflare D1 | 5 GB | Application details | Not at this volume (a few KB per application) |
+| Cloudflare Workers | 100,000 requests a day | The application API | Not at this volume; the paid plan is US$5 per month if ever needed |
+| Supabase (free) | 500 MB database | The loan book | Not at this volume. The free plan has no automatic daily backups, so keep the console's backups, or move to Pro (US$25 per month) for daily backups |
+
+Deleting files of declined applications on a schedule (see 4.3) keeps R2 inside the free 10 GB. Prices are as last checked; confirm them on the providers' pricing pages before launch.
+
 ## 4. Backend changes (intake Worker)
 
 ### 4.1 Schema migration (`intake-worker/migrations/002_web_applications.sql`)
 
 `applications`: add the following columns (all nullable, so existing rows keep working):
 
-- `amount_requested` (integer cents), `term_months` (1–5), `purpose_category`, `email`
+- `amount_requested` (integer cents), `term_months` (always 1 for now: payday loans only; kept so longer loans can be added later), `purpose_category`, `email`
 - `net_income` (cents), `payday`, `source` (`web` | `whatsapp` | `legacy-form`)
 - `phone_verified_at`, `consent_version`, `consent_at`, `consent_ip`, `consent_ua`
 - `track_token_hash` (SHA-256 of a random token shown once to the applicant)
@@ -149,7 +167,7 @@ Follows the "Admin · application review" design.
 
 | Phase | Scope | Rough effort |
 |---|---|---|
-| **0. Decisions and content** (owner) | NAMFISA number, maximum loan amount, actual pricing within the 30% cap, cut-off times, retention period, privacy notice wording, **attorney review of the site copy** | Owner-led |
+| **0. Decisions and content** (owner) | NAMFISA registration (the site shows CC/2026/01904 until then), maximum loan amount, cut-off times, retention period, privacy notice wording, **attorney review of the site copy** | Owner-led |
 | **1. Backend v2** | Migration, v2 routes, Turnstile, multi-origin CORS, JWT authentication, tests, staging Worker | ~1 week |
 | **2. Public site** | Home, apply wizard, track, legal pages, build and deploy to `hostinger-web` | ~1–1.5 weeks |
 | **3. Console** | Applications list and detail, document viewer, affordability, request info, decline, approve → ledger | ~1 week |
@@ -159,7 +177,8 @@ Phases 1–3 make up a complete, usable launch. Phase 4 adds automation on top.
 
 ## 10. Compliance checklist (Namibia; for the attorney)
 
-- NAMFISA registration number shown in the header, footer and every disclosure.
+- Company registration CC/2026/01904 shown in the footer and terms. Add the NAMFISA number once it is issued.
+- Online only: no physical address is published.
 - The 30% once-off total cost (interest + service fee) shown as a **maximum**, with the exact cost given in the Pre-Agreement Statement (doc 02) **before** signing.
 - An affordability assessment (doc 03) recorded for every approved loan. It is stored with the application.
 - Consent and privacy notice (doc 10): versioned, with the accepted version and time stored per application.
