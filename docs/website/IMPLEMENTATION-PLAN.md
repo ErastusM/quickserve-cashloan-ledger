@@ -1,7 +1,7 @@
 # QuickServe public website and online applications: implementation plan
 
 **Status:** proposal for review. No code changes yet.
-**Designs:** https://claude.ai/artifact/9RXmGxynsy7zUV1sB8v1VA (9 screens: desktop and mobile homepage, the 4-step apply flow, confirmation, application tracking, and the admin review screen).
+**Designs:** https://claude.ai/artifact/9RXmGxynsy7zUV1sB8v1VA ("No small print" direction: desktop and mobile homepage, the 4-sheet application, customer copy, tracking, and the admin review screen).
 
 ---
 
@@ -111,7 +111,10 @@ Staff routes (authenticated):
   3. Documents: per-file upload with progress and retry. Photos are compressed on the phone (longest side 2000px, JPEG ~80%) before upload to save data.
   4. Review and consent: three consent checkboxes, and a reminder that a Pre-Agreement Statement comes before signing.
   - The draft is kept in `localStorage`, so a refresh or a dropped connection doesn't lose the form. Files are not kept, but uploaded files are remembered by server id.
-- **Brand:** taken from the flyer and `brand-logo.svg`: dark teal `#053437`, brand green `#12b84f`, cream `#f6f3ee`, amber `#f2a51f`; Poppins for headings and Inter for body text. Green buttons carry dark-teal text (white on that green fails contrast).
+- **Design direction: "No small print".** The site is built from the paperwork of a cash-loan counter: perforated quote slips, carbon-copy "customer copy" receipts, rubber stamps and numbered clauses. The promise is shown, not claimed: the calculator is a quote slip with a double-ruled total, the terms are set in large type ("the fine print, in big print"), and each application collects stamps (Received → Checked → Quoted → Paid) that the applicant can see on the tracking page.
+  - **Colour:** brand dark teal `#053437` as the counter-top, bond paper `#f8f8f3` and `#e7eae2` for slips and sections, brand green `#12b84f` for actions on teal, stamp-ink green `#0b7a37` on paper, canary-carbon yellow `#f3d94a` for customer copies and notes from staff, rubber red `#b23a2a` only for "waiting on you".
+  - **Type:** Big Shoulders Display (condensed, uppercase headlines), Instrument Sans (body), IBM Plex Mono (amounts, labels, references; the same mono the admin console uses). Amounts use Namibian spacing: `N$ 2 600.00`.
+  - **Shape:** square corners, hard offset shadows on buttons, no rounded cards, no gradients.
 - **Quality bar:** works from 320px wide, Lighthouse ≥ 95 on all four scores, every interactive element ≥ 44px, keyboard and screen-reader friendly, < 150 KB on the first visit.
 - **Analytics:** Cloudflare Web Analytics, which uses no cookies and needs no consent banner. It tracks funnel steps (step 1 → submit).
 
@@ -169,7 +172,7 @@ Phases 1–3 make up a complete, usable launch. Phase 4 adds automation on top.
 1. **Maximum loan amount**, and whether it differs for first-time and returning clients. The designs assume N$500–N$5,000 as a placeholder.
 2. **Actual pricing.** Is it always 30%, or lower for some terms or clients? The calculator currently shows the 30% maximum.
 3. **Payout and repayment:** EFT only? Debit order (doc 11) for everyone?
-4. **Reference format.** Today applications use `QS-ABC123` and clients use `QS-0001`, which look alike. Proposal: new applications use `AP-ABC123`.
+4. **Reference format.** Today applications use `QS-ABC123` and clients use `QS-0001`, which look alike. Proposal (already used in the designs): new applications use `AP-ABC123`.
 5. **WhatsApp Business API:** do you want to register for it in phase 4 (it has a per-message cost), or keep the free click-to-chat links?
 6. **Email:** should we ask for an email address (optional) and send confirmations by email too?
 7. **Staff:** who besides the owner reviews applications? This decides the roles we need.
