@@ -1,0 +1,81 @@
+name: Test and deploy to Cloudflare
+
+# Every push to main is tested; if the tests pass, the application service,
+# the admin portal and the website are deployed to the QuickServe Cloudflare
+# account. Pull requests run the tests only.
+#
+# One-time setup: add a repository secret named CLOUDFLARE_API_TOKEN
+# (Settings → Secrets and variables → Actions). See docs/website/CLOUDFLARE-SETUP.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Ledger money tests
+        run: node tests/money.test.js
+      - name: Application service tests
+        run: node --test intake-worker/tests/worker.test.mjs
+      - name: Build the website and admin portal
+        run: |
+          sh site/assemble.sh
+          node site/admin-worker/build.mjs
+          node site/web-worker/build.mjs
+          node --check site/admin-worker/dist/worker.js
+          node --check site/web-worker/dist/worker.js
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: 8123123f3ff485f588fa2292ce6c8923
+      WRANGLER: npx --yes wrangler@4.158.0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check the deploy token is set
+        id: token
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN is not set, so nothing was deployed. See docs/website/CLOUDFLARE-SETUP.md."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Application service (database changes, then the Worker)
+        if: steps.token.outputs.ok == 'true'
+        working-directory: intake-worker
+        run: |
+          $WRANGLER d1 migrations apply quickserve-intake --remote
+          $WRANGLER deploy
+      - name: Admin portal
+        if: steps.token.outputs.ok == 'true'
+        run: |
+          sh site/assemble.sh
+          node site/admin-worker/build.mjs
+          $WRANGLER deploy --config site/admin-worker/wrangler.toml
+      - name: Website
+        if: steps.token.outputs.ok == 'true'
+        run: |
+          node site/web-worker/build.mjs
+          $WRANGLER deploy --config site/web-worker/wrangler.toml

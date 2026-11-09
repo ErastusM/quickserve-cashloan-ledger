@@ -78,3 +78,20 @@ Two secrets go into the Worker. You type them yourself with `npx wrangler secret
 ## 7. The old account
 
 Decision: **start fresh**. Nothing is moved from the old Worker at `quickserve-intake.quickservefinance.workers.dev`. Deal with any open applications there, then delete that account once the new one has taken its first real application.
+
+## 8. Automatic deploys from GitHub (you, 5 minutes)
+
+Every merge to `main` runs the tests and, if they pass, deploys the application service, the admin portal and the website (`.github/workflows/deploy.yml`). It needs its own Cloudflare token, kept in GitHub:
+
+1. In Cloudflare, go to **My Profile → API Tokens → Create Token → Custom token**, and name it `github-deploy`.
+   - **Account policy** (your QuickServe account): Workers Scripts: Edit · D1: Edit · Account Settings: Read
+   - **Zone policy** (`quickserve.group`): Workers Routes: Edit · DNS: Edit
+2. Copy the token.
+3. In GitHub, open the repository's **Settings → Secrets and variables → Actions → New repository secret**.
+   - Name: `CLOUDFLARE_API_TOKEN`
+   - Value: the token
+4. Save.
+
+Without the secret, the tests still run on every push, and the deploy step says it was skipped.
+
+The old GitHub Pages and Hostinger publishing were removed. The admin portal is served by Cloudflare at admin.quickserve.group.
