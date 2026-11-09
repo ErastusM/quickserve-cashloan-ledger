@@ -309,6 +309,17 @@ test("staff devices get an encrypted push for every handed-in application", asyn
   assert.equal(msg.url, "/?app=" + d.reference);
   assert.equal(env.DB.raw.prepare("SELECT COUNT(*) n FROM push_subscriptions").get().n, 1, "dead device removed");
 
+  // the applicant sends a requested document → staff are told
+  const reqd = await draftWithDocs(env);
+  const { trackToken } = await (await call(env, "POST", `/v2/applications/${reqd.reference}/submit`, { body: consent, headers: { "X-Upload-Token": reqd.uploadToken } })).json();
+  await call(env, "POST", `/v2/admin/applications/${reqd.reference}/status`, { headers: staff, body: { status: "info_requested", applicantMessage: "Please send your October statement." } });
+  PUSHES.length = 0;
+  assert.equal((await call(env, "PUT", `/v2/track/${reqd.reference}/files/bank`, { raw: PDF, headers: { "X-Track-Token": trackToken } })).status, 201);
+  const docMsg = await browserDecrypt(PUSHES.find((p) => p.url.endsWith("owner-phone")).body, ua, auth);
+  assert.equal(docMsg.title, "Document received " + reqd.reference);
+  assert.equal(docMsg.body, "Ndapewa Shikongo sent the requested bank statement. Back in review.");
+  assert.equal(docMsg.url, "/?app=" + reqd.reference);
+
   const t = await (await call(env, "POST", "/v2/admin/push/test", { headers: staff })).json();
   assert.deepEqual([t.sent, t.devices], [1, 1]);
 });

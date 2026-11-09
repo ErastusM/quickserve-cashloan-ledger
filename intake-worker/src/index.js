@@ -77,7 +77,7 @@ async function route(request, env, ctx) {
   if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/files\/([0-9a-f-]{36})$/)) && m === "DELETE") return deleteDraftFile(request, env, p[1], p[2]);
   if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/submit$/)) && m === "POST") return submit(request, env, p[1], ctx);
   if (path === "/v2/track" && m === "POST") return track(request, env);
-  if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/files\/([a-z]+)$/)) && m === "PUT") return uploadRequestedFile(request, env, p[1], p[2]);
+  if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/files\/([a-z]+)$/)) && m === "PUT") return uploadRequestedFile(request, env, p[1], p[2], ctx);
 
   // ---- staff
   if (path.startsWith("/v2/admin/") || path === "/applications") {
@@ -397,13 +397,21 @@ async function track(request, env) {
   });
 }
 
-async function uploadRequestedFile(request, env, id, kind) {
+async function uploadRequestedFile(request, env, id, kind, ctx) {
   const app = await requireToken(request, env, id, "X-Track-Token", "track_token_hash");
   if (app.status !== "info_requested") throw new HttpError(409, "We're not waiting for any documents on this application.");
   const file = await storeFile(request, env, app, kind, "applicant");
   await env.DB.prepare(`UPDATE applications SET status = 'in_review', updated_at = ? WHERE id = ?`).bind(now(), id).run();
   await event(env, id, "applicant", "document_added", { kind, fileId: file.fileId });
   await event(env, id, "system", "status", { from: "info_requested", to: "in_review" });
+  const what = { id: "ID / passport", payslip: "payslip", bank: "bank statement", other: "document" }[kind] || "document";
+  const notify = notifyStaff(env, {
+    title: "Document received " + id,
+    body: (app.full_name || "The applicant") + " sent the requested " + what + ". Back in review.",
+    url: "/?app=" + id,
+    tag: id + "-doc"
+  });
+  if (ctx && ctx.waitUntil) ctx.waitUntil(notify); else await notify;
   return json(request, env, file, 201);
 }
 
