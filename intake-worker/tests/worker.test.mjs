@@ -11,7 +11,7 @@ import { normalisePhone, sniffMime, validateApplication, loanCost, yymm, formatR
 // ---- fakes ---------------------------------------------------------------------
 function fakeD1() {
   const db = new DatabaseSync(":memory:");
-  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql", "0003_recommendations.sql", "0004_push.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
+  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql", "0003_recommendations.sql", "0004_push.sql", "0005_audit.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
   const stmt = (sql, args = []) => ({
     bind: (...a) => stmt(sql, a),
     first: async () => db.prepare(sql).get(...args) ?? null,
@@ -322,6 +322,41 @@ test("staff devices get an encrypted push for every handed-in application", asyn
 
   const t = await (await call(env, "POST", "/v2/admin/push/test", { headers: staff })).json();
   assert.deepEqual([t.sent, t.devices], [1, 1]);
+});
+
+test("audit trail: views, decisions with their basis, owner-only, CSV, and nothing can be changed", async () => {
+  const env = makeEnv();
+  const d = await draftWithDocs(env);
+  await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: { "X-Upload-Token": d.uploadToken } });
+  const analyst = { Authorization: "Bearer analyst-session" };
+  const det = await (await call(env, "GET", `/v2/admin/applications/${d.reference}`, { headers: analyst })).json();
+  await call(env, "GET", `/v2/admin/applications/${d.reference}`, { headers: analyst });            // refresh: not logged twice
+  await call(env, "GET", `/v2/admin/applications/${d.reference}/files/${det.files[0].id}`, { headers: analyst });
+  await call(env, "GET", `/v2/admin/applications/${d.reference}/files/${det.files[0].id}`, { headers: analyst });
+  await call(env, "PUT", `/v2/admin/applications/${d.reference}/affordability`, { headers: analyst, body: { income: 9800, expenses: 4000, debts: 0, repayment: 2600, leftOver: 3200 } });
+  await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: analyst, body: { status: "approved", note: "Fits comfortably" } });
+
+  assert.equal((await call(env, "GET", "/v2/admin/audit", { headers: analyst })).status, 403, "analysts can't read the audit trail");
+  const log = await (await call(env, "GET", "/v2/admin/audit", { headers: staff })).json();
+  const mine = log.events.filter((e) => e.actor === "staff:analyst@quickserve.group").map((e) => e.type);
+  assert.equal(mine.filter((t) => t === "opened").length, 1);
+  assert.equal(mine.filter((t) => t === "document_viewed").length, 1);
+  const decision = log.events.find((e) => e.type === "status" && e.detail.to === "approved");
+  assert.equal(decision.detail.basis.role, "analyst");
+  assert.equal(decision.detail.basis.approvalLimit, 10000);
+  assert.equal(decision.detail.basis.affordability.leftOver, 3200);
+  assert.ok(log.actors.includes("staff:analyst@quickserve.group"));
+
+  const only = await (await call(env, "GET", "/v2/admin/audit?type=decision", { headers: staff })).json();
+  assert.deepEqual(only.events.map((e) => e.detail.to), ["approved"]);
+  const csv = await call(env, "GET", "/v2/admin/audit?format=csv", { headers: staff });
+  assert.match(csv.headers.get("Content-Type"), /text\/csv/);
+  const text = await csv.text();
+  assert.match(text.split("\r\n")[0], /^When \(UTC\),Who,Application/);
+  assert.ok(text.includes("analyst@quickserve.group") && text.includes("Fits comfortably"));
+
+  assert.throws(() => env.DB.raw.prepare("UPDATE application_events SET actor = 'someone else'").run(), /cannot be changed/);
+  assert.throws(() => env.DB.raw.prepare("DELETE FROM application_events").run(), /cannot be deleted/);
 });
 
 test("CORS only answers the website and the admin console", async () => {

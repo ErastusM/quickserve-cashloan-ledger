@@ -417,6 +417,7 @@ body.doc-open{overflow:hidden}
       <button class="navitem" data-route="members"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0"/><path d="M14 20a4 4 0 0 1 7.5-1.9"/></svg>Members</button>
       <div class="spacer"></div>
       <button class="navitem" data-route="history"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>History &amp; backups</button>
+      <button class="navitem" data-route="audit"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Audit trail</button>
       <button class="navitem" data-route="settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Settings</button>
     </nav>
 
@@ -877,7 +878,7 @@ body.doc-open{overflow:hidden}
   }
   function ownerToken(){ return localStorage.getItem(OWNER_KEY)||""; }
   // ---- routing ----
-  var TITLES={dashboard:"Dashboard",accounts:"Accounts",applications:"Applications",clients:"Clients",loans:"Loans",payments:"Payments",expenses:"Expenses",reports:"Reports",projections:"Projections",settings:"Settings",collections:"Collections",pnl:"Profit & loss",members:"Members & distributions",history:"History & backups"};
+  var TITLES={audit:"Audit trail",dashboard:"Dashboard",accounts:"Accounts",applications:"Applications",clients:"Clients",loans:"Loans",payments:"Payments",expenses:"Expenses",reports:"Reports",projections:"Projections",settings:"Settings",collections:"Collections",pnl:"Profit & loss",members:"Members & distributions",history:"History & backups"};
   function go(r){
     if(me.role==="analyst") r="applications";
     if(ui.deepApp && r==="applications"){ ui.appId=ui.deepApp; ui.deepApp=null; }
@@ -900,6 +901,7 @@ body.doc-open{overflow:hidden}
     if(route==="payments") return renderPayments(c);
     if(route==="expenses") return renderExpenses(c);
     if(route==="applications") return renderApplications(c);
+    if(route==="audit") return renderAudit(c);
     if(route==="reports") return renderReports(c);
     if(route==="projections") return renderProjections(c);
     if(route==="collections") return renderCollections(c);
@@ -1558,7 +1560,7 @@ body.doc-open{overflow:hidden}
         +'<div style="padding:10px 18px;display:flex;flex-wrap:wrap;gap:6px" id="appDocTabs">'+files.map(function(f,i){ return '<button class="btn ghost sm" data-doc="'+i+'">'+esc({id:"ID / passport",payslip:"Payslip",bank:"Bank statement",other:"Other"}[f.kind]||f.kind)+(f.uploaded_by==="applicant"&&events.some(function(e){ return e.type==="document_added"&&e.detail&&e.detail.fileId===f.id; })?" (added later)":"")+'</button>'; }).join("")+'</div>'
         +'<div id="appDocView" style="padding:0 18px 18px"><div class="empty">Choose a document above.</div></div></div>';
       h+='<div class="card" style="margin-top:16px"><div class="ch"><h3>Activity</h3></div><div class="ledger">'
-        +events.map(function(e){ var d=e.detail||{}, what={draft_created:"Started the application",submitted:"Handed in",document_added:"Added a document",affordability_saved:"Saved the affordability worksheet",recommended:"Recommended "+(d.recommendation||"")+(d.note?": "+d.note:"")}[e.type] || (e.type==="status" ? (APP_STATUS[d.to]||d.to)+(d.applicantMessage?": “"+d.applicantMessage+"”":"")+(d.loanRef?" · "+d.loanRef:"") : e.type);
+        +events.map(function(e){ var d=e.detail||{}, what={opened:"Opened the application",document_viewed:"Viewed a document ("+({id:"ID / passport",payslip:"payslip",bank:"bank statement",other:"other"}[d.kind]||d.kind||"")+")",draft_created:"Started the application",submitted:"Handed in",document_added:"Added a document",affordability_saved:"Saved the affordability worksheet",recommended:"Recommended "+(d.recommendation||"")+(d.note?": "+d.note:"")}[e.type] || (e.type==="status" ? (APP_STATUS[d.to]||d.to)+(d.applicantMessage?": “"+d.applicantMessage+"”":"")+(d.loanRef?" · "+d.loanRef:"") : e.type);
           return '<div class="lrow"><span class="lk">'+esc(what)+'<small>'+esc(String(e.actor||"").replace(/^staff:/,""))+'</small></span><span class="lv" style="font-size:12px">'+esc(new Date(e.at).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))+'</span></div>'; }).join("")
         +'</div></div>';
       c.innerHTML=h;
@@ -1711,6 +1713,82 @@ body.doc-open{overflow:hidden}
           closeModal(); toast("Paid out: loan "+loan.ref+(cl&&cl.ref?" for "+cl.ref:"")+"."); render();
         });
       });
+    });
+  }
+
+  // ---- audit trail (owners only) ----
+  // Every action on every application, permanent and filterable, with a
+  // spreadsheet download. Decisions carry what they were based on.
+  var AUDIT_TYPES=[["","All actions"],["decision","Decisions (approve, decline, paid out)"],["status","Status changes"],["recommended","Recommendations"],["opened","Opened an application"],["document_viewed","Viewed a document"],["affordability_saved","Saved affordability"],["document_added","Applicant sent a document"],["submitted","Handed in"]];
+  function auditWhat(e){
+    var d=e.detail||{};
+    if(e.type==="status"){
+      var s=(APP_STATUS[d.from]||d.from||"")+" → "+(APP_STATUS[d.to]||d.to||"");
+      if(d.loanRef) s+=" · loan "+d.loanRef+(d.clientRef?" for "+d.clientRef:"");
+      return s;
+    }
+    return { submitted:"Handed in", draft_created:"Started an application", document_added:"Sent a requested document ("+(d.kind||"")+")",
+      opened:"Opened the application", document_viewed:"Viewed a document ("+({id:"ID / passport",payslip:"payslip",bank:"bank statement",other:"other"}[d.kind]||d.kind||"")+")",
+      affordability_saved:"Saved the affordability worksheet", recommended:"Recommended "+(d.recommendation||"") }[e.type] || e.type;
+  }
+  function auditDetail(e){
+    var d=e.detail||{}, out=[];
+    if(d.note) out.push("Note: "+d.note);
+    if(d.applicantMessage) out.push("To applicant: “"+d.applicantMessage+"”");
+    if(d.basis){
+      var b=d.basis, a=b.affordability||{};
+      out.push("Based on: "+money(b.amount)+" (repay "+money(b.total)+")"+(a.leftOver!=null?", left over "+money(a.leftOver):", no affordability worksheet")
+        +(b.role==="analyst"?", decided by analyst"+(b.approvalLimit!=null?" (limit "+money0(b.approvalLimit)+")":""):"")
+        +(b.recommendation?", recommendation: "+b.recommendation.recommendation+" by "+b.recommendation.by:""));
+    }
+    return out.join(" · ");
+  }
+  function renderAudit(c){
+    if(!isOwner()){ c.innerHTML='<div class="empty">Only owners can see the audit trail.</div>'; return; }
+    var f=ui.audit=ui.audit||{ from:"", to:"", actor:"", type:"", q:"" };
+    setSub("Every action on every online application. Entries can't be changed or deleted.");
+    c.innerHTML='<div class="empty">Loading the audit trail…</div>';
+    function qs(extra){ var p=[]; ["from","to","actor","type","q"].forEach(function(k){ if(f[k]) p.push(k+"="+encodeURIComponent(f[k])); }); if(extra) p.push(extra); return p.length?"?"+p.join("&"):""; }
+    var rows=[], actors=[];
+    function row(e){
+      var when=new Date(e.at);
+      return '<tr><td class="num" style="white-space:nowrap">'+esc(when.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}))+'<br><span style="color:var(--muted);font-size:11.5px">'+esc(when.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}))+'</span></td>'
+        +'<td>'+esc(String(e.actor||"").replace(/^staff:/,""))+'</td>'
+        +'<td class="who-cell"><a href="#" data-auditapp="'+esc(e.application_id)+'"><b class="mono">'+esc(e.application_id)+'</b></a><span>'+esc(e.full_name||"")+(e.amount_cents!=null?" · "+esc(money0(e.amount_cents/100)):"")+'</span></td>'
+        +'<td>'+esc(auditWhat(e))+'</td>'
+        +'<td style="font-size:12.5px;color:var(--ink-2);max-width:420px">'+esc(auditDetail(e))+'</td></tr>';
+    }
+    function draw(more){
+      c.innerHTML='<div class="toolbar">'
+          +'<label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="auQ" placeholder="Application reference or applicant name" value="'+esc(f.q)+'"></label>'
+          +'<select id="auActor" class="fld" style="width:auto;margin:0"><option value="">Everyone</option>'+actors.map(function(a){ return '<option value="'+esc(a)+'"'+(f.actor===a?" selected":"")+'>'+esc(a.replace(/^staff:/,""))+'</option>'; }).join("")+'</select>'
+          +'<select id="auType" class="fld" style="width:auto;margin:0">'+AUDIT_TYPES.map(function(t){ return '<option value="'+t[0]+'"'+(f.type===t[0]?" selected":"")+'>'+esc(t[1])+'</option>'; }).join("")+'</select>'
+        +'</div><div class="toolbar">'
+          +'<label style="font-size:12.5px;color:var(--muted)">From <input id="auFrom" type="date" class="fld" style="width:auto;margin:0 0 0 6px" value="'+esc(f.from)+'"></label>'
+          +'<label style="font-size:12.5px;color:var(--muted)">To <input id="auTo" type="date" class="fld" style="width:auto;margin:0 0 0 6px" value="'+esc(f.to)+'"></label>'
+          +'<span style="flex:1"></span><button class="btn ghost sm" id="auCsv">Download spreadsheet (CSV)</button>'
+        +'</div>'
+        +'<div class="panel"><div class="ph"><h3>Audit trail</h3><span class="n">'+rows.length+(more?"+":"")+'</span></div>'
+        +'<div class="table-scroll"><table><thead><tr><th>When</th><th>Who</th><th>Application</th><th>Action</th><th>Details</th></tr></thead><tbody>'
+        +(rows.map(row).join("")||'<tr><td colspan="5" class="empty">Nothing matches these filters.</td></tr>')
+        +'</tbody></table></div>'+(more?'<div style="padding:12px 18px"><button class="btn ghost sm" id="auMore">Load older entries</button></div>':'')+'</div>';
+      var t=null;
+      $("auQ").addEventListener("input",function(){ var v=this.value; clearTimeout(t); t=setTimeout(function(){ f.q=v.trim(); renderAudit(c); },400); });
+      ["auActor","auType","auFrom","auTo"].forEach(function(id){ $(id).addEventListener("change",function(){ f[{auActor:"actor",auType:"type",auFrom:"from",auTo:"to"}[id]]=this.value; renderAudit(c); }); });
+      Array.prototype.forEach.call(c.querySelectorAll("[data-auditapp]"),function(a){ a.addEventListener("click",function(e){ e.preventDefault(); ui.deepApp=a.dataset.auditapp; go("applications"); }); });
+      if($("auMore")) $("auMore").onclick=function(){ this.disabled=true; appApi("GET","/v2/admin/audit"+qs("before="+rows[rows.length-1].id)).then(function(r){ if(r._ok){ rows=rows.concat(r.events); draw(r.more); } }); };
+      $("auCsv").onclick=function(){
+        var b=this; b.disabled=true;
+        token().then(function(tk){ return fetch(WORKER_BASE+"/v2/admin/audit"+qs("format=csv"),{headers:{Authorization:"Bearer "+tk}}); })
+          .then(function(r){ if(!r.ok) throw 0; return r.blob(); })
+          .then(function(bl){ var u=URL.createObjectURL(bl), a=document.createElement("a"); a.href=u; a.download="quickserve-audit-"+todayISO()+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(u); },2000); b.disabled=false; })
+          .catch(function(){ b.disabled=false; toast("Couldn't download the audit trail.","err"); });
+      };
+      if(f.q){ var i=$("auQ"); i.focus(); i.setSelectionRange(i.value.length,i.value.length); }
+    }
+    appApi("GET","/v2/admin/audit"+qs()).then(function(res){
+      if(!res._ok){ c.innerHTML='<div class="empty">'+esc(res.error||"Couldn't load the audit trail.")+'</div>'; return; }
+      rows=res.events||[]; actors=res.actors||[]; draw(res.more);
     });
   }
 
