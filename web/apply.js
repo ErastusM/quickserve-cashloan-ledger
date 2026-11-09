@@ -6,7 +6,7 @@
   var KEY = "qs_apply_v1", RECEIPT = "qs_receipt";
   var PURPOSES = ["School fees", "Transport", "Medical", "Household", "Emergency", "Other"];
   var KINDS = [
-    { kind: "id", title: "3.1 Namibian ID · front & back", need: 1, multiple: true },
+    { kind: "id", title: "3.1 ID or passport · front & back of an ID, or the passport photo page", need: 1, multiple: true },
     { kind: "payslip", title: "3.2 Latest payslip", need: 1, multiple: true },
     { kind: "bank", title: "3.3 Bank statements · last 3 months", need: 3, multiple: true }
   ];
@@ -20,25 +20,35 @@
   st.files = st.files || { id: [], payslip: [], bank: [] };
   try {
     var qa = Number(new URLSearchParams(location.search).get("amount"));
-    if (qa >= QS.MIN && qa <= QS.MAX && !st.ref) st.amount = Math.round(qa / 100) * 100;
+    if (qa >= QS.MIN && qa <= QS.MAX && !st.ref) { st.amount = Math.round(qa / 100) * 100; st.big = false; }
   } catch (e) {}
   function save() { QS.store.set(KEY, st); }
 
   var bot = null, busy = false;
 
   // ---------- sheet 1
+  function maxNow() { return st.big ? QS.HARD_MAX : QS.MAX; }
   function drawAmount() {
+    if (!st.big && st.amount > QS.MAX) st.amount = QS.MAX;
     var c = QS.cost(st.amount);
+    $("bigBox").hidden = !st.big;
+    $("bigChip").setAttribute("aria-pressed", String(Boolean(st.big)));
+    if (st.big && document.activeElement !== $("bigAmount")) $("bigAmount").value = st.amount;
     $("amountOut").textContent = QS.money(st.amount, 0);
     $("interestOut").textContent = QS.money(c.interest);
     $("totalOut").textContent = QS.money(c.total);
-    $("less").disabled = st.amount <= QS.MIN; $("more").disabled = st.amount >= QS.MAX;
-    [].forEach.call(document.querySelectorAll("#chips .chip"), function (b) { b.setAttribute("aria-pressed", String(Number(b.dataset.amt) === st.amount)); });
+    $("less").disabled = st.amount <= QS.MIN; $("more").disabled = st.amount >= maxNow();
+    [].forEach.call(document.querySelectorAll("#chips .chip[data-amt]"), function (b) { b.setAttribute("aria-pressed", String(!st.big && Number(b.dataset.amt) === st.amount)); });
     save();
   }
   $("less").onclick = function () { st.amount = Math.max(QS.MIN, st.amount - 100); drawAmount(); };
-  $("more").onclick = function () { st.amount = Math.min(QS.MAX, st.amount + 100); drawAmount(); };
-  [].forEach.call(document.querySelectorAll("#chips .chip"), function (b) { b.onclick = function () { st.amount = Number(b.dataset.amt); drawAmount(); }; });
+  $("more").onclick = function () { st.amount = Math.min(maxNow(), st.amount + 100); drawAmount(); };
+  [].forEach.call(document.querySelectorAll("#chips .chip[data-amt]"), function (b) { b.onclick = function () { st.big = false; st.amount = Number(b.dataset.amt); drawAmount(); }; });
+  $("bigChip").onclick = function () { st.big = true; if (st.amount <= QS.MAX) st.amount = 15000; drawAmount(); $("bigAmount").focus(); };
+  $("bigAmount").addEventListener("input", function () {
+    var n = Math.round(Number(this.value.replace(/[^\d.]/g, "")) || 0);
+    if (n >= QS.MIN && n <= QS.HARD_MAX) { st.amount = n; drawAmount(); }
+  });
   $("purposes").innerHTML = PURPOSES.map(function (p, i) {
     return '<label class="tick"><input type="radio" name="purpose" value="' + p + '" id="p' + i + '"' + (st.purpose === p ? " checked" : "") + '><span class="box" aria-hidden="true"></span>' + p + "</label>";
   }).join("");
@@ -46,10 +56,21 @@
 
   // ---------- sheet 2
   var form = $("detailsForm");
-  Object.keys(st.d).forEach(function (k) { if (form.elements[k]) form.elements[k].value = st.d[k]; });
+  if (!st.d.idType) st.d.idType = "nam_id";
+  function drawIdType() {
+    var pass = st.d.idType === "passport";
+    [].forEach.call(document.querySelectorAll("#idTypes input"), function (r) { r.checked = r.value === st.d.idType; });
+    $("idLabel").textContent = pass ? "2.3 Passport number" : "2.3 ID number · 11 digits";
+    form.elements.nationalId.setAttribute("inputmode", pass ? "text" : "numeric");
+    $("natField").hidden = !pass;
+  }
+  Object.keys(st.d).forEach(function (k) { if (form.elements[k] && k !== "idType") form.elements[k].value = st.d[k]; });
+  drawIdType();
+  form.addEventListener("change", function (e) { if (e.target.name === "idType") { st.d.idType = e.target.value; save(); drawIdType(); } });
   form.addEventListener("input", function (e) {
     if (!e.target.name) return;
     st.d[e.target.name] = e.target.value; save();
+    if (e.target.name === "idType") drawIdType();
     var f = e.target.closest(".field"); if (f) { f.classList.remove("bad"); f.querySelector(".err").textContent = ""; }
   });
   function fieldErrors(errs) {
@@ -215,7 +236,7 @@
   function saveDetails() {
     alertOff(2);
     var missing = {};
-    ["fullName", "nationalId", "phone", "employer", "payday", "netIncome", "kinName", "kinPhone"].forEach(function (k) {
+    ["fullName", "nationalId", "phone", "employer", "payday", "netIncome", "kinName", "kinPhone"].concat(st.d.idType === "passport" ? ["nationality"] : []).forEach(function (k) {
       if (!String(st.d[k] || "").trim()) missing[k] = "This is needed.";
     });
     if (Object.keys(missing).length) return fieldErrors(missing);

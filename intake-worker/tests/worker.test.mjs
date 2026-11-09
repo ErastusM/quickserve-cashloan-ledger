@@ -6,12 +6,12 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import worker, { cleanUp } from "../src/index.js";
-import { normalisePhone, sniffMime, validateApplication, loanCost } from "../src/lib.js";
+import { normalisePhone, sniffMime, validateApplication, loanCost, yymm, formatReference } from "../src/lib.js";
 
 // ---- fakes ---------------------------------------------------------------------
 function fakeD1() {
   const db = new DatabaseSync(":memory:");
-  db.exec(readFileSync(new URL("../migrations/0001_init.sql", import.meta.url), "utf8"));
+  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
   const stmt = (sql, args = []) => ({
     bind: (...a) => stmt(sql, a),
     first: async () => db.prepare(sql).get(...args) ?? null,
@@ -37,7 +37,7 @@ function makeEnv() {
     ALLOWED_ORIGINS: "https://quickserve.group,https://admin.quickserve.group",
     SUPABASE_URL: "https://sb.example", SUPABASE_KEY: "pub",
     OWNER_TOKEN: "owner-secret-owner-secret-12345",
-    MIN_AMOUNT: "500", MAX_AMOUNT: "5000", INTEREST_RATE_BP: "3000"
+    MIN_AMOUNT: "500", STANDARD_MAX_AMOUNT: "10000", MAX_AMOUNT: "100000", INTEREST_RATE_BP: "3000"
   };
 }
 globalThis.fetch = async (url, init) => {
@@ -79,6 +79,10 @@ const consent = { consent: { creditCheck: true, privacy: true, truthful: true },
 const staff = { Authorization: "Bearer staff-session" };
 
 // ---- unit ------------------------------------------------------------------------
+test("references carry the year and month", () => {
+  assert.equal(yymm(new Date("2026-11-30T23:30:00Z")), "2612"); // already 1 December in Namibia
+  assert.equal(formatReference("2611", 7), "QSA-2611-0007");
+});
 test("phone numbers normalise to 264…", () => {
   assert.equal(normalisePhone("081 234 5678"), "264812345678");
   assert.equal(normalisePhone("+264 81 234 5678"), "264812345678");
@@ -93,7 +97,13 @@ test("30% interest, payday only, amount limits", () => {
   assert.deepEqual(loanCost(200000, 3000), { interest_cents: 60000, total_cents: 260000 });
   const env = makeEnv();
   assert.deepEqual(validateApplication(details, env).errors, {});
-  assert.ok(validateApplication({ ...details, amount: "9000" }, env).errors.amount);
+  assert.equal(validateApplication({ ...details, amount: "9000" }, env).row.above_standard, 0);
+  assert.equal(validateApplication({ ...details, amount: "25000" }, env).row.above_standard, 1);
+  assert.ok(validateApplication({ ...details, amount: "250000" }, env).errors.amount);
+  const pp = validateApplication({ ...details, idType: "passport", nationalId: "p a12-34567", nationality: "Zambian" }, env);
+  assert.deepEqual(pp.errors, {});
+  assert.equal(pp.row.national_id, "PA1234567");
+  assert.ok(validateApplication({ ...details, idType: "passport", nationalId: "PA1234567" }, env).errors.nationality);
   assert.ok(validateApplication({ ...details, term: "3" }, env).errors.term);
   assert.ok(validateApplication({ ...details, nationalId: "123" }, env).errors.nationalId);
 });
@@ -102,7 +112,7 @@ test("30% interest, payday only, amount limits", () => {
 test("apply → submit → staff review → info request → applicant uploads → approve → convert", async () => {
   const env = makeEnv();
   const d = await draftWithDocs(env);
-  assert.match(d.reference, /^AP-[A-Z0-9]{6}$/);
+  assert.match(d.reference, /^QSA-\d{4}-0001$/);
   assert.equal(d.totalCents, 260000);
 
   const s = await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: { "X-Upload-Token": d.uploadToken } });
@@ -148,8 +158,13 @@ test("apply → submit → staff review → info request → applicant uploads �
   await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "approved" } });
   t = await (await call(env, "POST", "/v2/track", { body: { trackToken } })).json();
   assert.equal(t.stage, "quoted");
-  r = await call(env, "POST", `/v2/admin/applications/${d.reference}/converted`, { headers: staff, body: { clientId: "c1", loanId: "l1" } });
+  r = await call(env, "POST", `/v2/admin/applications/${d.reference}/converted`, { headers: staff, body: { clientId: "c1", loanId: "l1", clientRef: "QS-0054", loanRef: "QSL-0137" } });
   assert.equal(r.status, 200);
+  const after = await (await call(env, "GET", "/v2/admin/applications", { headers: staff })).json();
+  assert.equal(after.applications[0].ledger_loan_ref, "QSL-0137");
+  // the next application gets the next number
+  const d2 = await (await call(env, "POST", "/v2/applications", { body: details })).json();
+  assert.equal(d2.reference, d.reference.replace(/0001$/, "0002"));
   t = await (await call(env, "POST", "/v2/track", { body: { trackToken } })).json();
   assert.deepEqual(t.stamps.map((s) => s.stamp), ["received", "quoted", "paid"]);
 });

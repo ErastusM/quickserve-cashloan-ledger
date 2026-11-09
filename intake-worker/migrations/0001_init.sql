@@ -3,7 +3,7 @@
 -- Apply with:  npx wrangler d1 migrations apply quickserve-intake --remote
 
 CREATE TABLE IF NOT EXISTS applications (
-  id                 TEXT PRIMARY KEY,               -- reference, e.g. AP-7KD4MP
+  id                 TEXT PRIMARY KEY,               -- reference, e.g. QSA-0001
   created_at         TEXT NOT NULL,
   updated_at         TEXT NOT NULL,
   submitted_at       TEXT,

@@ -6,7 +6,8 @@
   QS.TURNSTILE_SITE_KEY = "0x4AAAAAAF54MSk3VG1JubiX";
   QS.RATE = 0.30;
   QS.MIN = 500;
-  QS.MAX = 5000;
+  QS.MAX = 10000;       // standard limit
+  QS.HARD_MAX = 100000; // "more than N$ 10 000" requests
 
   // Namibian style: N$ 2 600.00
   QS.money = function (n, decimals) {

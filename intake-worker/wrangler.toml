@@ -16,10 +16,11 @@ ALLOWED_ORIGINS = "https://quickserve.group,https://www.quickserve.group,https:/
 # login. The publishable key is public by design (it is in the console too).
 SUPABASE_URL = "https://ptlwhpvzyfpxtpghwlqs.supabase.co"
 SUPABASE_KEY = "sb_publishable_jy5bMPcZ9uIwXHV2M7Sq0g_5uYtWcZH"
-# Loan rules: payday loans only, 30% interest. MAX_AMOUNT is a placeholder
-# until the owner confirms it.
+# Loan rules: payday loans only, 30% interest. Most loans are N$500–10 000;
+# applicants may ask for more (up to MAX_AMOUNT) and those are flagged for staff.
 MIN_AMOUNT = "500"
-MAX_AMOUNT = "5000"
+STANDARD_MAX_AMOUNT = "10000"
+MAX_AMOUNT = "100000"
 INTEREST_RATE_BP = "3000"
 # Days to keep documents of declined or withdrawn applications.
 RETENTION_DAYS = "180"

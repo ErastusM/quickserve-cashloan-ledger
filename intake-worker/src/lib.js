@@ -44,14 +44,16 @@ export class HttpError extends Error {
 
 // ---- ids, tokens, hashing ---------------------------------------------------
 
-const REF_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L
-
-export function makeReference() {
-  const bytes = crypto.getRandomValues(new Uint8Array(6));
-  let s = "";
-  for (const b of bytes) s += REF_ALPHABET[b % REF_ALPHABET.length];
-  return "AP-" + s;
+// QSA-YYMM-NNNN: year and month (Namibian time), then a number that starts
+// again at 0001 each month. Example: QSA-2611-0001.
+export function yymm(date = new Date()) {
+  const d = new Date(date.getTime() + 2 * 3600_000); // Namibia is UTC+2 all year
+  return String(d.getUTCFullYear()).slice(2) + String(d.getUTCMonth() + 1).padStart(2, "0");
 }
+export function formatReference(period, n) {
+  return "QSA-" + period + "-" + String(n).padStart(4, "0");
+}
+export const REF_PATTERN = "QSA-\\d{4}-\\d{4,5}";
 
 export function makeToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -91,6 +93,12 @@ export function normaliseNationalId(value) {
   return /^\d{11}$/.test(d) ? d : null;
 }
 
+// Passports: letters and digits only, 6–20 characters, upper case.
+export function normalisePassport(value) {
+  const p = String(value || "").toUpperCase().replace(/[\s-]/g, "");
+  return /^[A-Z0-9]{6,20}$/.test(p) ? p : null;
+}
+
 function text(value, max) {
   const s = String(value == null ? "" : value).trim().replace(/\s+/g, " ");
   return s ? s.slice(0, max) : "";
@@ -109,12 +117,17 @@ export function loanCost(amountCents, rateBp) {
 // Validates the applicant's details for a draft. Returns { row, errors }.
 export function validateApplication(input, env) {
   const errors = {};
-  const minN = Number(env.MIN_AMOUNT || 500), maxN = Number(env.MAX_AMOUNT || 5000);
+  const minN = Number(env.MIN_AMOUNT || 500);
+  const standardN = Number(env.STANDARD_MAX_AMOUNT || 10000);   // most loans
+  const maxN = Number(env.MAX_AMOUNT || 100000);                 // hard ceiling for "more than standard"
+  const idType = input.idType === "passport" ? "passport" : "nam_id";
   const rateBp = Number(env.INTEREST_RATE_BP || 3000);
 
   const row = {
     full_name: text(input.fullName, 120),
-    national_id: normaliseNationalId(input.nationalId),
+    id_type: idType,
+    national_id: idType === "passport" ? normalisePassport(input.nationalId) : normaliseNationalId(input.nationalId),
+    nationality: idType === "passport" ? text(input.nationality, 60) : null,
     phone: normalisePhone(input.phone),
     email: text(input.email, 160).toLowerCase(),
     employer: text(input.employer, 120),
@@ -129,8 +142,13 @@ export function validateApplication(input, env) {
   };
 
   if (row.full_name.length < 3) errors.fullName = "Enter your full name as it is on your ID.";
-  if (!row.national_id) errors.nationalId = "Enter your 11-digit Namibian ID number.";
-  if (!row.phone) errors.phone = "Enter a Namibian mobile number, for example 081 234 5678.";
+  if (!row.national_id) {
+    errors.nationalId = idType === "passport"
+      ? "Enter your passport number as it is printed (letters and numbers only)."
+      : "Enter your 11-digit Namibian ID number.";
+  }
+  if (idType === "passport" && !row.nationality) errors.nationality = "Enter your nationality.";
+  if (!row.phone) errors.phone = "Enter a Namibian cellphone number, for example 081 234 5678.";
   if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) errors.email = "Check the email address.";
   if (!row.employer) errors.employer = "Tell us who you work for.";
   if (!row.net_income_cents) errors.netIncome = "Enter your take-home pay a month.";
@@ -142,6 +160,7 @@ export function validateApplication(input, env) {
   if (!row.amount_cents || row.amount_cents < minN * 100 || row.amount_cents > maxN * 100) {
     errors.amount = `Choose an amount from N$ ${minN} to N$ ${maxN}.`;
   }
+  row.above_standard = row.amount_cents > standardN * 100 ? 1 : 0;
   if (term(input.term) !== "payday") errors.term = "Only payday loans are available for now.";
 
   if (row.amount_cents) Object.assign(row, loanCost(row.amount_cents, rateBp));

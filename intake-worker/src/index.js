@@ -27,7 +27,7 @@
 //       INTEREST_RATE_BP, RETENTION_DAYS.
 
 import {
-  HttpError, json, corsHeaders, makeReference, makeToken, makeId, sha256Hex, safeEqual,
+  HttpError, json, corsHeaders, formatReference, yymm, REF_PATTERN, makeToken, makeId, sha256Hex, safeEqual,
   validateApplication, normalisePhone, sniffMime, applicantStage, missingKinds,
   MAX_FILE_BYTES, MAX_FILES, FILE_KINDS, STAFF_STATUSES, CONSENT_VERSION
 } from "./lib.js";
@@ -63,23 +63,23 @@ async function route(request, env) {
 
   // ---- public
   if (path === "/v2/applications" && m === "POST") return createDraft(request, env);
-  if ((p = path.match(/^\/v2\/applications\/(AP-[A-Z0-9]{6})$/)) && m === "PUT") return updateDraft(request, env, p[1]);
-  if ((p = path.match(/^\/v2\/applications\/(AP-[A-Z0-9]{6})\/files\/([a-z]+)$/)) && m === "PUT") return uploadDraftFile(request, env, p[1], p[2]);
-  if ((p = path.match(/^\/v2\/applications\/(AP-[A-Z0-9]{6})\/files\/([0-9a-f-]{36})$/)) && m === "DELETE") return deleteDraftFile(request, env, p[1], p[2]);
-  if ((p = path.match(/^\/v2\/applications\/(AP-[A-Z0-9]{6})\/submit$/)) && m === "POST") return submit(request, env, p[1]);
+  if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})$/)) && m === "PUT") return updateDraft(request, env, p[1]);
+  if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/files\/([a-z]+)$/)) && m === "PUT") return uploadDraftFile(request, env, p[1], p[2]);
+  if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/files\/([0-9a-f-]{36})$/)) && m === "DELETE") return deleteDraftFile(request, env, p[1], p[2]);
+  if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/submit$/)) && m === "POST") return submit(request, env, p[1]);
   if (path === "/v2/track" && m === "POST") return track(request, env);
-  if ((p = path.match(/^\/v2\/track\/(AP-[A-Z0-9]{6})\/files\/([a-z]+)$/)) && m === "PUT") return uploadRequestedFile(request, env, p[1], p[2]);
+  if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/files\/([a-z]+)$/)) && m === "PUT") return uploadRequestedFile(request, env, p[1], p[2]);
 
   // ---- staff
   if (path.startsWith("/v2/admin/") || path === "/applications") {
     const staff = await requireStaff(request, env);
     if (path === "/v2/admin/me" && m === "GET") return json(request, env, { email: staff.email });
     if ((path === "/v2/admin/applications" || path === "/applications") && m === "GET") return listApplications(request, env, path === "/applications");
-    if ((p = path.match(/^\/v2\/admin\/applications\/(AP-[A-Z0-9]{6})$/)) && m === "GET") return getApplication(request, env, staff, p[1]);
-    if ((p = path.match(/^\/v2\/admin\/applications\/(AP-[A-Z0-9]{6})\/files\/([0-9a-f-]{36})$/)) && m === "GET") return streamFile(request, env, p[1], p[2]);
-    if ((p = path.match(/^\/v2\/admin\/applications\/(AP-[A-Z0-9]{6})\/status$/)) && m === "POST") return setStatus(request, env, staff, p[1]);
-    if ((p = path.match(/^\/v2\/admin\/applications\/(AP-[A-Z0-9]{6})\/affordability$/)) && m === "PUT") return saveAffordability(request, env, staff, p[1]);
-    if ((p = path.match(/^\/v2\/admin\/applications\/(AP-[A-Z0-9]{6})\/converted$/)) && m === "POST") return markConverted(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})$/)) && m === "GET") return getApplication(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/files\/([0-9a-f-]{36})$/)) && m === "GET") return streamFile(request, env, p[1], p[2]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/status$/)) && m === "POST") return setStatus(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/affordability$/)) && m === "PUT") return saveAffordability(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/converted$/)) && m === "POST") return markConverted(request, env, staff, p[1]);
   }
 
   throw new HttpError(404, "Not found.");
@@ -177,12 +177,13 @@ async function createDraft(request, env) {
 
   const uploadToken = makeToken();
   const t = now();
-  let id;
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    id = makeReference();
-    const exists = await env.DB.prepare(`SELECT 1 FROM applications WHERE id = ?`).bind(id).first();
-    if (!exists) break;
-  }
+  // Next number in the QSA- sequence, matching the ledger's QS-/QSL- style.
+  const period = yymm();
+  const seq = await env.DB.prepare(
+    `INSERT INTO counters (name, value) VALUES (?, 1)
+     ON CONFLICT(name) DO UPDATE SET value = value + 1 RETURNING value`
+  ).bind("application:" + period).first();
+  const id = formatReference(period, seq.value);
   const cols = { id, created_at: t, updated_at: t, status: "draft", source: "web", upload_token_hash: await sha256Hex(uploadToken), ...row };
   const names = Object.keys(cols);
   await env.DB.prepare(`INSERT INTO applications (${names.join(",")}) VALUES (${names.map(() => "?").join(",")})`)
@@ -298,7 +299,7 @@ async function track(request, env) {
     await checkTurnstile(request, env, body.turnstileToken);
     const ref = String(body.reference || "").trim().toUpperCase();
     const phone = normalisePhone(body.phone);
-    if (/^AP-[A-Z0-9]{6}$/.test(ref) && phone) {
+    if (new RegExp("^" + REF_PATTERN + "$").test(ref) && phone) {
       app = await env.DB.prepare(`SELECT * FROM applications WHERE id = ? AND phone = ?`).bind(ref, phone).first();
     }
   }
@@ -360,7 +361,7 @@ async function listApplications(request, env, legacyShape) {
   }
   const { results } = await env.DB.prepare(
     `SELECT id, created_at, submitted_at, status, full_name, phone, national_id, employer, purpose,
-            amount_cents, total_cents, payday
+            amount_cents, total_cents, payday, id_type, above_standard, ledger_client_ref, ledger_loan_ref
      FROM applications WHERE ${where.join(" AND ")} ORDER BY submitted_at DESC LIMIT 300`
   ).bind(...binds).all();
   const { results: counts } = await env.DB.prepare(
@@ -464,12 +465,14 @@ async function markConverted(request, env, staff, id) {
   if (app.status !== "approved") throw new HttpError(409, "Approve the application before creating the loan.");
   const body = await readJson(request);
   const clientId = String(body.clientId || "").slice(0, 80), loanId = String(body.loanId || "").slice(0, 80);
+  const clientRef = String(body.clientRef || "").slice(0, 20) || null, loanRef = String(body.loanRef || "").slice(0, 20) || null;
   if (!clientId || !loanId) throw new HttpError(400, "clientId and loanId are required.");
   const t = now();
   await env.DB.prepare(
-    `UPDATE applications SET status = 'converted', ledger_client_id = ?, ledger_loan_id = ?, converted_at = ?, updated_at = ? WHERE id = ?`
-  ).bind(clientId, loanId, t, t, id).run();
-  await event(env, id, "staff:" + staff.email, "status", { from: "approved", to: "converted", clientId, loanId });
+    `UPDATE applications SET status = 'converted', ledger_client_id = ?, ledger_loan_id = ?, ledger_client_ref = ?, ledger_loan_ref = ?,
+       converted_at = ?, updated_at = ? WHERE id = ?`
+  ).bind(clientId, loanId, clientRef, loanRef, t, t, id).run();
+  await event(env, id, "staff:" + staff.email, "status", { from: "approved", to: "converted", clientId, loanId, clientRef, loanRef });
   return json(request, env, { ok: true });
 }
 

@@ -30,8 +30,13 @@
         <div class="chips" id="chips" role="group" aria-label="Quick amounts">
           <button type="button" class="chip" data-amt="1000">N$ 1 000</button>
           <button type="button" class="chip" data-amt="2000">N$ 2 000</button>
-          <button type="button" class="chip" data-amt="3000">N$ 3 000</button>
           <button type="button" class="chip" data-amt="5000">N$ 5 000</button>
+          <button type="button" class="chip" data-amt="10000">N$ 10 000</button>
+          <button type="button" class="chip" id="bigChip">More than N$ 10 000</button>
+        </div>
+        <div id="bigBox" hidden>
+          <label class="field"><span class="label">Amount you need (N$)</span><input id="bigAmount" inputmode="numeric" class="mono"></label>
+          <p class="fine">Amounts over N$ 10 000 are looked at case by case, against your pay and statements.</p>
         </div>
         <span class="field-label">1.2 Paying back</span>
         <p class="payday-line" style="margin:0"><span>On my next payday</span><span class="mono" style="font-size:12px;font-weight:500;color:var(--ink-3)">ONE PAYMENT</span></p>
@@ -53,17 +58,25 @@
       <form class="sheet-col" id="detailsForm" novalidate>
         <h1 class="display" id="h2" tabindex="-1">About you</h1>
         <label class="field" data-f="fullName"><span class="label">2.1 Full name, as on your ID</span><input name="fullName" autocomplete="name" required><span class="err"></span></label>
-        <label class="field" data-f="nationalId"><span class="label">2.2 ID number · 11 digits</span><input name="nationalId" inputmode="numeric" autocomplete="off" required class="mono"><span class="err"></span></label>
-        <label class="field" data-f="phone"><span class="label">2.3 WhatsApp number</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="081 234 5678" required><span class="hint">We send your quotation and updates here.</span><span class="err"></span></label>
-        <label class="field" data-f="email"><span class="label">2.4 Email (optional)</span><input name="email" type="email" autocomplete="email"><span class="err"></span></label>
+        <fieldset style="border:0;margin:0;padding:0">
+          <legend class="field-label" style="padding:0">2.2 I’m applying with</legend>
+          <div class="ticks" id="idTypes">
+            <label class="tick"><input type="radio" name="idType" value="nam_id"><span class="box" aria-hidden="true"></span>Namibian ID</label>
+            <label class="tick"><input type="radio" name="idType" value="passport"><span class="box" aria-hidden="true"></span>Passport</label>
+          </div>
+        </fieldset>
+        <label class="field" data-f="nationalId"><span class="label" id="idLabel">2.3 ID number · 11 digits</span><input name="nationalId" autocomplete="off" required class="mono"><span class="err"></span></label>
+        <label class="field" data-f="nationality" id="natField" hidden><span class="label">2.4 Nationality</span><input name="nationality" autocomplete="off" placeholder="e.g. Zambian"><span class="err"></span></label>
+        <label class="field" data-f="phone"><span class="label">2.5 Cellphone number</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="081 234 5678" required><span class="hint">We send your quotation and updates here, on WhatsApp if you have it.</span><span class="err"></span></label>
+        <label class="field" data-f="email"><span class="label">2.6 Email (optional)</span><input name="email" type="email" autocomplete="email"><span class="err"></span></label>
         <div class="grid-2">
-          <label class="field" data-f="employer"><span class="label">2.5 Employer</span><input name="employer" autocomplete="organization" required><span class="err"></span></label>
-          <label class="field" data-f="payday"><span class="label">2.6 Payday</span><input name="payday" placeholder="e.g. 25th" required><span class="err"></span></label>
+          <label class="field" data-f="employer"><span class="label">2.7 Employer</span><input name="employer" autocomplete="organization" required><span class="err"></span></label>
+          <label class="field" data-f="payday"><span class="label">2.8 Payday</span><input name="payday" placeholder="e.g. 25th" required><span class="err"></span></label>
         </div>
-        <label class="field" data-f="netIncome"><span class="label">2.7 Take-home pay a month (N$)</span><input name="netIncome" inputmode="decimal" placeholder="9 800" required><span class="err"></span></label>
+        <label class="field" data-f="netIncome"><span class="label">2.9 Take-home pay a month (N$)</span><input name="netIncome" inputmode="decimal" placeholder="9 800" required><span class="err"></span></label>
         <div class="grid-2">
-          <label class="field" data-f="kinName"><span class="label">2.8 Next of kin</span><input name="kinName" required><span class="err"></span></label>
-          <label class="field" data-f="kinPhone"><span class="label">2.9 Their number</span><input name="kinPhone" type="tel" inputmode="tel" required><span class="err"></span></label>
+          <label class="field" data-f="kinName"><span class="label">2.10 Next of kin</span><input name="kinName" required><span class="err"></span></label>
+          <label class="field" data-f="kinPhone"><span class="label">2.11 Their number</span><input name="kinPhone" type="tel" inputmode="tel" required><span class="err"></span></label>
         </div>
         <p class="fine">We only contact your next of kin if we can’t reach you. We never tell them about your loan.</p>
         <div class="ts" id="ts2"></div>
