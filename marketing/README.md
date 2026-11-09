@@ -68,7 +68,7 @@ genuinely competitive claim once a borrower understands it.
 
 ## `how-to-apply-video.mp4`
 
-An 89-second vertical video (780 × 1688, MP4/H.264 with AAC music) that walks a
+A 90-second vertical video (780 × 1688, 60 fps, MP4/H.264 with AAC music) that walks a
 client through applying on quickserve.group on a phone. It covers the quote
 slip, the four application sheets, documents, the customer copy and the
 tracking page, with large on-screen captions and a tap marker. It plays
@@ -79,8 +79,12 @@ documents (`how-to-apply/*-sample.jpg`), so no real application was made.
 
 ### Re-recording after the website changes
 
-`how-to-apply/record.cjs` drives a phone-sized browser and saves a frame
-about every 0.1 s, then `ffmpeg` joins them. It expects the website on
+`how-to-apply/record.cjs` drives the site in a browser and records the
+browser's own screen stream (about 45–60 frames a second while things move).
+The page is shown at 2× zoom in a 780-wide window, so it keeps its phone
+layout while every frame is sharp; the few sizes that depend on screen
+width are pinned to what a 390-wide phone shows. `ffmpeg` then turns the
+frames into a 60 fps video. It expects the website on
 `http://localhost:8788` and the application service on
 `http://localhost:8787`, both with the bot check off. Captions and timing are
 in the script.
@@ -88,8 +92,8 @@ in the script.
 ```bash
 node marketing/how-to-apply/record.cjs
 ffmpeg -f concat -safe 0 -i marketing/how-to-apply/frames.ffconcat \
-  -vf "scale=780:1688:force_original_aspect_ratio=decrease,pad=780:1688:(ow-iw)/2:0:color=0x053437,setsar=1,fps=30,format=yuv420p" \
-  -c:v libx264 -preset slow -crf 20 -movflags +faststart -an marketing/how-to-apply-video.mp4
+  -vf "scale=780:1688:force_original_aspect_ratio=decrease,pad=780:1688:(ow-iw)/2:0:color=0x053437,setsar=1,fps=60,format=yuv420p" \
+  -c:v libx264 -preset slow -crf 19 -movflags +faststart -an marketing/how-to-apply-video.mp4
 ```
 
 ### Music
@@ -101,7 +105,7 @@ can be posted anywhere without licensing worries. It's an upbeat
 drums, fading in and out. To rebuild the video with music:
 
 ```bash
-python3 marketing/how-to-apply/music.py /tmp/music.wav 88.7
+python3 marketing/how-to-apply/music.py /tmp/music.wav 90.6
 ffmpeg -i marketing/how-to-apply-video.mp4 -i /tmp/music.wav -map 0:v -map 1:a -c:v copy \
   -af "loudnorm=I=-18:TP=-1.5:LRA=9" -c:a aac -b:a 160k -shortest -movflags +faststart out.mp4
 ```
@@ -122,3 +126,11 @@ cd tools
 npm install        # first time only
 npm run poster
 ```
+
+## `website-launch-status.html` / `website-launch-status.png`
+
+The same launch poster for WhatsApp Status and Instagram/Facebook Stories,
+1080 × 1920 (9:16; PNG at 2×). WhatsApp's own bars cover roughly the top
+140 px and the bottom 160 px, so the headline, slip, QR code and phone
+number sit clear of them; the legal line runs along the bottom strip.
+`npm run poster` renders both sizes.
