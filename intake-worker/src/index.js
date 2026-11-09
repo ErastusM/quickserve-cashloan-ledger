@@ -508,6 +508,7 @@ async function setStatus(request, env, staff, id) {
   if (app.status === "draft" || app.status === "converted") throw new HttpError(409, `Can't change an application that is ${app.status}.`);
   const message = String(body.applicantMessage || "").trim().slice(0, 500) || null;
   if (to === "info_requested" && !message) throw new HttpError(400, "Write what the applicant needs to send.");
+  if (to === "declined" && !message) throw new HttpError(400, "Write the reason the applicant will see on their tracking page.");
   if (to === "approved" && staff.role !== "owner" && (staff.limitCents == null || app.amount_cents > staff.limitCents)) {
     throw new HttpError(403, staff.limitCents == null
       ? "You can't approve applications. Recommend it to the owner instead."

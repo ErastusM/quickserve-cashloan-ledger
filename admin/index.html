@@ -1367,7 +1367,17 @@ body.doc-open{overflow:hidden}
     "Your ID photo is hard to read. Please send a clear photo of the front and the back.",
     "Please send a clear photo of your passport photo page."
   ];
-  var DECLINE_REASONS = ["The repayment isn't affordable on this income","Too many other debts on the bank statements","Documents incomplete or couldn't be verified","Employment or income couldn't be confirmed","Other"];
+  // Each reason comes with the explanation the applicant sees on their
+  // tracking page (editable before sending). "Other" is written by hand.
+  var DECLINE_REASONS = [
+    ["The repayment isn't affordable on this income", "the repayment would leave too little of your take-home pay for your living costs"],
+    ["Too many other debts on the bank statements", "your bank statements show other debt repayments that would make this loan hard to repay"],
+    ["Documents incomplete or couldn't be verified", "we couldn't verify the documents you sent; they were incomplete or unclear"],
+    ["Employment or income couldn't be confirmed", "we couldn't confirm your employment or income"],
+    ["Amount too high for this income", "the amount asked for is too high for your take-home pay; a smaller amount may be possible"],
+    ["Other", ""]
+  ];
+  function declineText(why){ return why ? "Thank you for applying to QuickServe. We can’t approve this loan because "+why+". You’re welcome to apply again when your situation changes." : ""; }
   var me = { role:"owner", email:"", approvalLimit:null };
   var apps=[];
 
@@ -1602,10 +1612,17 @@ body.doc-open{overflow:hidden}
       };
       if($("aDecline")) $("aDecline").onclick=function(){
         openModal("Decline "+a.id,
-          '<div class="field"><label>Reason (internal)</label><select id="f_reason">'+DECLINE_REASONS.map(function(r){ return '<option>'+esc(r)+'</option>'; }).join("")+'</select></div>'
-          +'<div class="field"><label>Note (internal, optional)</label><textarea id="f_note"></textarea></div>'
-          +'<div class="field"><label>Message the applicant sees</label><textarea id="f_msg" rows="3">Thank you for applying to QuickServe. We’re not able to approve this loan right now. You’re welcome to apply again later.</textarea></div><div class="formerr" id="f_err"></div>',
-          "Decline", function(){ setStatus({ status:"declined", note:fval("f_reason")+(fval("f_note").trim()?" — "+fval("f_note").trim():""), applicantMessage:fval("f_msg").trim() }, "Application declined."); });
+          '<div class="field"><label>Reason</label><select id="f_reason">'+DECLINE_REASONS.map(function(r,i){ return '<option value="'+i+'">'+esc(r[0])+'</option>'; }).join("")+'</select></div>'
+          +'<div class="field"><label>Reason the applicant sees on their tracking page</label><textarea id="f_msg" rows="4">'+esc(declineText(DECLINE_REASONS[0][1]))+'</textarea></div>'
+          +'<div class="field"><label>Internal note (staff only, optional)</label><textarea id="f_note"></textarea></div>'
+          +'<div class="formerr" id="f_err"></div>',
+          "Decline", function(){
+            var msg=fval("f_msg").trim();
+            if(msg.length<20){ ferr("Write the reason the applicant will see."); return; }
+            var r=DECLINE_REASONS[Number(fval("f_reason"))]||DECLINE_REASONS[0];
+            setStatus({ status:"declined", note:r[0]+(fval("f_note").trim()?" — "+fval("f_note").trim():""), applicantMessage:msg }, "Declined. The applicant sees the reason on their tracking page.");
+          });
+        $("f_reason").addEventListener("change",function(){ var r=DECLINE_REASONS[Number(this.value)]; $("f_msg").value=declineText(r[1]); if(!r[1]){ $("f_msg").value="Thank you for applying to QuickServe. We can’t approve this loan because "; $("f_msg").focus(); } });
       };
       if($("aApprove")) $("aApprove").onclick=function(){
         var leftOk=afDraw().leftOver;

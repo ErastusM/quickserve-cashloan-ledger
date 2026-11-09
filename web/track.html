@@ -32,7 +32,7 @@
         <p id="tStatus" style="margin:14px 0 0;color:var(--ink-2)"></p>
       </div>
       <div class="note-card" id="tNote" hidden>
-        <p class="eyebrow" style="font-size:11px">Note from QuickServe</p>
+        <p class="eyebrow" style="font-size:11px" id="tNoteTitle">Note from QuickServe</p>
         <p id="tMsg" style="margin:8px 0 0;font-size:17px"></p>
         <div id="tUpload" hidden>
           <label class="field" style="margin-top:14px"><span class="label">What are you sending?</span>
@@ -93,6 +93,7 @@
     $("tStamps").innerHTML = slots.map(function (s) { return '<div class="slot' + (s.indexOf("stamp") < 0 ? " empty" : "") + '">' + s + "</div>"; }).join("");
     $("tStatus").textContent = STAGE[r.stage] || "";
     $("tNote").hidden = !r.message;
+    $("tNoteTitle").textContent = r.stage === "declined" ? "Why we couldn’t approve this application" : "Note from QuickServe";
     $("tMsg").textContent = r.message || "";
     $("tUpload").hidden = !r.canUpload;
   }

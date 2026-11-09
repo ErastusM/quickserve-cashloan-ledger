@@ -183,6 +183,19 @@ test("apply → submit → staff review → info request → applicant uploads �
   assert.deepEqual(t.stamps.map((s) => s.stamp), ["received", "in_review", "approved", "paid"]);
 });
 
+test("a declined applicant sees the reason on their tracking page", async () => {
+  const env = makeEnv();
+  const d = await draftWithDocs(env);
+  const { trackToken } = await (await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: { "X-Upload-Token": d.uploadToken } })).json();
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "declined", note: "internal only" } })).status, 400, "a reason is required");
+  const why = "Thank you for applying to QuickServe. We can’t approve this loan because we couldn’t confirm your employment or income.";
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "declined", note: "Employer didn't answer — internal", applicantMessage: why } })).status, 200);
+  const t = await (await call(env, "POST", "/v2/track", { body: { trackToken } })).json();
+  assert.equal(t.stage, "declined");
+  assert.equal(t.message, why);
+  assert.ok(!JSON.stringify(t).includes("internal"), "the internal note never reaches the applicant");
+});
+
 test("submit is refused without all documents, consent and a matching signature", async () => {
   const env = makeEnv();
   const r = await call(env, "POST", "/v2/applications", { body: details });
