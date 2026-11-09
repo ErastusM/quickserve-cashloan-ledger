@@ -288,7 +288,7 @@ function header() {
       }),
       new Paragraph({
         children: [
-          new TextRun({ text: "3403 Danger Ashipala Street, Swakopmund, Namibia   ·   P.O. Box 197, Swakopmund   ·   erastusmatheus3@gmail.com", size: 15, color: GREY, font: SERIF })
+          new TextRun({ text: "3403 Danger Ashipala Street, Swakopmund, Namibia   ·   P.O. Box 197, Swakopmund   ·   info@quickserve.group", size: 15, color: GREY, font: SERIF })
         ],
         spacing: { after: 90 },
         border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: GREEN } }
