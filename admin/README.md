@@ -117,6 +117,21 @@ screen:
   a backup file, a reminder when no backup has been downloaded for 7 days, and
   automatic sign-out after 20 minutes without activity. Needs
   `supabase/migrations/010_ledger_history.sql` run once (see below).
+- **Audit trail** — every entry, edit and deletion, per record, read from that
+  same database change log (so it can't be edited, and restoring an old
+  version doesn't erase it). The *Audit trail* page lists them newest first,
+  showing when, who (their login), which record and what changed
+  (before → after). Tiles count loans whose amount was changed after entry,
+  payments deleted and loans deleted. You can filter by edits, deletions,
+  amount changes, new entries or everything, and by record type, search by
+  name, loan number, amount or person, and export a CSV. Each loan and client
+  drawer has its own *Audit trail* section: when and how the loan was first
+  entered, how many times it was edited, every change to its amount with date
+  and time, and any payments deleted from it. Backup files now carry the
+  trail too (`auditTrail`, kept for reference; restoring ignores it). Raising
+  a loan's amount books the extra money on the loan's issue date, so the
+  drawer flags it. Enter a top-up as a new loan so it shows on the day it left
+  the bank.
 - **Expenses** — record, edit and delete business expenses (category, amount,
   date, note), with this-month / monthly-average / total tiles. Expenses net
   off cash on hand and set the default *monthly costs* in Projections.
