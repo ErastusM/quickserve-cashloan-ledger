@@ -185,7 +185,7 @@ const headerTpl = () => `
     <div style="text-align:right; line-height:1.55; white-space:nowrap;">
       <div><strong style="color:#1a1a1a; font-size:6.8pt;">Quickserve Financial Services CC</strong> &nbsp;·&nbsp; Reg. No. CC/2026/01904</div>
       <div>Cell &amp; WhatsApp +264 81 281 9840</div>
-      <div>3403 Danger Ashipala Street, Swakopmund, Namibia &nbsp;·&nbsp; P.O. Box 197, Swakopmund &nbsp;·&nbsp; erastusmatheus3@gmail.com</div>
+      <div>3403 Danger Ashipala Street, Swakopmund, Namibia &nbsp;·&nbsp; P.O. Box 197, Swakopmund &nbsp;·&nbsp; info@quickserve.group</div>
     </div>
   </div>
 </div>`;
