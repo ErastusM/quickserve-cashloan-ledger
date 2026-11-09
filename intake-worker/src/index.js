@@ -17,7 +17,12 @@
 //   GET    /v2/admin/applications/:id/files/:fileId
 //   POST   /v2/admin/applications/:id/status        { status, note, applicantMessage }
 //   PUT    /v2/admin/applications/:id/affordability { ...worksheet }
-//   POST   /v2/admin/applications/:id/converted     { clientId, loanId }
+//   POST   /v2/admin/applications/:id/recommend     { recommendation: approve|decline, note }
+//   POST   /v2/admin/applications/:id/converted     { clientId, loanId, clientRef, loanRef }   owners only
+//
+// Roles come from the Supabase `staff` table (supabase/migrations/020):
+// owners do everything; credit analysts approve up to their approval limit
+// and recommend above it; only owners turn an application into a loan.
 //
 // Kept for the current admin console's Applications tab:
 //   GET    /applications                          staff list in the v1 shape
@@ -73,12 +78,13 @@ async function route(request, env) {
   // ---- staff
   if (path.startsWith("/v2/admin/") || path === "/applications") {
     const staff = await requireStaff(request, env);
-    if (path === "/v2/admin/me" && m === "GET") return json(request, env, { email: staff.email });
+    if (path === "/v2/admin/me" && m === "GET") return json(request, env, { email: staff.email, role: staff.role, approvalLimit: staff.limitCents == null ? null : staff.limitCents / 100 });
     if ((path === "/v2/admin/applications" || path === "/applications") && m === "GET") return listApplications(request, env, path === "/applications");
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})$/)) && m === "GET") return getApplication(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/files\/([0-9a-f-]{36})$/)) && m === "GET") return streamFile(request, env, p[1], p[2]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/status$/)) && m === "POST") return setStatus(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/affordability$/)) && m === "PUT") return saveAffordability(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/recommend$/)) && m === "POST") return recommend(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/converted$/)) && m === "POST") return markConverted(request, env, staff, p[1]);
   }
 
@@ -122,7 +128,7 @@ async function requireStaff(request, env) {
   const header = request.headers.get("Authorization") || "";
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   if (!token) throw new HttpError(401, "Sign in to the admin console first.");
-  if (env.OWNER_TOKEN && safeEqual(token, env.OWNER_TOKEN)) return { email: "owner" };
+  if (env.OWNER_TOKEN && safeEqual(token, env.OWNER_TOKEN)) return { email: "owner", role: "owner", limitCents: null, token: null };
 
   const key = await sha256Hex(token);
   const hit = staffCache.get(key);
@@ -134,9 +140,47 @@ async function requireStaff(request, env) {
   });
   if (!res.ok) throw new HttpError(401, "Your session has expired. Sign in again.");
   const user = await res.json();
-  const staff = { email: user.email || user.id, until: Date.now() + 60_000 };
+  const role = await staffRole(env, token, user.id);
+  if (!role) throw new HttpError(403, "Your login isn't on the staff list yet. Ask the owner to add you under Settings → Staff & roles.");
+  const staff = { email: user.email || user.id, role: role.role, limitCents: role.limitCents, token, until: Date.now() + 60_000 };
   staffCache.set(key, staff);
   return staff;
+}
+
+// The staff member's role, read with their own login (row-level security
+// lets each person read their own row). Before the roles migration is
+// installed every signed-in user is treated as an owner, as before.
+async function staffRole(env, token, userId) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/staff?user_id=eq.${encodeURIComponent(userId)}&select=role,approval_limit`, {
+    headers: { apikey: env.SUPABASE_KEY, Authorization: "Bearer " + token }
+  });
+  if (res.status === 404) return { role: "owner", limitCents: null };           // roles not installed yet
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    if (body && (body.code === "PGRST205" || body.code === "42P01")) return { role: "owner", limitCents: null };
+    throw new HttpError(502, "Couldn't check your access. Try again.");
+  }
+  const rows = await res.json();
+  if (!rows.length) return null;
+  const r = rows[0];
+  return { role: r.role, limitCents: r.approval_limit == null ? null : Math.round(Number(r.approval_limit) * 100) };
+}
+
+function requireOwner(staff) {
+  if (staff.role !== "owner") throw new HttpError(403, "Only an owner can do this.");
+}
+
+async function ledgerMatch(env, staff, app) {
+  if (!staff.token || !env.SUPABASE_URL) return null;
+  try {
+    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/match_client`, {
+      method: "POST",
+      headers: { apikey: env.SUPABASE_KEY, Authorization: "Bearer " + staff.token, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_national_id: app.national_id, p_phone: app.phone })
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
 }
 
 async function loadApp(env, id) {
@@ -351,7 +395,11 @@ async function listApplications(request, env, legacyShape) {
   const q = (url.searchParams.get("q") || "").trim();
   const where = ["status <> 'draft'"];
   const binds = [];
-  if (status && STAFF_STATUSES.concat(["new", "converted"]).includes(status)) { where.push("status = ?"); binds.push(status); }
+  if (status === "recommended") where.push("recommendation IS NOT NULL AND status IN ('new','in_review','info_requested')");
+  else if (status === "open") where.push("status IN ('new','in_review')");
+  else if (status && STAFF_STATUSES.concat(["new", "converted"]).includes(status)) { where.push("status = ?"); binds.push(status); }
+  const month = (url.searchParams.get("month") || "").replace(/\D/g, "");
+  if (month.length === 4) { where.push("id LIKE ?"); binds.push("QSA-" + month + "-%"); }
   if (q) {
     const like = "%" + q.replace(/[%_]/g, "") + "%";
     const digits = q.replace(/\D/g, "");
@@ -361,11 +409,13 @@ async function listApplications(request, env, legacyShape) {
   }
   const { results } = await env.DB.prepare(
     `SELECT id, created_at, submitted_at, status, full_name, phone, national_id, employer, purpose,
-            amount_cents, total_cents, payday, id_type, above_standard, ledger_client_ref, ledger_loan_ref
+            amount_cents, total_cents, payday, id_type, above_standard, ledger_client_ref, ledger_loan_ref,
+            recommendation, recommended_by
      FROM applications WHERE ${where.join(" AND ")} ORDER BY submitted_at DESC LIMIT 300`
   ).bind(...binds).all();
   const { results: counts } = await env.DB.prepare(
-    `SELECT status, COUNT(*) AS n FROM applications WHERE status <> 'draft' GROUP BY status`
+    `SELECT status, COUNT(*) AS n FROM applications WHERE status <> 'draft' GROUP BY status
+     UNION ALL SELECT 'recommended', COUNT(*) FROM applications WHERE recommendation IS NOT NULL AND status IN ('new','in_review','info_requested')`
   ).all();
 
   if (legacyShape) {
@@ -404,6 +454,8 @@ async function getApplication(request, env, staff, id) {
   delete app.affordability_json;
   return json(request, env, {
     application: app,
+    you: { email: staff.email, role: staff.role, approvalLimit: staff.limitCents == null ? null : staff.limitCents / 100 },
+    ledgerMatches: await ledgerMatch(env, staff, app),
     files,
     events: events.map((e) => ({ ...e, detail: e.detail_json ? JSON.parse(e.detail_json) : null, detail_json: undefined })),
     otherApplications: others
@@ -436,6 +488,11 @@ async function setStatus(request, env, staff, id) {
   if (app.status === "draft" || app.status === "converted") throw new HttpError(409, `Can't change an application that is ${app.status}.`);
   const message = String(body.applicantMessage || "").trim().slice(0, 500) || null;
   if (to === "info_requested" && !message) throw new HttpError(400, "Write what the applicant needs to send.");
+  if (to === "approved" && staff.role !== "owner" && (staff.limitCents == null || app.amount_cents > staff.limitCents)) {
+    throw new HttpError(403, staff.limitCents == null
+      ? "You can't approve applications. Recommend it to the owner instead."
+      : `This is above your approval limit of N$ ${(staff.limitCents / 100).toLocaleString("en-US")}. Recommend it to the owner instead.`, { code: "above_limit" });
+  }
   const note = String(body.note || "").trim().slice(0, 1000) || null;
   const t = now();
   const decided = to === "approved" || to === "declined";
@@ -460,7 +517,25 @@ async function saveAffordability(request, env, staff, id) {
   return json(request, env, { ok: true });
 }
 
+async function recommend(request, env, staff, id) {
+  const app = await loadApp(env, id);
+  if (!["new", "in_review", "info_requested"].includes(app.status)) throw new HttpError(409, `Can't recommend an application that is ${app.status}.`);
+  const body = await readJson(request);
+  const rec = String(body.recommendation || "");
+  if (!["approve", "decline"].includes(rec)) throw new HttpError(400, "Recommend approve or decline.");
+  const note = String(body.note || "").trim().slice(0, 1000);
+  if (!note) throw new HttpError(400, "Add a short note on why, for the owner.");
+  const t = now();
+  await env.DB.prepare(
+    `UPDATE applications SET recommendation = ?, recommendation_note = ?, recommended_by = ?, recommended_at = ?,
+       status = CASE WHEN status = 'new' THEN 'in_review' ELSE status END, updated_at = ? WHERE id = ?`
+  ).bind(rec, note, staff.email, t, t, id).run();
+  await event(env, id, "staff:" + staff.email, "recommended", { recommendation: rec, note });
+  return json(request, env, { ok: true });
+}
+
 async function markConverted(request, env, staff, id) {
+  requireOwner(staff);
   const app = await loadApp(env, id);
   if (app.status !== "approved") throw new HttpError(409, "Approve the application before creating the loan.");
   const body = await readJson(request);

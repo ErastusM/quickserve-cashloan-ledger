@@ -11,7 +11,7 @@ import { normalisePhone, sniffMime, validateApplication, loanCost, yymm, formatR
 // ---- fakes ---------------------------------------------------------------------
 function fakeD1() {
   const db = new DatabaseSync(":memory:");
-  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
+  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql", "0003_recommendations.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
   const stmt = (sql, args = []) => ({
     bind: (...a) => stmt(sql, a),
     first: async () => db.prepare(sql).get(...args) ?? null,
@@ -40,11 +40,19 @@ function makeEnv() {
     MIN_AMOUNT: "500", STANDARD_MAX_AMOUNT: "10000", MAX_AMOUNT: "100000", INTEREST_RATE_BP: "3000"
   };
 }
+// Stand-in Supabase: three logins (owner, analyst with a N$10 000 limit, and
+// someone not on the staff list) plus the returning-client lookup.
+const PEOPLE = {
+  "Bearer staff-session": { id: "u-owner", email: "staff@quickserve.group", staff: { role: "owner", approval_limit: null } },
+  "Bearer analyst-session": { id: "u-analyst", email: "analyst@quickserve.group", staff: { role: "analyst", approval_limit: "10000.00" } },
+  "Bearer stranger-session": { id: "u-x", email: "x@example.com", staff: null }
+};
 globalThis.fetch = async (url, init) => {
-  if (String(url).endsWith("/auth/v1/user")) {
-    const ok = (init.headers.Authorization || "") === "Bearer staff-session";
-    return new Response(JSON.stringify(ok ? { email: "staff@quickserve.group" } : {}), { status: ok ? 200 : 401 });
-  }
+  const who = PEOPLE[(init.headers.Authorization || "")];
+  const u = String(url);
+  if (u.endsWith("/auth/v1/user")) return new Response(JSON.stringify(who ? { id: who.id, email: who.email } : {}), { status: who ? 200 : 401 });
+  if (u.includes("/rest/v1/staff?")) return new Response(JSON.stringify(who && who.staff ? [who.staff] : []), { status: 200 });
+  if (u.endsWith("/rest/v1/rpc/match_client")) return new Response(JSON.stringify([{ ref: "QS-0001", name: "Ndapewa S", loans: 2 }]), { status: 200 });
   throw new Error("unexpected fetch " + url);
 };
 
@@ -203,6 +211,41 @@ test("bad files, wrong tokens and strangers are refused", async () => {
   assert.equal((await call(env, "GET", "/v2/admin/me", { headers: { Authorization: "Bearer " + env.OWNER_TOKEN } })).status, 200);
   // drafts are invisible to tracking and staff
   assert.equal((await call(env, "POST", "/v2/track", { body: { reference: d.reference, phone: details.phone } })).status, 404);
+});
+
+test("analysts approve up to their limit, recommend above it; only owners mark loans paid out", async () => {
+  const env = makeEnv();
+  const analyst = { Authorization: "Bearer analyst-session" };
+  async function handedIn(amount) {
+    const d = await (await call(env, "POST", "/v2/applications", { body: { ...details, amount } })).json();
+    const up = { "X-Upload-Token": d.uploadToken };
+    for (const [kind, bytes] of [["id", JPEG], ["payslip", PDF], ["bank", PDF]]) await call(env, "PUT", `/v2/applications/${d.reference}/files/${kind}`, { raw: bytes, headers: up });
+    assert.equal((await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: up })).status, 200);
+    return d.reference;
+  }
+  const me = await (await call(env, "GET", "/v2/admin/me", { headers: analyst })).json();
+  assert.deepEqual(me, { email: "analyst@quickserve.group", role: "analyst", approvalLimit: 10000 });
+
+  const small = await handedIn("10000");
+  const detail = await (await call(env, "GET", `/v2/admin/applications/${small}`, { headers: analyst })).json();
+  assert.equal(detail.ledgerMatches[0].ref, "QS-0001");
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${small}/status`, { headers: analyst, body: { status: "approved" } })).status, 200);
+  // the analyst can't do the paid-out step; the owner can
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${small}/converted`, { headers: analyst, body: { clientId: "c", loanId: "l" } })).status, 403);
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${small}/converted`, { headers: staff, body: { clientId: "c", loanId: "l", loanRef: "QSL-2611-0137" } })).status, 200);
+
+  const big = await handedIn("15000");
+  const refused = await call(env, "POST", `/v2/admin/applications/${big}/status`, { headers: analyst, body: { status: "approved" } });
+  assert.equal(refused.status, 403);
+  assert.equal((await refused.json()).code, "above_limit");
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${big}/recommend`, { headers: analyst, body: { recommendation: "approve", note: "Steady salary, low expenses." } })).status, 200);
+  const rec = await (await call(env, "GET", "/v2/admin/applications?status=recommended", { headers: staff })).json();
+  assert.deepEqual(rec.applications.map((a) => a.id), [big]);
+  assert.equal(rec.counts.recommended, 1);
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${big}/status`, { headers: staff, body: { status: "approved" } })).status, 200);
+
+  // someone not on the staff list gets nothing
+  assert.equal((await call(env, "GET", "/v2/admin/applications", { headers: { Authorization: "Bearer stranger-session" } })).status, 403);
 });
 
 test("CORS only answers the website and the admin console", async () => {
