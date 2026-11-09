@@ -17,6 +17,9 @@
 //   GET    /v2/admin/applications/:id/files/:fileId
 //   POST   /v2/admin/applications/:id/status        { status, note, applicantMessage }
 //   PUT    /v2/admin/applications/:id/affordability { ...worksheet }
+//   POST   /v2/admin/push/subscribe                 { subscription, device }   this device gets notifications
+//   POST   /v2/admin/push/unsubscribe               { endpoint }
+//   POST   /v2/admin/push/test                      sends a test to your devices
 //   POST   /v2/admin/applications/:id/recommend     { recommendation: approve|decline, note }
 //   POST   /v2/admin/applications/:id/converted     { clientId, loanId, clientRef, loanRef }   owners only
 //
@@ -36,14 +39,15 @@ import {
   validateApplication, normalisePhone, sniffMime, applicantStage, missingKinds,
   MAX_FILE_BYTES, MAX_FILES, FILE_KINDS, STAFF_STATUSES, CONSENT_VERSION
 } from "./lib.js";
+import { sendPush } from "./webpush.js";
 
 const now = () => new Date().toISOString();
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     try {
-      return await route(request, env);
+      return await route(request, env, ctx);
     } catch (err) {
       if (err instanceof HttpError) return json(request, env, err.body, err.status);
       console.error(err && err.stack || err);
@@ -58,7 +62,7 @@ export default {
   }
 };
 
-async function route(request, env) {
+async function route(request, env, ctx) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
   const m = request.method;
@@ -71,13 +75,16 @@ async function route(request, env) {
   if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})$/)) && m === "PUT") return updateDraft(request, env, p[1]);
   if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/files\/([a-z]+)$/)) && m === "PUT") return uploadDraftFile(request, env, p[1], p[2]);
   if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/files\/([0-9a-f-]{36})$/)) && m === "DELETE") return deleteDraftFile(request, env, p[1], p[2]);
-  if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/submit$/)) && m === "POST") return submit(request, env, p[1]);
+  if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/submit$/)) && m === "POST") return submit(request, env, p[1], ctx);
   if (path === "/v2/track" && m === "POST") return track(request, env);
   if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/files\/([a-z]+)$/)) && m === "PUT") return uploadRequestedFile(request, env, p[1], p[2]);
 
   // ---- staff
   if (path.startsWith("/v2/admin/") || path === "/applications") {
     const staff = await requireStaff(request, env);
+    if (path === "/v2/admin/push/subscribe" && m === "POST") return pushSubscribe(request, env, staff);
+    if (path === "/v2/admin/push/unsubscribe" && m === "POST") return pushUnsubscribe(request, env, staff);
+    if (path === "/v2/admin/push/test" && m === "POST") return pushTest(request, env, staff);
     if (path === "/v2/admin/me" && m === "GET") return json(request, env, { email: staff.email, role: staff.role, approvalLimit: staff.limitCents == null ? null : staff.limitCents / 100 });
     if ((path === "/v2/admin/applications" || path === "/applications") && m === "GET") return listApplications(request, env, path === "/applications");
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})$/)) && m === "GET") return getApplication(request, env, staff, p[1]);
@@ -298,7 +305,7 @@ async function deleteDraftFile(request, env, id, fileId) {
   return json(request, env, { ok: true });
 }
 
-async function submit(request, env, id) {
+async function submit(request, env, id, ctx) {
   const app = await requireToken(request, env, id, "X-Upload-Token", "upload_token_hash");
   if (app.status !== "draft") throw new HttpError(409, "This application has already been handed in.");
   const body = await readJson(request);
@@ -326,6 +333,14 @@ async function submit(request, env, id) {
   ).bind(t, t, CONSENT_VERSION, t, clientIp(request), (request.headers.get("User-Agent") || "").slice(0, 300),
     signed, await sha256Hex(trackToken), id).run();
   await event(env, id, "applicant", "submitted", { files: files.length });
+  const notify = notifyStaff(env, {
+    title: "New application " + id,
+    body: [app.full_name, "N$ " + Math.round((app.amount_cents || 0) / 100).toLocaleString("en-US").replace(/,/g, " "),
+      app.above_standard ? "over N$ 10 000" : null].filter(Boolean).join(" · "),
+    url: "/?app=" + id,
+    tag: id
+  });
+  if (ctx && ctx.waitUntil) ctx.waitUntil(notify); else await notify;
 
   return json(request, env, { reference: id, submittedAt: t, trackToken });
 }
@@ -356,13 +371,18 @@ async function track(request, env) {
     `SELECT at, type, detail_json FROM application_events WHERE application_id = ? AND type IN ('submitted','status') ORDER BY id`
   ).bind(app.id).all();
 
-  const stamps = [{ stamp: "received", at: app.submitted_at }];
+  // One stamp per step reached, dated the first time it happened.
+  const firstAt = {};
   for (const e of events) {
     if (e.type !== "status") continue;
     const to = JSON.parse(e.detail_json || "{}").to;
-    if (to === "approved") stamps.push({ stamp: "quoted", at: e.at });
+    if (to && !firstAt[to]) firstAt[to] = e.at;
   }
-  if (app.status === "converted") stamps.push({ stamp: "paid", at: app.converted_at });
+  const reached = (s) => ({ in_review: ["in_review", "info_requested", "approved", "converted", "declined"], approved: ["approved", "converted"], paid: ["converted"] })[s].includes(app.status);
+  const stamps = [{ stamp: "received", at: app.submitted_at }];
+  if (reached("in_review")) stamps.push({ stamp: "in_review", at: firstAt.in_review || firstAt.info_requested || firstAt.approved || firstAt.declined || app.updated_at });
+  if (reached("approved")) stamps.push({ stamp: "approved", at: firstAt.approved || app.decided_at });
+  if (reached("paid")) stamps.push({ stamp: "paid", at: app.converted_at });
 
   return json(request, env, {
     reference: app.id,
@@ -488,6 +508,7 @@ async function setStatus(request, env, staff, id) {
   if (app.status === "draft" || app.status === "converted") throw new HttpError(409, `Can't change an application that is ${app.status}.`);
   const message = String(body.applicantMessage || "").trim().slice(0, 500) || null;
   if (to === "info_requested" && !message) throw new HttpError(400, "Write what the applicant needs to send.");
+  if (to === "declined" && !message) throw new HttpError(400, "Write the reason the applicant will see on their tracking page.");
   if (to === "approved" && staff.role !== "owner" && (staff.limitCents == null || app.amount_cents > staff.limitCents)) {
     throw new HttpError(403, staff.limitCents == null
       ? "You can't approve applications. Recommend it to the owner instead."
@@ -549,6 +570,70 @@ async function markConverted(request, env, staff, id) {
   ).bind(clientId, loanId, clientRef, loanRef, t, t, id).run();
   await event(env, id, "staff:" + staff.email, "status", { from: "approved", to: "converted", clientId, loanId, clientRef, loanRef });
   return json(request, env, { ok: true });
+}
+
+// ---- push notifications to staff ----------------------------------------------------
+
+async function pushSubscribe(request, env, staff) {
+  const body = await readJson(request);
+  const sub = body.subscription || {};
+  const keys = sub.keys || {};
+  let host = "";
+  try { host = new URL(sub.endpoint).hostname; } catch { /* checked below */ }
+  const known = /(^|\.)(googleapis\.com|push\.apple\.com|push\.services\.mozilla\.com|notify\.windows\.com)$/.test(host);
+  if (!known || !keys.p256dh || !keys.auth) throw new HttpError(400, "That isn't a valid notification subscription.");
+  const id = await sha256Hex(sub.endpoint);
+  await env.DB.prepare(
+    `INSERT INTO push_subscriptions (id, endpoint, p256dh, auth, staff_email, device, created_at) VALUES (?,?,?,?,?,?,?)
+     ON CONFLICT(id) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, staff_email = excluded.staff_email,
+       device = excluded.device, failures = 0`
+  ).bind(id, sub.endpoint, keys.p256dh, keys.auth, staff.email, String(body.device || "").slice(0, 80), now()).run();
+  return json(request, env, { ok: true });
+}
+
+async function pushUnsubscribe(request, env, staff) {
+  const body = await readJson(request);
+  if (body.endpoint) await env.DB.prepare(`DELETE FROM push_subscriptions WHERE id = ?`).bind(await sha256Hex(String(body.endpoint))).run();
+  return json(request, env, { ok: true });
+}
+
+async function pushTest(request, env, staff) {
+  const result = await notifyStaff(env, {
+    title: "QuickServe notifications are on",
+    body: "You'll get a notification like this for every new application.",
+    url: "/?app=",
+    tag: "test"
+  }, staff.email);
+  return json(request, env, result);
+}
+
+// Sends to every staff device (or only `onlyEmail`'s). Never throws: a
+// notification problem must not stop an application being handed in.
+export async function notifyStaff(env, message, onlyEmail) {
+  if (!env.VAPID_PRIVATE_JWK || !env.VAPID_PUBLIC_KEY) return { sent: 0, devices: 0, configured: false };
+  try {
+    const q = onlyEmail
+      ? env.DB.prepare(`SELECT * FROM push_subscriptions WHERE staff_email = ?`).bind(onlyEmail)
+      : env.DB.prepare(`SELECT * FROM push_subscriptions`);
+    const { results: subs } = await q.all();
+    let sent = 0;
+    await Promise.all(subs.map(async (s) => {
+      let status = 0;
+      try { status = await sendPush(s, message, env); } catch (e) { console.error("push", e && e.message); }
+      if (status >= 200 && status < 300) {
+        sent += 1;
+        await env.DB.prepare(`UPDATE push_subscriptions SET last_ok_at = ?, failures = 0 WHERE id = ?`).bind(now(), s.id).run();
+      } else if (status === 404 || status === 410 || s.failures >= 20) {
+        await env.DB.prepare(`DELETE FROM push_subscriptions WHERE id = ?`).bind(s.id).run();   // device turned them off
+      } else {
+        await env.DB.prepare(`UPDATE push_subscriptions SET failures = failures + 1 WHERE id = ?`).bind(s.id).run();
+      }
+    }));
+    return { sent, devices: subs.length, configured: true };
+  } catch (e) {
+    console.error("notifyStaff", e && e.message);
+    return { sent: 0, devices: 0, configured: true, error: true };
+  }
 }
 
 // ---- retention -------------------------------------------------------------------

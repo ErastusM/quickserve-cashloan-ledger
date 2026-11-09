@@ -11,7 +11,7 @@ import { normalisePhone, sniffMime, validateApplication, loanCost, yymm, formatR
 // ---- fakes ---------------------------------------------------------------------
 function fakeD1() {
   const db = new DatabaseSync(":memory:");
-  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql", "0003_recommendations.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
+  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql", "0003_recommendations.sql", "0004_push.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
   const stmt = (sql, args = []) => ({
     bind: (...a) => stmt(sql, a),
     first: async () => db.prepare(sql).get(...args) ?? null,
@@ -42,6 +42,7 @@ function makeEnv() {
 }
 // Stand-in Supabase: three logins (owner, analyst with a N$10 000 limit, and
 // someone not on the staff list) plus the returning-client lookup.
+const PUSHES = [];
 const PEOPLE = {
   "Bearer staff-session": { id: "u-owner", email: "staff@quickserve.group", staff: { role: "owner", approval_limit: null } },
   "Bearer analyst-session": { id: "u-analyst", email: "analyst@quickserve.group", staff: { role: "analyst", approval_limit: "10000.00" } },
@@ -52,6 +53,7 @@ globalThis.fetch = async (url, init) => {
   const u = String(url);
   if (u.endsWith("/auth/v1/user")) return new Response(JSON.stringify(who ? { id: who.id, email: who.email } : {}), { status: who ? 200 : 401 });
   if (u.includes("/rest/v1/staff?")) return new Response(JSON.stringify(who && who.staff ? [who.staff] : []), { status: 200 });
+  if (u.startsWith("https://fcm.googleapis.com/")) { PUSHES.push({ url: u, headers: init.headers, body: init.body }); return new Response("", { status: u.includes("gone") ? 410 : 201 }); }
   if (u.endsWith("/rest/v1/rpc/match_client")) return new Response(JSON.stringify([{ ref: "QS-0001", name: "Ndapewa S", loans: 2 }]), { status: 200 });
   throw new Error("unexpected fetch " + url);
 };
@@ -134,6 +136,7 @@ test("apply → submit → staff review → info request → applicant uploads �
   // tracking by reference + phone
   let t = await (await call(env, "POST", "/v2/track", { body: { reference: d.reference.toLowerCase(), phone: "+264812345678" } })).json();
   assert.equal(t.stage, "received");
+  assert.deepEqual(t.stamps.map((s) => s.stamp), ["received"]);
   assert.equal(t.canUpload, false);
 
   // staff list and open
@@ -142,6 +145,9 @@ test("apply → submit → staff review → info request → applicant uploads �
   assert.equal(list.counts.new, 1);
   const detail = await (await call(env, "GET", `/v2/admin/applications/${d.reference}`, { headers: staff })).json();
   assert.equal(detail.application.status, "in_review");
+  const seen = await (await call(env, "POST", "/v2/track", { body: { trackToken } })).json();
+  assert.equal(seen.stage, "in_review", "opening it in the portal shows In review to the applicant");
+  assert.deepEqual(seen.stamps.map((s) => s.stamp), ["received", "in_review"]);
   assert.equal(detail.files.length, 3);
   assert.equal(detail.application.track_token_hash, undefined);
 
@@ -159,13 +165,13 @@ test("apply → submit → staff review → info request → applicant uploads �
   r = await call(env, "PUT", `/v2/track/${d.reference}/files/bank`, { raw: PDF, headers: { "X-Track-Token": trackToken } });
   assert.equal(r.status, 201);
   t = await (await call(env, "POST", "/v2/track", { body: { trackToken } })).json();
-  assert.equal(t.stage, "received");
+  assert.equal(t.stage, "in_review");
 
   // approve, then convert into the ledger
   assert.equal((await call(env, "POST", `/v2/admin/applications/${d.reference}/converted`, { headers: staff, body: { clientId: "c1", loanId: "l1" } })).status, 409);
   await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "approved" } });
   t = await (await call(env, "POST", "/v2/track", { body: { trackToken } })).json();
-  assert.equal(t.stage, "quoted");
+  assert.equal(t.stage, "approved");
   r = await call(env, "POST", `/v2/admin/applications/${d.reference}/converted`, { headers: staff, body: { clientId: "c1", loanId: "l1", clientRef: "QS-0054", loanRef: "QSL-0137" } });
   assert.equal(r.status, 200);
   const after = await (await call(env, "GET", "/v2/admin/applications", { headers: staff })).json();
@@ -174,7 +180,20 @@ test("apply → submit → staff review → info request → applicant uploads �
   const d2 = await (await call(env, "POST", "/v2/applications", { body: details })).json();
   assert.equal(d2.reference, d.reference.replace(/0001$/, "0002"));
   t = await (await call(env, "POST", "/v2/track", { body: { trackToken } })).json();
-  assert.deepEqual(t.stamps.map((s) => s.stamp), ["received", "quoted", "paid"]);
+  assert.deepEqual(t.stamps.map((s) => s.stamp), ["received", "in_review", "approved", "paid"]);
+});
+
+test("a declined applicant sees the reason on their tracking page", async () => {
+  const env = makeEnv();
+  const d = await draftWithDocs(env);
+  const { trackToken } = await (await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: { "X-Upload-Token": d.uploadToken } })).json();
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "declined", note: "internal only" } })).status, 400, "a reason is required");
+  const why = "Thank you for applying to QuickServe. We can’t approve this loan because we couldn’t confirm your employment or income.";
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "declined", note: "Employer didn't answer — internal", applicantMessage: why } })).status, 200);
+  const t = await (await call(env, "POST", "/v2/track", { body: { trackToken } })).json();
+  assert.equal(t.stage, "declined");
+  assert.equal(t.message, why);
+  assert.ok(!JSON.stringify(t).includes("internal"), "the internal note never reaches the applicant");
 });
 
 test("submit is refused without all documents, consent and a matching signature", async () => {
@@ -246,6 +265,52 @@ test("analysts approve up to their limit, recommend above it; only owners mark l
 
   // someone not on the staff list gets nothing
   assert.equal((await call(env, "GET", "/v2/admin/applications", { headers: { Authorization: "Bearer stranger-session" } })).status, 403);
+});
+
+// A browser's side of Web Push: decrypt an aes128gcm message (RFC 8291).
+async function browserDecrypt(body, uaKeys, auth) {
+  const b = new Uint8Array(body), salt = b.slice(0, 16), idlen = b[20], asPublic = b.slice(21, 21 + idlen), cipher = b.slice(21 + idlen);
+  const S = crypto.subtle, te = new TextEncoder();
+  const asKey = await S.importKey("raw", asPublic, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const shared = new Uint8Array(await S.deriveBits({ name: "ECDH", public: asKey }, uaKeys.privateKey, 256));
+  const uaPublic = new Uint8Array(await S.exportKey("raw", uaKeys.publicKey));
+  const hk = async (salt, ikm, info, n) => new Uint8Array(await S.deriveBits({ name: "HKDF", hash: "SHA-256", salt, info }, await S.importKey("raw", ikm, "HKDF", false, ["deriveBits"]), n * 8));
+  const ikm = await hk(auth, shared, new Uint8Array([...te.encode("WebPush: info\0"), ...uaPublic, ...asPublic]), 32);
+  const cek = await hk(salt, ikm, te.encode("Content-Encoding: aes128gcm\0"), 16), nonce = await hk(salt, ikm, te.encode("Content-Encoding: nonce\0"), 12);
+  const plain = new Uint8Array(await S.decrypt({ name: "AES-GCM", iv: nonce }, await S.importKey("raw", cek, "AES-GCM", false, ["decrypt"]), cipher));
+  return JSON.parse(new TextDecoder().decode(plain.slice(0, plain.lastIndexOf(2))));
+}
+
+test("staff devices get an encrypted push for every handed-in application", async () => {
+  const env = makeEnv();
+  const vapid = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  env.VAPID_PRIVATE_JWK = JSON.stringify(await crypto.subtle.exportKey("jwk", vapid.privateKey));
+  const vapidPub = new Uint8Array(await crypto.subtle.exportKey("raw", vapid.publicKey));
+  env.VAPID_PUBLIC_KEY = Buffer.from(vapidPub).toString("base64url");
+  const ua = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const auth = crypto.getRandomValues(new Uint8Array(16));
+  const b64 = (x) => Buffer.from(x).toString("base64url");
+  const sub = { endpoint: "https://fcm.googleapis.com/fcm/send/owner-phone", keys: { p256dh: b64(new Uint8Array(await crypto.subtle.exportKey("raw", ua.publicKey))), auth: b64(auth) } };
+  assert.equal((await call(env, "POST", "/v2/admin/push/subscribe", { headers: staff, body: { subscription: sub, device: "Android" } })).status, 200);
+  assert.equal((await call(env, "POST", "/v2/admin/push/subscribe", { headers: staff, body: { subscription: { ...sub, endpoint: "https://evil.example/x" } } })).status, 400);
+  // a second, dead device is cleaned up when the push service says it's gone
+  await call(env, "POST", "/v2/admin/push/subscribe", { headers: { Authorization: "Bearer analyst-session" }, body: { subscription: { ...sub, endpoint: "https://fcm.googleapis.com/fcm/send/gone" } } });
+
+  PUSHES.length = 0;
+  const d = await draftWithDocs(env);
+  assert.equal((await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: { "X-Upload-Token": d.uploadToken } })).status, 200);
+  const toOwner = PUSHES.find((p) => p.url.endsWith("owner-phone"));
+  assert.ok(toOwner, "owner's device was notified");
+  assert.equal(toOwner.headers["Content-Encoding"], "aes128gcm");
+  assert.match(toOwner.headers.Authorization, /^vapid t=.+, k=/);
+  const msg = await browserDecrypt(toOwner.body, ua, auth);
+  assert.equal(msg.title, "New application " + d.reference);
+  assert.equal(msg.body, "Ndapewa Shikongo · N$ 2 000");
+  assert.equal(msg.url, "/?app=" + d.reference);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) n FROM push_subscriptions").get().n, 1, "dead device removed");
+
+  const t = await (await call(env, "POST", "/v2/admin/push/test", { headers: staff })).json();
+  assert.deepEqual([t.sent, t.devices], [1, 1]);
 });
 
 test("CORS only answers the website and the admin console", async () => {

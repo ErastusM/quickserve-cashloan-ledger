@@ -32,7 +32,7 @@
         <p id="tStatus" style="margin:14px 0 0;color:var(--ink-2)"></p>
       </div>
       <div class="note-card" id="tNote" hidden>
-        <p class="eyebrow" style="font-size:11px">Note from QuickServe</p>
+        <p class="eyebrow" style="font-size:11px" id="tNoteTitle">Note from QuickServe</p>
         <p id="tMsg" style="margin:8px 0 0;font-size:17px"></p>
         <div id="tUpload" hidden>
           <label class="field" style="margin-top:14px"><span class="label">What are you sending?</span>
@@ -58,9 +58,10 @@
   var $ = function (id) { return document.getElementById(id); };
   var bot = null, token = null, current = null;
   var STAGE = {
-    received: "We have your application and we’re going through it.",
+    received: "We have your application. It’s in the queue to be checked.",
+    in_review: "We’re checking your documents and affordability.",
     waiting_on_you: "We need something from you before we can carry on. See the note below.",
-    quoted: "Approved. Your Pre-Agreement Statement is on its way to your WhatsApp.",
+    approved: "Approved. Your Pre-Agreement Statement, with the full cost, is on its way to your WhatsApp.",
     paid: "Paid out. Your repayment is due on your payday.",
     declined: "We weren’t able to approve this application.",
     withdrawn: "This application was withdrawn."
@@ -84,13 +85,15 @@
       got.received ? '<span class="stamp stamp-green" style="transform:rotate(-7deg)">Received<small>' + day(got.received) + "</small></span>" : "RECEIVED",
       r.stage === "waiting_on_you" ? '<span class="stamp stamp-red" style="transform:rotate(5deg)">Waiting<br>on you</span>'
         : r.stage === "declined" ? '<span class="stamp stamp-red" style="transform:rotate(5deg)">Declined</span>'
-        : got.quoted ? '<span class="stamp stamp-green" style="transform:rotate(4deg)">Checked</span>' : "CHECKED",
-      got.quoted ? '<span class="stamp stamp-green" style="transform:rotate(-3deg)">Quoted<small>' + day(got.quoted) + "</small></span>" : "QUOTED",
+        : r.stage === "withdrawn" ? '<span class="stamp stamp-red" style="transform:rotate(5deg)">Withdrawn</span>'
+        : got.in_review ? '<span class="stamp stamp-green" style="transform:rotate(4deg)">In review<small>' + day(got.in_review) + "</small></span>" : "IN REVIEW",
+      got.approved ? '<span class="stamp stamp-green" style="transform:rotate(-3deg)">Approved<small>' + day(got.approved) + "</small></span>" : "APPROVED",
       got.paid ? '<span class="stamp stamp-green" style="transform:rotate(6deg)">Paid<small>' + day(got.paid) + "</small></span>" : "PAID"
     ];
     $("tStamps").innerHTML = slots.map(function (s) { return '<div class="slot' + (s.indexOf("stamp") < 0 ? " empty" : "") + '">' + s + "</div>"; }).join("");
     $("tStatus").textContent = STAGE[r.stage] || "";
     $("tNote").hidden = !r.message;
+    $("tNoteTitle").textContent = r.stage === "declined" ? "Why we couldn’t approve this application" : "Note from QuickServe";
     $("tMsg").textContent = r.message || "";
     $("tUpload").hidden = !r.canUpload;
   }
