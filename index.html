@@ -27,7 +27,7 @@
         } catch (e) {}
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=33" />
+    <link rel="stylesheet" href="./styles.css?v=35" />
   </head>
   <body>
     <div class="app-shell">
@@ -63,6 +63,13 @@
           <div class="float-grid" id="floatGrid"></div>
 
           <div class="metric-grid" id="metricGrid"></div>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Book health</h3>
+            </div>
+            <div id="agingPanel"></div>
+          </section>
 
           <section class="surface">
             <div class="section-head">
@@ -111,11 +118,12 @@
               <span>Loan</span>
             </button>
           </div>
-          <div class="segmented" role="tablist" aria-label="Loan filter">
+          <div class="segmented six" role="tablist" aria-label="Loan filter">
             <button class="active" type="button" data-loan-filter="all">All</button>
             <button type="button" data-loan-filter="open">Open</button>
             <button type="button" data-loan-filter="active">Active</button>
             <button type="button" data-loan-filter="overdue">Overdue</button>
+            <button type="button" data-loan-filter="risk">At risk</button>
             <button type="button" data-loan-filter="paid">Paid</button>
           </div>
           <label class="search-box">
@@ -167,6 +175,22 @@
               </div>
             </div>
             <div class="report-grid" id="reportGrid"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>Losses &amp; costs</h3>
+            </div>
+            <p class="item-meta">Losses are measured on the loans issued in this period, against the money lent on them.</p>
+            <div class="report-grid" id="creditGrid"></div>
+          </section>
+
+          <section class="surface">
+            <div class="section-head">
+              <h3>First-time vs repeat clients</h3>
+            </div>
+            <p class="item-meta">Loans issued in this period, split by whether the client had borrowed before.</p>
+            <div class="monthly-breakdown" id="clientMixTable"></div>
           </section>
 
           <section class="surface">
@@ -409,8 +433,8 @@
       </div>
     </div>
 
-    <script src="./import-data.js?v=33"></script>
-    <script src="./app.js?v=33"></script>
-    <script src="./cloud.js?v=33"></script>
+    <script src="./import-data.js?v=35"></script>
+    <script src="./app.js?v=35"></script>
+    <script src="./cloud.js?v=35"></script>
   </body>
 </html>

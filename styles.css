@@ -2055,3 +2055,56 @@ body.locked {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ---- Book health (loan aging) ---- */
+.segmented.six {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.aging-headline {
+  margin: 0 0 10px;
+  font-size: 0.92rem;
+}
+
+.aging-headline strong {
+  font-weight: var(--w-semibold);
+}
+
+.aging-headline.danger strong {
+  color: var(--red);
+}
+
+.aging-bar {
+  display: flex;
+  height: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--fill);
+}
+
+.aging-bar span {
+  display: block;
+  height: 100%;
+}
+
+.aging-swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  border-radius: 3px;
+  vertical-align: 0;
+}
+
+.aging-current { background: var(--green); }
+.aging-rolled { background: var(--orange); opacity: 0.5; }
+.aging-late30 { background: var(--orange); }
+.aging-late60 { background: var(--red); opacity: 0.55; }
+.aging-late90 { background: var(--red); opacity: 0.78; }
+.aging-late90plus { background: var(--red); }
+
+.mix-table td.worse {
+  color: var(--red);
+  font-weight: var(--w-semibold);
+}

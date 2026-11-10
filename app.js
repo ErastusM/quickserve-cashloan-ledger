@@ -799,6 +799,141 @@ function figuresFor(scope, month, year) {
   };
 }
 
+// ---- Credit quality ----
+// Sort what is still owed by how late it is, the way regulated microlenders
+// report a loan book. A rolled-over loan counts as "watch" even while its new
+// due date is still ahead: it is a loan that was not repaid on time, and
+// calling it current would make the book look healthier than it is.
+// Settled and written-off loans are left out — nothing is collectable on them.
+const AGING_BUCKETS = [
+  { key: "current", label: "Current", note: "Not yet due" },
+  { key: "rolled", label: "Rolled over", note: "Not yet due, rolled at least once" },
+  { key: "late30", label: "1–30 days late", note: "Overdue", max: 30 },
+  { key: "late60", label: "31–60 days late", note: "Overdue", max: 60 },
+  { key: "late90", label: "61–90 days late", note: "Overdue", max: 90 },
+  { key: "late90plus", label: "Over 90 days late", note: "Overdue", max: Infinity }
+];
+
+function agingBucketKey(row) {
+  if (row.status !== "active" && row.status !== "overdue") return null;
+  if (row.status === "overdue") {
+    const late = Math.abs(row.daysUntilDue);
+    return AGING_BUCKETS.find((bucket) => bucket.max && late <= bucket.max).key;
+  }
+  return loanExtensions(row.loan).length ? "rolled" : "current";
+}
+
+function isAtRisk(row) {
+  const key = agingBucketKey(row);
+  return Boolean(key) && key !== "current";
+}
+
+function bookAging() {
+  const pct = (num, den) => (den > 0 ? roundMoney((num / den) * 100) : 0);
+  const open = allAnalyses().filter((row) => agingBucketKey(row));
+  const total = roundMoney(open.reduce((sum, row) => sum + row.collectableOutstanding, 0));
+  const buckets = AGING_BUCKETS.map((bucket) => {
+    const rows = open.filter((row) => agingBucketKey(row) === bucket.key);
+    const amount = roundMoney(rows.reduce((sum, row) => sum + row.collectableOutstanding, 0));
+    return { key: bucket.key, label: bucket.label, note: bucket.note, loans: rows.length, amount, share: pct(amount, total) };
+  });
+  const risky = buckets.filter((bucket) => bucket.key !== "current");
+  const atRisk = roundMoney(risky.reduce((sum, bucket) => sum + bucket.amount, 0));
+  return {
+    buckets,
+    total,
+    totalLoans: open.length,
+    atRisk,
+    atRiskLoans: risky.reduce((sum, bucket) => sum + bucket.loans, 0),
+    atRiskShare: pct(atRisk, total)
+  };
+}
+
+// Loss figures for the loans issued in a period (a cohort), so a month's
+// losses are measured against the money lent that month — on 30-day loans
+// that is the honest comparison. Cost-to-income uses the period's own
+// revenue and expenses, the same basis as the Profit card.
+function creditFigures(scope, month, year) {
+  const pct = (num, den) => (den > 0 ? roundMoney((num / den) * 100) : 0);
+  const match = (dateValue) => {
+    if (scope === "all") return true;
+    if (scope === "year") return String(dateFromISO(dateValue).getFullYear()) === String(year);
+    return monthKey(dateValue) === month;
+  };
+  const issued = allAnalyses().filter((row) => match(row.loan.issueDate));
+  const advanced = roundMoney(issued.reduce((sum, row) => sum + row.terms.principal, 0));
+  const writtenOff = issued.filter((row) => row.status === "written-off");
+  const lost = roundMoney(writtenOff.reduce((sum, row) => sum + row.principalOutstanding, 0));
+  const earned = roundMoney(issued.reduce((sum, row) => sum + row.revenueCollected, 0));
+  const rolled = issued.filter((row) => loanExtensions(row.loan).length > 0).length;
+  const f = figuresFor(scope, month, year);
+  return {
+    loansIssued: issued.length,
+    advanced,
+    lost,
+    lostLoans: writtenOff.length,
+    lossRate: pct(lost, advanced),
+    earned,
+    // How many times revenue earned on these loans covers the principal lost
+    // on them. null when nothing was lost, so the UI can say so plainly.
+    lossCover: lost > 0 ? roundMoney(earned / lost) : null,
+    rolled,
+    rolledShare: pct(rolled, issued.length),
+    revenue: f.revenue,
+    expenses: f.expenses,
+    costToIncome: f.revenue > 0 ? pct(f.expenses, f.revenue) : null
+  };
+}
+
+// A loan is a client's "first" when no earlier loan exists for that client.
+// Order by issue date, then creation time, then id so ties are stable.
+function loanSequenceKinds() {
+  const ordered = [...state.loans].sort((a, b) =>
+    String(a.issueDate).localeCompare(String(b.issueDate)) ||
+    String(a.createdAt || "").localeCompare(String(b.createdAt || "")) ||
+    String(a.id).localeCompare(String(b.id))
+  );
+  const seen = new Set();
+  const kinds = {};
+  ordered.forEach((loan) => {
+    kinds[loan.id] = seen.has(loan.clientId) ? "repeat" : "first";
+    seen.add(loan.clientId);
+  });
+  return kinds;
+}
+
+function clientMix(scope, month, year) {
+  const pct = (num, den) => (den > 0 ? roundMoney((num / den) * 100) : 0);
+  const match = (dateValue) => {
+    if (scope === "all") return true;
+    if (scope === "year") return String(dateFromISO(dateValue).getFullYear()) === String(year);
+    return monthKey(dateValue) === month;
+  };
+  const kinds = loanSequenceKinds();
+  const issued = allAnalyses().filter((row) => match(row.loan.issueDate));
+  const group = (kind) => {
+    const rows = issued.filter((row) => kinds[row.loan.id] === kind);
+    const advanced = roundMoney(rows.reduce((sum, row) => sum + row.terms.principal, 0));
+    const totalDue = roundMoney(rows.reduce((sum, row) => sum + row.terms.totalDue, 0));
+    const paid = roundMoney(rows.reduce((sum, row) => sum + row.paid, 0));
+    const lost = roundMoney(rows.filter((row) => row.status === "written-off").reduce((sum, row) => sum + row.principalOutstanding, 0));
+    const rolled = rows.filter((row) => loanExtensions(row.loan).length > 0).length;
+    const lateNow = rows.filter((row) => row.status === "overdue").length;
+    return {
+      loans: rows.length,
+      clients: new Set(rows.map((row) => row.loan.clientId)).size,
+      advanced,
+      avgLoan: rows.length ? roundMoney(advanced / rows.length) : 0,
+      collectionRate: pct(paid, totalDue),
+      lossRate: pct(lost, advanced),
+      lost,
+      rolledShare: pct(rolled, rows.length),
+      lateShare: pct(lateNow, rows.length)
+    };
+  };
+  return { first: group("first"), repeat: group("repeat") };
+}
+
 // ---- Cash / float engine ----
 // Cash on hand is a real running bank-style balance. Profit stays separate.
 // Cash on hand = starting capital + capital in - capital out + repayments
@@ -1200,6 +1335,8 @@ function investorReport() {
 
   const netCap = netCapital();
   const pct = (num, den) => (den > 0 ? roundMoney((num / den) * 100) : 0);
+  const credit = creditFigures("all");
+  const mix = clientMix("all");
 
   // Forward view: the app's own "Realistic" scenario, computed here without
   // disturbing whatever the user has set on the Projection card.
@@ -1264,6 +1401,13 @@ function investorReport() {
     writeOffRate: pct(writtenOffPrincipal, life.cashOut),
     writtenOffPrincipal,
     writtenOffLoans: writtenOff.length,
+
+    // Credit quality: days-late breakdown, loss cover, costs, client mix
+    aging: bookAging(),
+    lossCover: credit.lossCover,
+    costToIncome: credit.costToIncome,
+    rolledShare: credit.rolledShare,
+    mix,
 
     // Capital and cash
     capitalInjected: capitalInjected(),
@@ -1388,6 +1532,7 @@ function renderDashboard() {
   renderFloat();
   renderDueBanner();
   renderRiskBanner();
+  renderAging();
 
   const metrics = [
     ["outstanding", "Outstanding", money(totals.totalOutstanding), "Collectable balance", ""],
@@ -1426,6 +1571,66 @@ function renderDashboard() {
     : emptyHtml("No payments recorded yet.");
 }
 
+function renderAging() {
+  const host = qs("#agingPanel");
+  if (!host) return;
+  const aging = bookAging();
+  if (!aging.totalLoans) {
+    host.innerHTML = emptyHtml("No open loans yet.");
+    return;
+  }
+
+  const bar = aging.buckets
+    .filter((bucket) => bucket.amount > 0)
+    .map((bucket) => `<span class="aging-${bucket.key}" style="width:${bucket.share}%" title="${escapeHtml(bucket.label)}"></span>`)
+    .join("");
+
+  const rows = aging.buckets
+    .map((bucket) => `
+      <tr>
+        <th scope="row"><span class="aging-swatch aging-${bucket.key}" aria-hidden="true"></span>${escapeHtml(bucket.label)}</th>
+        <td>${bucket.loans}</td>
+        <td>${money(bucket.amount)}</td>
+      </tr>
+    `)
+    .join("");
+
+  host.innerHTML = `
+    <p class="aging-headline ${aging.atRiskLoans ? "danger" : ""}">
+      ${aging.atRiskLoans
+        ? `<strong>${money(aging.atRisk)} at risk</strong> — ${percent(aging.atRiskShare)} of the ${money(aging.total)} owed, across ${aging.atRiskLoans === 1 ? "1 loan that is" : `${aging.atRiskLoans} loans that are`} late or rolled over.`
+        : `<strong>Nothing at risk.</strong> ${aging.totalLoans === 1 ? "The open loan is" : `All ${aging.totalLoans} open loans are`} current.`}
+    </p>
+    <div class="aging-bar" role="img" aria-label="Share of the open book by days late">${bar}</div>
+    <div class="table-scroll">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th scope="col">Status</th>
+            <th scope="col">Loans</th>
+            <th scope="col">Owed</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">Total open</th>
+            <td>${aging.totalLoans}</td>
+            <td>${money(aging.total)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    ${aging.atRiskLoans ? `
+      <div class="action-row">
+        <button class="icon-text-btn tinted" type="button" data-dashboard-action="at-risk">
+          <span class="btn-icon">${iconSvg("chevronRight")}</span>
+          <span>View at-risk loans</span>
+        </button>
+      </div>` : ""}
+  `;
+}
+
 function renderClients() {
   const term = ui.clientSearch.toLowerCase();
   const clients = state.clients
@@ -1449,7 +1654,10 @@ function matchesSearch(term, parts) {
 function renderLoans() {
   const analyses = allAnalyses()
     .filter((row) => {
-      const statusMatch = ui.loanFilter === "all" || row.status === ui.loanFilter || (ui.loanFilter === "open" && (row.status === "active" || row.status === "overdue"));
+      const statusMatch = ui.loanFilter === "all" ||
+        row.status === ui.loanFilter ||
+        (ui.loanFilter === "open" && (row.status === "active" || row.status === "overdue")) ||
+        (ui.loanFilter === "risk" && isAtRisk(row));
       const monthMatch = ui.loanMonth === "all" || monthKey(row.loan.issueDate) === ui.loanMonth;
       const searchMatch = matchesSearch(ui.loanSearch, [
         row.loan.ref,
@@ -1551,6 +1759,8 @@ function renderReports() {
     ["Written off", money(position.writtenOffOutstanding), "Tracked separately"]
   ].map(reportCardHtml).join("");
 
+  renderCreditReport();
+  renderClientMix();
   renderCashReport();
   renderCapital();
   renderProjection();
@@ -1566,6 +1776,61 @@ function renderReports() {
   qs("#overdueReportList").innerHTML = overdue.length
     ? overdue.map((row) => loanMiniCard(row)).join("")
     : emptyHtml("No overdue loans.");
+}
+
+function renderCreditReport() {
+  const grid = qs("#creditGrid");
+  if (!grid) return;
+  const c = creditFigures(ui.reportScope, ui.reportMonth, ui.reportYear);
+  grid.innerHTML = [
+    ["Loss rate", percent(c.lossRate), c.lost ? `${money(c.lost)} principal written off` : "Nothing written off"],
+    ["Loss cover", c.lossCover === null ? "No losses" : `${c.lossCover.toFixed(1)}×`, c.lossCover === null ? "Revenue has nothing to cover" : "Revenue earned ÷ principal lost"],
+    ["Rolled over", percent(c.rolledShare), c.loansIssued ? `${c.rolled} of ${c.loansIssued} loan${c.loansIssued === 1 ? "" : "s"} issued` : "No loans issued"],
+    ["Cost-to-income", c.costToIncome === null ? "—" : percent(c.costToIncome), c.costToIncome === null ? "No revenue this period" : "Expenses ÷ revenue"]
+  ].map(reportCardHtml).join("");
+}
+
+function renderClientMix() {
+  const host = qs("#clientMixTable");
+  if (!host) return;
+  const mix = clientMix(ui.reportScope, ui.reportMonth, ui.reportYear);
+  if (!mix.first.loans && !mix.repeat.loans) {
+    host.innerHTML = emptyHtml("No loans issued in this period.");
+    return;
+  }
+  // Flag the weaker group on each risk line, so the difference stands out.
+  const both = mix.first.loans && mix.repeat.loans;
+  const worse = (a, b, higherIsWorse = true) => (both && a !== b && (higherIsWorse ? a > b : a < b) ? "worse" : "");
+  const line = (label, key, format, higherIsWorse) => `
+    <tr>
+      <th scope="row">${escapeHtml(label)}</th>
+      <td class="${higherIsWorse === undefined ? "" : worse(mix.first[key], mix.repeat[key], higherIsWorse)}">${format(mix.first[key])}</td>
+      <td class="${higherIsWorse === undefined ? "" : worse(mix.repeat[key], mix.first[key], higherIsWorse)}">${format(mix.repeat[key])}</td>
+    </tr>
+  `;
+  host.innerHTML = `
+    <div class="table-scroll">
+      <table class="ledger-table mix-table">
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            <th scope="col">First loan</th>
+            <th scope="col">Repeat</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${line("Loans", "loans", String)}
+          ${line("Clients", "clients", String)}
+          ${line("Lent", "advanced", money)}
+          ${line("Average loan", "avgLoan", money)}
+          ${line("Collection rate", "collectionRate", percent, false)}
+          ${line("Rolled over", "rolledShare", percent, true)}
+          ${line("Late now", "lateShare", percent, true)}
+          ${line("Loss rate", "lossRate", percent, true)}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function renderCashReport() {
@@ -3271,6 +3536,44 @@ function investorTrendTable(report) {
   `;
 }
 
+function investorAgingTable(report) {
+  const aging = report.aging;
+  if (!aging.totalLoans) return `<p class="item-meta">No open loans.</p>`;
+  const body = aging.buckets
+    .map((bucket) => `
+      <tr>
+        <th scope="row">${escapeHtml(bucket.label)}</th>
+        <td>${bucket.loans}</td>
+        <td>${money(bucket.amount)}</td>
+        <td>${percent(bucket.share)}</td>
+      </tr>
+    `)
+    .join("");
+  return `
+    <div class="table-scroll">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th scope="col">Status</th>
+            <th scope="col">Loans</th>
+            <th scope="col">Owed</th>
+            <th scope="col">Share</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">Total open</th>
+            <td>${aging.totalLoans}</td>
+            <td>${money(aging.total)}</td>
+            <td>100%</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  `;
+}
+
 // The section blocks shared by the in-app preview and the standalone document,
 // so the two can never drift apart.
 function investorSections(report) {
@@ -3329,7 +3632,25 @@ function investorSections(report) {
         ["Loans repaid", percent(report.repaidRate), `${report.paidLoans} of ${report.loansIssued} fully paid`],
         ["Overdue share", percent(report.overdueShare), "Of what is outstanding"],
         ["Write-off rate", percent(report.writeOffRate), "Principal lost vs advanced"],
-        ["Written off", money(report.writtenOffPrincipal), `${report.writtenOffLoans} loan${report.writtenOffLoans === 1 ? "" : "s"}`]
+        ["Written off", money(report.writtenOffPrincipal), `${report.writtenOffLoans} loan${report.writtenOffLoans === 1 ? "" : "s"}`],
+        ["Loss cover", report.lossCover === null ? "No losses" : `${report.lossCover.toFixed(1)}×`, "Revenue earned ÷ principal lost"],
+        ["Cost-to-income", report.costToIncome === null ? "—" : percent(report.costToIncome), "Expenses ÷ revenue"]
+      ])
+    },
+    {
+      title: "Book health",
+      grid: investorGrid([
+        ["At risk", money(report.aging.atRisk), `${percent(report.aging.atRiskShare)} of what is owed`],
+        ["Loans ever rolled over", percent(report.rolledShare), "Share of all loans issued"]
+      ]),
+      html: investorAgingTable(report)
+    },
+    {
+      title: "First-time vs repeat clients",
+      grid: investorGrid([
+        ["Repeat loans", percent(report.loansIssued ? (report.mix.repeat.loans / report.loansIssued) * 100 : 0), `${report.mix.repeat.loans} of ${report.loansIssued} loans`],
+        ["Loss rate, first loans", percent(report.mix.first.lossRate), `Average loan ${money(report.mix.first.avgLoan)}`],
+        ["Loss rate, repeat loans", percent(report.mix.repeat.lossRate), `Average loan ${money(report.mix.repeat.avgLoan)}`]
       ])
     },
     {
@@ -3352,7 +3673,7 @@ function investorPreviewHtml(report) {
     .map((section) => `
       <section class="surface">
         <div class="section-head"><h3>${escapeHtml(section.title)}</h3></div>
-        ${section.grid || section.html || ""}
+        ${section.grid || ""}${section.html || ""}
       </section>
     `)
     .join("");
@@ -3409,6 +3730,17 @@ function investorReportText(report) {
     `  Loans repaid: ${percent(report.repaidRate)} (${report.paidLoans}/${report.loansIssued})`,
     `  Overdue share of outstanding: ${percent(report.overdueShare)}`,
     `  Write-off rate: ${percent(report.writeOffRate)} (${money(report.writtenOffPrincipal)}, ${report.writtenOffLoans} loan${report.writtenOffLoans === 1 ? "" : "s"})`,
+    `  Loss cover (revenue earned ÷ principal lost): ${report.lossCover === null ? "no losses" : `${report.lossCover.toFixed(1)}×`}`,
+    `  Cost-to-income (expenses ÷ revenue): ${report.costToIncome === null ? "—" : percent(report.costToIncome)}`,
+    "",
+    "BOOK HEALTH (open loans by days late)",
+    ...report.aging.buckets.map((bucket) => `  ${bucket.label}: ${bucket.loans} loan${bucket.loans === 1 ? "" : "s"}, ${money(bucket.amount)} (${percent(bucket.share)})`),
+    `  At risk (late or rolled over): ${money(report.aging.atRisk)} (${percent(report.aging.atRiskShare)} of ${money(report.aging.total)} owed)`,
+    `  Loans ever rolled over: ${percent(report.rolledShare)}`,
+    "",
+    "FIRST-TIME VS REPEAT CLIENTS",
+    `  First loans: ${report.mix.first.loans}, average ${money(report.mix.first.avgLoan)}, loss rate ${percent(report.mix.first.lossRate)}`,
+    `  Repeat loans: ${report.mix.repeat.loans}, average ${money(report.mix.repeat.avgLoan)}, loss rate ${percent(report.mix.repeat.lossRate)}`,
     "",
     "CAPITAL & CASH",
     `  Capital added: ${money(report.capitalInjected)}`,
@@ -3443,7 +3775,7 @@ function investorReportDocument(report) {
     .map((section) => `
       <section>
         <h2>${escapeHtml(section.title)}</h2>
-        ${section.grid || section.html || ""}
+        ${section.grid || ""}${section.html || ""}
       </section>
     `)
     .join("");
@@ -3474,6 +3806,7 @@ function investorReportDocument(report) {
   .report-card .item-meta { margin:0; font-size:12px; color:var(--muted); }
   .item-meta { color: var(--muted); font-size: 13px; }
   .table-scroll { overflow-x:auto; }
+  .report-grid + .table-scroll { margin-top:10px; }
   table.ledger-table { width:100%; border-collapse: collapse; font-size:13.5px; }
   table.ledger-table th, table.ledger-table td { text-align:right; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
   table.ledger-table thead th { color:var(--muted); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:0.04em; }
@@ -3493,7 +3826,7 @@ function investorReportDocument(report) {
     <p class="privacy">Aggregate figures only. No client names, phone numbers or ID numbers appear in this document. Prepared from the QuickServe Cashloan Ledger on this device.</p>
     ${sections}
     <footer class="doc">
-      <p><strong>How the figures are defined.</strong> Revenue is the interest and service-fee portion of repayments. Net profit is revenue minus recorded expenses. Collection rate is amount paid ÷ total due on loans issued. Return on capital is lifetime net profit ÷ net owner capital still in the business. Working capital (total funds) is cash on hand plus principal still out on loan. A repayment clears interest and fees before principal.</p>
+      <p><strong>How the figures are defined.</strong> Revenue is the interest and service-fee portion of repayments. Net profit is revenue minus recorded expenses. Collection rate is amount paid ÷ total due on loans issued. Return on capital is lifetime net profit ÷ net owner capital still in the business. Working capital (total funds) is cash on hand plus principal still out on loan. A repayment clears interest and fees before principal. Loans are "at risk" when they are past due or have been rolled over, even if the new due date is still ahead. Loss rate is principal written off ÷ principal lent; loss cover is revenue earned ÷ principal written off, on the same loans.</p>
       <p>The forward view is a modelled scenario, not a forecast or a guarantee. Written-off balances are excluded from what is collectable. Figures are drawn from the loan book recorded on one device and have not been independently audited.</p>
     </footer>
   </div>
@@ -4015,6 +4348,13 @@ function handleDashboardAction(action) {
   const currentYear = String(new Date().getFullYear());
   if (action === "capital-out" || action === "outstanding") {
     ui.loanFilter = "open";
+    ui.loanMonth = "all";
+    switchView("loansView");
+    renderLoans();
+    return;
+  }
+  if (action === "at-risk") {
+    ui.loanFilter = "risk";
     ui.loanMonth = "all";
     switchView("loansView");
     renderLoans();
