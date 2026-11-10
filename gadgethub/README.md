@@ -24,8 +24,8 @@ built or deployed by the QuickServe workflow.
 node gadgethub/render-invoice.js gadgethub/invoices/GH-2026-1110.json
 ```
 
-## Open drafts
+## Invoices
 
 | Invoice | Item | Amount | Still needed |
 |---|---|---|---|
-| GH-2026-1110 | Samsung Galaxy S25 Ultra, Titanium Black, 256 GB, serial R5CY10CHX1H | N$ 23,000.00 | Device condition (new or pre-owned). Client details were supplied on 10 Nov 2026 and kept out of git. |
+| GH-2026-1110 | Samsung Galaxy S25 Ultra, Titanium Black, 256 GB, serial R5CY10CHX1H | N$ 23,000.00 | Nothing. Final; issued 10 Nov 2026 (condition: New). Client details kept out of git. |
