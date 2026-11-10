@@ -78,6 +78,26 @@ export function safeEqual(a, b) {
   return diff === 0;
 }
 
+// ---- tracking sessions ----------------------------------------------------------
+// After a reference + cellphone lookup (with the bot check), the tracking page
+// gets a signed pass for 24 hours, so it can refresh and upload a requested
+// document from any phone. Format: s.<reference>.<expiry ms>.<signature>.
+async function hmacHex(secret, text) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(text));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+export async function makeTrackSession(secret, id, ttlMs = 24 * 3600_000) {
+  const exp = Date.now() + ttlMs;
+  return `s.${id}.${exp}.${await hmacHex(secret, id + "." + exp)}`;
+}
+export async function readTrackSession(secret, token) {
+  const m = /^s\.(QSA-\d{4}-\d{4,5})\.(\d{13})\.([0-9a-f]{64})$/.exec(String(token || ""));
+  if (!m || !secret) return null;
+  if (Number(m[2]) < Date.now()) return null;
+  return safeEqual(await hmacHex(secret, m[1] + "." + m[2]), m[3]) ? m[1] : null;
+}
+
 // ---- validation -------------------------------------------------------------
 
 // Namibian numbers: "081 234 5678", "+264 81 234 5678", "264812345678" -> "264812345678".

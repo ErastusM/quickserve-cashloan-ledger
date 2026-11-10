@@ -5,6 +5,7 @@
   "description": "Build tooling for QuickServe marketing artwork and the client document pack. Not part of the app.",
   "scripts": {
     "flyer": "node render-flyer.js",
+    "poster": "node render-launch-poster.js",
     "docs": "node md2docx.js ../documents/pack.json ../documents/docx && node md2pdf.js ../documents/pack.json ../documents/pdf"
   },
   "dependencies": {

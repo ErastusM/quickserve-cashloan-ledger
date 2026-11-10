@@ -17,9 +17,11 @@
 //   GET    /v2/admin/applications/:id/files/:fileId
 //   POST   /v2/admin/applications/:id/status        { status, note, applicantMessage }
 //   PUT    /v2/admin/applications/:id/affordability { ...worksheet }
+//   GET    /v2/admin/audit[?from=&to=&actor=&type=&q=&before=&format=csv]   owners only
 //   POST   /v2/admin/push/subscribe                 { subscription, device }   this device gets notifications
 //   POST   /v2/admin/push/unsubscribe               { endpoint }
 //   POST   /v2/admin/push/test                      sends a test to your devices
+//   POST   /v2/admin/applications/:id/whatsapp-sent  staff confirm the applicant was told
 //   POST   /v2/admin/applications/:id/recommend     { recommendation: approve|decline, note }
 //   POST   /v2/admin/applications/:id/converted     { clientId, loanId, clientRef, loanRef }   owners only
 //
@@ -36,7 +38,7 @@
 
 import {
   HttpError, json, corsHeaders, formatReference, yymm, REF_PATTERN, makeToken, makeId, sha256Hex, safeEqual,
-  validateApplication, normalisePhone, sniffMime, applicantStage, missingKinds,
+  validateApplication, normalisePhone, sniffMime, applicantStage, missingKinds, makeTrackSession, readTrackSession,
   MAX_FILE_BYTES, MAX_FILES, FILE_KINDS, STAFF_STATUSES, CONSENT_VERSION
 } from "./lib.js";
 import { sendPush } from "./webpush.js";
@@ -77,20 +79,22 @@ async function route(request, env, ctx) {
   if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/files\/([0-9a-f-]{36})$/)) && m === "DELETE") return deleteDraftFile(request, env, p[1], p[2]);
   if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/submit$/)) && m === "POST") return submit(request, env, p[1], ctx);
   if (path === "/v2/track" && m === "POST") return track(request, env);
-  if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/files\/([a-z]+)$/)) && m === "PUT") return uploadRequestedFile(request, env, p[1], p[2]);
+  if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/files\/([a-z]+)$/)) && m === "PUT") return uploadRequestedFile(request, env, p[1], p[2], ctx);
 
   // ---- staff
   if (path.startsWith("/v2/admin/") || path === "/applications") {
     const staff = await requireStaff(request, env);
+    if (path === "/v2/admin/audit" && m === "GET") return auditLog(request, env, staff);
     if (path === "/v2/admin/push/subscribe" && m === "POST") return pushSubscribe(request, env, staff);
     if (path === "/v2/admin/push/unsubscribe" && m === "POST") return pushUnsubscribe(request, env, staff);
     if (path === "/v2/admin/push/test" && m === "POST") return pushTest(request, env, staff);
     if (path === "/v2/admin/me" && m === "GET") return json(request, env, { email: staff.email, role: staff.role, approvalLimit: staff.limitCents == null ? null : staff.limitCents / 100 });
     if ((path === "/v2/admin/applications" || path === "/applications") && m === "GET") return listApplications(request, env, path === "/applications");
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})$/)) && m === "GET") return getApplication(request, env, staff, p[1]);
-    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/files\/([0-9a-f-]{36})$/)) && m === "GET") return streamFile(request, env, p[1], p[2]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/files\/([0-9a-f-]{36})$/)) && m === "GET") return streamFile(request, env, staff, p[1], p[2]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/status$/)) && m === "POST") return setStatus(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/affordability$/)) && m === "PUT") return saveAffordability(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/whatsapp-sent$/)) && m === "POST") return whatsappSent(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/recommend$/)) && m === "POST") return recommend(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/converted$/)) && m === "POST") return markConverted(request, env, staff, p[1]);
   }
@@ -352,7 +356,11 @@ async function track(request, env) {
   const body = await readJson(request);
   let app = null;
 
-  if (body.trackToken) {
+  let session = null;
+  const sessionId = await readTrackSession(env.TRACK_SESSION_SECRET, body.trackToken);
+  if (sessionId) {
+    app = await env.DB.prepare(`SELECT * FROM applications WHERE id = ?`).bind(sessionId).first();
+  } else if (body.trackToken) {
     app = await env.DB.prepare(`SELECT * FROM applications WHERE track_token_hash = ?`).bind(await sha256Hex(String(body.trackToken))).first();
   } else {
     await checkTurnstile(request, env, body.turnstileToken);
@@ -360,6 +368,7 @@ async function track(request, env) {
     const phone = normalisePhone(body.phone);
     if (new RegExp("^" + REF_PATTERN + "$").test(ref) && phone) {
       app = await env.DB.prepare(`SELECT * FROM applications WHERE id = ? AND phone = ?`).bind(ref, phone).first();
+      if (app && env.TRACK_SESSION_SECRET) session = await makeTrackSession(env.TRACK_SESSION_SECRET, app.id);
     }
   }
   if (!app || app.status === "draft") throw new HttpError(404, "We couldn't find an application with those details.");
@@ -393,17 +402,27 @@ async function track(request, env) {
     totalCents: app.total_cents,
     submittedAt: app.submitted_at,
     missing: missingKinds(files),
-    canUpload: app.status === "info_requested" && Boolean(body.trackToken)
+    canUpload: app.status === "info_requested" && Boolean(body.trackToken || session),
+    sessionToken: session
   });
 }
 
-async function uploadRequestedFile(request, env, id, kind) {
-  const app = await requireToken(request, env, id, "X-Track-Token", "track_token_hash");
+async function uploadRequestedFile(request, env, id, kind, ctx) {
+  const sessionId = await readTrackSession(env.TRACK_SESSION_SECRET, request.headers.get("X-Track-Token"));
+  const app = sessionId === id ? await loadApp(env, id) : await requireToken(request, env, id, "X-Track-Token", "track_token_hash");
   if (app.status !== "info_requested") throw new HttpError(409, "We're not waiting for any documents on this application.");
   const file = await storeFile(request, env, app, kind, "applicant");
   await env.DB.prepare(`UPDATE applications SET status = 'in_review', updated_at = ? WHERE id = ?`).bind(now(), id).run();
   await event(env, id, "applicant", "document_added", { kind, fileId: file.fileId });
   await event(env, id, "system", "status", { from: "info_requested", to: "in_review" });
+  const what = { id: "ID / passport", payslip: "payslip", bank: "bank statement", other: "document" }[kind] || "document";
+  const notify = notifyStaff(env, {
+    title: "Document received " + id,
+    body: (app.full_name || "The applicant") + " sent the requested " + what + ". Back in review.",
+    url: "/?app=" + id,
+    tag: id + "-doc"
+  });
+  if (ctx && ctx.waitUntil) ctx.waitUntil(notify); else await notify;
   return json(request, env, file, 201);
 }
 
@@ -430,7 +449,7 @@ async function listApplications(request, env, legacyShape) {
   const { results } = await env.DB.prepare(
     `SELECT id, created_at, submitted_at, status, full_name, phone, national_id, employer, purpose,
             amount_cents, total_cents, payday, id_type, above_standard, ledger_client_ref, ledger_loan_ref,
-            recommendation, recommended_by
+            recommendation, recommended_by, contact_pending
      FROM applications WHERE ${where.join(" AND ")} ORDER BY submitted_at DESC LIMIT 300`
   ).bind(...binds).all();
   const { results: counts } = await env.DB.prepare(
@@ -452,6 +471,7 @@ async function listApplications(request, env, legacyShape) {
 async function getApplication(request, env, staff, id) {
   let app = await loadApp(env, id);
   if (app.status === "draft") throw new HttpError(404, "This application hasn't been handed in yet.");
+  await eventOnce(env, id, "staff:" + staff.email, "opened", null);
   if (app.status === "new") {
     await env.DB.prepare(`UPDATE applications SET status = 'in_review', updated_at = ? WHERE id = ? AND status = 'new'`).bind(now(), id).run();
     await event(env, id, "staff:" + staff.email, "status", { from: "new", to: "in_review" });
@@ -482,11 +502,12 @@ async function getApplication(request, env, staff, id) {
   });
 }
 
-async function streamFile(request, env, id, fileId) {
+async function streamFile(request, env, staff, id, fileId) {
   const file = await env.DB.prepare(
     `SELECT * FROM application_files WHERE id = ? AND application_id = ? AND deleted_at IS NULL`
   ).bind(fileId, id).first();
   if (!file) throw new HttpError(404, "File not found.");
+  await eventOnce(env, id, "staff:" + staff.email, "document_viewed", { fileId, kind: file.kind });
   const object = await env.DOCS.get(file.r2_key);
   if (!object) throw new HttpError(404, "File missing from storage.");
   return new Response(object.body, {
@@ -518,6 +539,8 @@ async function setStatus(request, env, staff, id) {
   const t = now();
   const decided = to === "approved" || to === "declined";
 
+  const contact = ["info_requested", "approved", "declined"].includes(to) ? to : null;
+  await env.DB.prepare(`UPDATE applications SET contact_pending = ? WHERE id = ?`).bind(contact, id).run();
   await env.DB.prepare(
     `UPDATE applications SET status = ?, updated_at = ?, applicant_message = ?,
        decided_at = CASE WHEN ? THEN ? ELSE decided_at END,
@@ -525,7 +548,16 @@ async function setStatus(request, env, staff, id) {
        decided_note = COALESCE(?, decided_note)
      WHERE id = ?`
   ).bind(to, t, message, decided ? 1 : 0, t, decided ? 1 : 0, staff.email, note, id).run();
-  await event(env, id, "staff:" + staff.email, "status", { from: app.status, to, note, applicantMessage: message });
+  await event(env, id, "staff:" + staff.email, "status", {
+    from: app.status, to, note, applicantMessage: message,
+    // What the decision was based on, kept with the decision.
+    basis: decided ? {
+      role: staff.role, approvalLimit: staff.limitCents == null ? null : staff.limitCents / 100,
+      amount: app.amount_cents / 100, total: app.total_cents / 100, aboveStandard: Boolean(app.above_standard),
+      affordability: app.affordability_json ? JSON.parse(app.affordability_json) : null,
+      recommendation: app.recommendation ? { by: app.recommended_by, recommendation: app.recommendation, note: app.recommendation_note } : null
+    } : undefined
+  });
   return json(request, env, { ok: true, status: to });
 }
 
@@ -535,6 +567,21 @@ async function saveAffordability(request, env, staff, id) {
   const sheet = JSON.stringify(body).slice(0, 8000);
   await env.DB.prepare(`UPDATE applications SET affordability_json = ?, updated_at = ? WHERE id = ?`).bind(sheet, now(), id).run();
   await event(env, id, "staff:" + staff.email, "affordability_saved", null);
+  return json(request, env, { ok: true });
+}
+
+async function whatsappSent(request, env, staff, id) {
+  const app = await loadApp(env, id);
+  const body = await request.json().catch(() => ({}));
+  // Any other contact (an ad-hoc WhatsApp or a call) is logged too.
+  if (body.channel) {
+    const channel = body.channel === "call" ? "call" : "whatsapp";
+    await event(env, id, "staff:" + staff.email, "contacted", { channel, message: String(body.message || "").slice(0, 600) || null });
+    if (!body.confirm) return json(request, env, { ok: true });
+  }
+  if (!app.contact_pending) return json(request, env, { ok: true, already: true });
+  await env.DB.prepare(`UPDATE applications SET contact_pending = NULL WHERE id = ?`).bind(id).run();
+  await event(env, id, "staff:" + staff.email, "whatsapp_sent", { about: app.contact_pending });
   return json(request, env, { ok: true });
 }
 
@@ -570,6 +617,68 @@ async function markConverted(request, env, staff, id) {
   ).bind(clientId, loanId, clientRef, loanRef, t, t, id).run();
   await event(env, id, "staff:" + staff.email, "status", { from: "approved", to: "converted", clientId, loanId, clientRef, loanRef });
   return json(request, env, { ok: true });
+}
+
+// Logs a view at most once per person per application (or file) per 30 minutes,
+// so the trail shows who looked at what without filling up with refreshes.
+async function eventOnce(env, id, actor, type, detail) {
+  const since = new Date(Date.now() - 30 * 60_000).toISOString();
+  const key = detail && detail.fileId ? `%"fileId":"${detail.fileId}"%` : "%";
+  const seen = await env.DB.prepare(
+    `SELECT 1 FROM application_events WHERE application_id = ? AND actor = ? AND type = ? AND at > ? AND COALESCE(detail_json, '') LIKE ? LIMIT 1`
+  ).bind(id, actor, type, since, key).first();
+  if (!seen) await event(env, id, actor, type, detail);
+}
+
+// ---- audit trail (owners) -----------------------------------------------------------
+
+const AUDIT_LABELS = {
+  draft_created: "Started an application", submitted: "Handed in", document_added: "Sent a requested document",
+  opened: "Opened the application", document_viewed: "Viewed a document", whatsapp_sent: "Confirmed the applicant was told on WhatsApp", contacted: "Contacted the applicant", affordability_saved: "Saved the affordability worksheet",
+  recommended: "Recommended", status: "Changed status"
+};
+
+async function auditLog(request, env, staff) {
+  requireOwner(staff);
+  const u = new URL(request.url);
+  const where = ["1 = 1"], binds = [];
+  const from = u.searchParams.get("from"), to = u.searchParams.get("to");
+  if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) { where.push("e.at >= ?"); binds.push(from + "T00:00:00Z"); }
+  if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) { where.push("e.at < ?"); binds.push(new Date(Date.parse(to + "T00:00:00Z") + 86_400_000).toISOString()); }
+  const actor = u.searchParams.get("actor");
+  if (actor) { where.push("e.actor = ?"); binds.push(actor); }
+  const type = u.searchParams.get("type");
+  if (type === "decision") where.push("e.type = 'status' AND json_extract(e.detail_json, '$.to') IN ('approved','declined','converted')");
+  else if (type && AUDIT_LABELS[type]) { where.push("e.type = ?"); binds.push(type); }
+  const q = (u.searchParams.get("q") || "").trim();
+  if (q) { where.push("(e.application_id LIKE ? OR a.full_name LIKE ?)"); binds.push("%" + q + "%", "%" + q + "%"); }
+  const csv = u.searchParams.get("format") === "csv";
+  const before = Number(u.searchParams.get("before") || 0);
+  if (before > 0 && !csv) { where.push("e.id < ?"); binds.push(before); }
+  const limit = csv ? 20000 : 200;
+  const { results } = await env.DB.prepare(
+    `SELECT e.id, e.at, e.actor, e.type, e.detail_json, e.application_id, a.full_name, a.amount_cents, a.status AS current_status
+     FROM application_events e LEFT JOIN applications a ON a.id = e.application_id
+     WHERE ${where.join(" AND ")} AND a.status <> 'draft'
+     ORDER BY e.id DESC LIMIT ${limit}`
+  ).bind(...binds).all();
+  const rows = results.map((r) => ({ ...r, detail: r.detail_json ? JSON.parse(r.detail_json) : null, detail_json: undefined }));
+
+  if (csv) {
+    const cell = (v) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const lines = [["When (UTC)", "Who", "Application", "Applicant", "Amount (N$)", "Action", "From", "To", "Note / reason", "Message to applicant", "Details"].join(",")];
+    for (const r of rows.reverse()) {
+      const d = r.detail || {};
+      lines.push([r.at, r.actor.replace(/^staff:/, ""), r.application_id, r.full_name, r.amount_cents == null ? "" : (r.amount_cents / 100).toFixed(2),
+        AUDIT_LABELS[r.type] || r.type, d.from || "", d.to || "", d.note || d.recommendation || "", d.applicantMessage || "",
+        d.basis ? JSON.stringify(d.basis) : (d.kind || d.loanRef || "")].map(cell).join(","));
+    }
+    return new Response(lines.join("\r\n") + "\r\n", {
+      headers: { ...corsHeaders(request, env), "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="quickserve-audit-${new Date().toISOString().slice(0, 10)}.csv"`, "Cache-Control": "no-store" }
+    });
+  }
+  const { results: actors } = await env.DB.prepare(`SELECT DISTINCT actor FROM application_events ORDER BY actor`).all();
+  return json(request, env, { events: rows, actors: actors.map((a) => a.actor), more: rows.length === limit });
 }
 
 // ---- push notifications to staff ----------------------------------------------------
