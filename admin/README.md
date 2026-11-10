@@ -117,6 +117,42 @@ screen:
   a backup file, a reminder when no backup has been downloaded for 7 days, and
   automatic sign-out after 20 minutes without activity. Needs
   `supabase/migrations/010_ledger_history.sql` run once (see below).
+- **Late payers** — a repayment is late when it arrives after the due date in
+  force that day (a rollover moves the due date from the day it is agreed).
+  Every day counts: up to 3 days shows as slightly late (grey), up to 30 as
+  late (amber), more as very late (red). A client is flagged *Late ×n* (n =
+  loans repaid late, rolled over, written off or overdue now). The flag colour
+  is red for 3+ late loans, more than 30 days late or a write-off, amber for 2
+  late loans, more than 3 days or a rollover, and grey otherwise. The flag
+  shows:
+  - in the client, loan and payment lists, with a *Late payers* filter on
+    Clients (most serious first);
+  - in the client drawer (*Repayment timeliness*: every loan with due date,
+    repaid date and days late);
+  - in the loan drawer (timeliness row; each late payment tagged);
+  - when recording a payment: it says straight away whether the payment is
+    late and by how many days, and the confirmation says the client is now
+    flagged;
+  - in the new-loan form and on an application's *Returning client?* card;
+  - on the dashboard, as the repayments that came in late this week.
+
+  The clients and payments CSVs include the late counts and days. Worked out
+  from the book each time; nothing is stored.
+- **Audit trail** — every entry, edit and deletion, per record, read from that
+  same database change log (so it can't be edited, and restoring an old
+  version doesn't erase it). The *Audit trail* page lists them newest first,
+  showing when, who (their login), which record and what changed
+  (before → after). Tiles count loans whose amount was changed after entry,
+  payments deleted and loans deleted. You can filter by edits, deletions,
+  amount changes, new entries or everything, and by record type, search by
+  name, loan number, amount or person, and export a CSV. Each loan and client
+  drawer has its own *Audit trail* section: when and how the loan was first
+  entered, how many times it was edited, every change to its amount with date
+  and time, and any payments deleted from it. Backup files now carry the
+  trail too (`auditTrail`, kept for reference; restoring ignores it). Raising
+  a loan's amount books the extra money on the loan's issue date, so the
+  drawer flags it. Enter a top-up as a new loan so it shows on the day it left
+  the bank.
 - **Expenses** — record, edit and delete business expenses (category, amount,
   date, note), with this-month / monthly-average / total tiles. Expenses net
   off cash on hand and set the default *monthly costs* in Projections.

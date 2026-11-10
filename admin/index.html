@@ -186,6 +186,14 @@ button{font:inherit; cursor:pointer; color:inherit}
 .scorenote{font-size:11.5px; color:var(--muted); margin:8px 0 0} .scorenote a{color:var(--accent)}
 .scorehint{font-size:12px; color:var(--ink-2); margin:-4px 0 12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
 .scorehint.over{color:var(--warn)}
+.lateflag{font-family:var(--mono); font-size:9.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; padding:1px 6px; border-radius:4px; border:1px solid currentColor; margin-left:7px; vertical-align:middle; white-space:nowrap; display:inline-block; line-height:1.5}
+.lateflag.mild{color:var(--steel)} .lateflag.late{color:var(--warn); background:var(--warn-soft)} .lateflag.very{color:var(--bad); background:var(--bad-soft)}
+.latetag{font-size:11.5px; font-weight:600; white-space:nowrap} .latetag.ok{color:var(--good); font-weight:500} .latetag.mild{color:var(--steel)} .latetag.late{color:var(--warn)} .latetag.very{color:var(--bad)}
+.latebox{font-size:12.5px; line-height:1.5; padding:9px 12px; border:1px solid var(--line); border-radius:8px; margin:6px 0 8px}
+.latebox.ok{border-color:var(--good)} .latebox.ok b{color:var(--good)} .latebox.mild b{color:var(--steel)} .latebox.late{border-color:var(--warn)} .latebox.late b{color:var(--warn)} .latebox.very{border-color:var(--bad)} .latebox.very b{color:var(--bad)}
+.who-cell span.lateflag{display:inline-block; margin-top:0; font-size:9.5px; font-family:var(--mono)} .who-cell span.lateflag.mild{color:var(--steel)} .who-cell span.lateflag.late{color:var(--warn)} .who-cell span.lateflag.very{color:var(--bad)}
+.who-cell span.latetag{display:inline; font-family:var(--sans); margin:0}
+.latehint{flex-basis:100%; font-size:12px} .latehint.late,.latehint.very{color:var(--warn)} .latehint.very{color:var(--bad)}
 .scorehelp{font-size:13px; line-height:1.55} .scorehelp p{margin:0 0 10px} .scorehelp table{margin:0 0 12px}
 
 /* ---------- toolbar / tables ---------- */
@@ -218,6 +226,12 @@ td.r,th.r{text-align:right}
 .pill.waiting{color:var(--warn)}
 body.analyst .navitem:not([data-route="applications"]){display:none}
 body.analyst #printBtn{display:none}
+.pill.aud-added{color:var(--steel)} .pill.aud-edited{color:var(--warn)} .pill.aud-deleted{color:var(--bad)} .pill.aud-activity{color:var(--muted)}
+.audintro{font-size:12.5px; line-height:1.55; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin:6px 0 10px; background:var(--surface)}
+.audintro.warn{border-color:var(--warn)}
+.audsub{font-size:11.5px; color:var(--muted)}
+.audtable td{font-size:12.5px}
+.tile.warn .v{color:var(--warn)} .tile.bad .v{color:var(--bad)} .tile.rowlink{cursor:pointer}
 .pill.new{color:var(--steel)} .pill.approved{color:var(--good)} .pill.declined{color:var(--bad)} .pill.writtenoff{color:var(--muted)}
 
 .empty{padding:40px 20px; text-align:center; color:var(--muted); font-size:13px}
@@ -416,8 +430,9 @@ body.doc-open{overflow:hidden}
       <button class="navitem" data-route="projections"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M6 15l4-5 3 3 5-7"/></svg>Projections</button>
       <button class="navitem" data-route="members"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0"/><path d="M14 20a4 4 0 0 1 7.5-1.9"/></svg>Members</button>
       <div class="spacer"></div>
+      <button class="navitem" data-route="audit"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 4h9a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V6"/><path d="M4 4h5v4H4z"/><path d="M12 9h5M12 13h5"/></svg>Audit trail</button>
       <button class="navitem" data-route="history"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>History &amp; backups</button>
-      <button class="navitem" data-route="audit"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Audit trail</button>
+      <button class="navitem" data-route="appaudit"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Application audit</button>
       <button class="navitem" data-route="settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Settings</button>
     </nav>
 
@@ -462,7 +477,7 @@ body.doc-open{overflow:hidden}
   var rows = [];
   var apps = null;
   var route = "dashboard";
-  var ui = { loanFilter:"open", clientQ:"", loanQ:"", payQ:"", expQ:"", lastAccount:"", colFilter:"overdue", pnlPeriod:"" };
+  var ui = { loanFilter:"open", clientQ:"", loanQ:"", payQ:"", expQ:"", lastAccount:"", colFilter:"overdue", pnlPeriod:"", clientLate:false, audQ:"", audType:"edits", audKind:"all", audShow:200 };
 
   // ---- format helpers ----
   function num(v){ return Math.round((Number(v||0)+Number.EPSILON)*100)/100; }
@@ -880,7 +895,7 @@ body.doc-open{overflow:hidden}
   }
   function ownerToken(){ return localStorage.getItem(OWNER_KEY)||""; }
   // ---- routing ----
-  var TITLES={audit:"Audit trail",dashboard:"Dashboard",accounts:"Accounts",applications:"Applications",clients:"Clients",loans:"Loans",payments:"Payments",expenses:"Expenses",reports:"Reports",projections:"Projections",settings:"Settings",collections:"Collections",pnl:"Profit & loss",members:"Members & distributions",history:"History & backups"};
+  var TITLES={dashboard:"Dashboard",accounts:"Accounts",applications:"Applications",clients:"Clients",loans:"Loans",payments:"Payments",expenses:"Expenses",reports:"Reports",projections:"Projections",settings:"Settings",collections:"Collections",pnl:"Profit & loss",members:"Members & distributions",history:"History & backups",audit:"Audit trail",appaudit:"Application audit"};
   function go(r){
     if(me.role==="analyst") r="applications";
     if(ui.deepApp && r==="applications"){ ui.appId=ui.deepApp; ui.deepApp=null; }
@@ -903,13 +918,14 @@ body.doc-open{overflow:hidden}
     if(route==="payments") return renderPayments(c);
     if(route==="expenses") return renderExpenses(c);
     if(route==="applications") return renderApplications(c);
-    if(route==="audit") return renderAudit(c);
+    if(route==="appaudit") return renderAppAudit(c);
     if(route==="reports") return renderReports(c);
     if(route==="projections") return renderProjections(c);
     if(route==="collections") return renderCollections(c);
     if(route==="pnl") return renderPnl(c);
     if(route==="members") return renderMembers(c);
     if(route==="history") return renderHistory(c);
+    if(route==="audit") return renderAudit(c);
     if(route==="settings") return renderSettings(c);
   }
   function setSub(t){ $("pageSub").textContent=t||""; }
@@ -965,6 +981,11 @@ body.doc-open{overflow:hidden}
       txt:'<b>'+due.length+' loan'+(due.length>1?'s':'')+'</b> due within 24 hours — <b>'+money(due.reduce(function(s,r){return s+r.outstanding;},0))+'</b> to collect.'});
     if(t.overdueN) items.push({tag:"bad",label:"Overdue",go:function(){ui.loanFilter="overdue";go("loans");},
       txt:'<b>'+t.overdueN+' loan'+(t.overdueN>1?'s':'')+'</b> past due — <b>'+money(t.overdueAmt)+'</b> outstanding.'});
+    // Repayments that arrived after their due date in the last 7 days.
+    var wk=addDays(todayISO(),-7), lateIn=(state.payments||[]).map(function(p){ var l=(state.loans||[]).find(function(x){ return x.id===p.loanId; }); return l&&p.date>wk ? {p:p, l:l, d:paymentLateDays(l,p.date)} : null; })
+      .filter(function(x){ return x&&x.d>0; }).sort(function(a,b){ return b.d-a.d; });
+    if(lateIn.length) items.push({tag:lateIn[0].d>LATE_MILD?"warn":"info",label:"Late",go:function(){ ui.clientQ=""; ui.clientLate=true; go("clients"); },
+      txt:"<b>"+lateIn.length+" repayment"+(lateIn.length===1?"":"s")+"</b> came in after the due date this week: "+lateIn.slice(0,4).map(function(x){ return esc(clientName(x.l.clientId))+" ("+plural(x.d,"day")+")"; }).join(", ")+(lateIn.length>4?" and "+(lateIn.length-4)+" more":"")+". They're flagged as late payers."});
     if(top.share>=0.25 && t.receivable>5000) items.push({tag:"warn",label:"Concentration",go:function(){openClient(top.id);},
       txt:'Single-borrower risk: <b>'+esc(top.name)+'</b> holds <b>'+pct(top.share)+'</b> of the book ('+money(top.amt)+').'});
     var pr=promiseCounts();
@@ -1218,23 +1239,28 @@ body.doc-open{overflow:hidden}
   // ---- clients ----
   function renderClients(c){
     var q=ui.clientQ.toLowerCase();
-    var list=state.clients.filter(function(cl){ return [cl.name,cl.ref,cl.phone,cl.nationalId,cl.employer].join(" ").toLowerCase().indexOf(q)>=0; })
-      .sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
-    setSub(list.length+" of "+state.clients.length);
+    var LR={very:0,late:1,mild:2}, nLate=state.clients.filter(function(cl){ return clientLate(cl.id); }).length;
+    var list=state.clients.filter(function(cl){ return (!ui.clientLate||clientLate(cl.id)) && [cl.name,cl.ref,cl.phone,cl.nationalId,cl.employer].join(" ").toLowerCase().indexOf(q)>=0; })
+      .sort(function(a,b){
+        if(ui.clientLate){ var x=clientLate(a.id), y=clientLate(b.id), d=LR[x.level]-LR[y.level]||y.late.length-x.late.length||y.worst-x.worst; if(d) return d; }
+        return (a.name||"").localeCompare(b.name||""); });
+    setSub(list.length+" of "+state.clients.length+(ui.clientLate?" · late payers":""));
     var body=list.map(function(cl){
       var ag=clientAgg(cl.id), sc=clientScore(cl.id);
       var idcell = String(cl.nationalId||"").trim() ? '<span class="mono">'+esc(cl.nationalId)+'</span>' : '<span class="miss">Missing</span>';
-      return '<tr class="rowlink" data-client="'+esc(cl.id)+'"><td class="who-cell"><b>'+esc(cl.name||"—")+'</b><span>'+esc([cl.ref, cl.phone||"no phone"].filter(Boolean).join(" · "))+'</span></td>'
+      var lm=ui.clientLate?clientLate(cl.id):null;
+      return '<tr class="rowlink" data-client="'+esc(cl.id)+'"><td class="who-cell"><b>'+esc(cl.name||"—")+lateFlag(cl.id)+'</b><span>'+esc(lm?lateSummary(lm):[cl.ref, cl.phone||"no phone"].filter(Boolean).join(" · "))+'</span></td>'
         +'<td style="white-space:nowrap">'+gradeBadge(sc)+(sc&&!sc.isNew?'<span class="gscore">'+sc.score+'</span>':'')+'</td>'
         +'<td>'+idcell+'</td><td>'+esc(cl.employer||"—")+'</td>'
         +'<td class="r num">'+ag.openCount+'</td>'
         +'<td class="r num">'+(ag.outstanding>0?money(ag.outstanding):"—")+'</td></tr>';
     }).join("");
-    c.innerHTML=searchbar("clientQ","Search name, phone, ID, employer…",'<button class="btn sm" id="newClientBtn">+ New client</button>')
+    c.innerHTML=searchbar("clientQ","Search name, phone, ID, employer…",'<div class="seg"><button data-cl="all" class="'+(ui.clientLate?"":"on")+'">All</button><button data-cl="late" class="'+(ui.clientLate?"on":"")+'">Late payers ('+nLate+')</button></div><button class="btn sm" id="newClientBtn">+ New client</button>')
       + '<div class="panel"><div class="ph"><h3>Clients</h3><span class="n">'+list.length+'</span></div>'
       + '<div class="table-scroll"><table><thead><tr><th>Client</th><th>Score</th><th>National ID</th><th>Employer</th><th class="r">Open</th><th class="r">Outstanding</th></tr></thead><tbody>'
       + (body||'<tr><td colspan="6" class="empty">No clients match.</td></tr>') + '</tbody></table></div></div>';
     wireSearch("clientQ");
+    Array.prototype.forEach.call(c.querySelectorAll("[data-cl]"),function(b){ b.addEventListener("click",function(){ ui.clientLate=b.dataset.cl==="late"; render(); }); });
     wireRows(c,"client",openClient);
     var ncb=$("newClientBtn"); if(ncb) ncb.addEventListener("click",function(){ openClientForm(); });
   }
@@ -1249,7 +1275,7 @@ body.doc-open{overflow:hidden}
     }).sort(function(a,b){ return String(a.loan.dueDate).localeCompare(String(b.loan.dueDate)); });
     setSub(list.length+" loan"+(list.length===1?"":"s"));
     var body=list.map(function(r){
-      return '<tr class="rowlink" data-loan="'+esc(r.loan.id)+'"><td class="who-cell"><b>'+esc(clientName(r.loan.clientId))+'</b><span>'+esc([r.loan.ref, r.loan.purpose].filter(Boolean).join(" · ")||"—")+'</span></td>'
+      return '<tr class="rowlink" data-loan="'+esc(r.loan.id)+'"><td class="who-cell"><b>'+esc(clientName(r.loan.clientId))+lateFlag(r.loan.clientId)+'</b><span>'+esc([r.loan.ref, r.loan.purpose].filter(Boolean).join(" · ")||"—")+'</span></td>'
         +'<td class="r num">'+money(r.loan.principal)+'</td>'
         +'<td class="num">'+fmtDate(r.loan.issueDate)+'</td>'
         +'<td class="num">'+fmtDate(r.loan.dueDate)+'</td>'
@@ -1278,7 +1304,8 @@ body.doc-open{overflow:hidden}
     setSub(list.length+" payment"+(list.length===1?"":"s"));
     var total=list.reduce(function(s,x){return s+num(x.p.amount);},0);
     var body=list.map(function(x){
-      return '<tr'+(x.loan?' class="rowlink" data-loan="'+esc(x.loan.id)+'"':'')+'><td class="who-cell"><b>'+esc(x.name)+'</b><span>'+esc(x.p.method||"—")+(x.p.reference?" · "+esc(x.p.reference):"")+(multiAccounts()?" · into "+esc(accountNameById(acctOf(x.p))):"")+'</span></td>'
+      var pl=x.loan?paymentLateDays(x.loan,x.p.date):0;
+      return '<tr'+(x.loan?' class="rowlink" data-loan="'+esc(x.loan.id)+'"':'')+'><td class="who-cell"><b>'+esc(x.name)+(x.loan?lateFlag(x.loan.clientId):'')+'</b><span>'+esc(x.p.method||"—")+(x.p.reference?" · "+esc(x.p.reference):"")+(multiAccounts()?" · into "+esc(accountNameById(acctOf(x.p))):"")+(pl?' · '+lateTag(pl):'')+'</span></td>'
         +'<td class="num">'+fmtDate(x.p.date)+'</td>'
         +'<td class="r num">'+money(x.p.amount)+'</td></tr>';
     }).join("");
@@ -1557,7 +1584,9 @@ body.doc-open{overflow:hidden}
         +L("Next of kin", esc(a.kin_name||"—")+(a.kin_phone?" · "+esc(phoneLocal(a.kin_phone)):""))+L("Signed as", '<i>'+esc(a.signed_name||"—")+'</i>')+'</div></div>';
       h+='<div class="card"><div class="ch"><h3>Returning client?</h3></div><div class="ledger">'
         +(matches==null?'<div class="lrow"><span class="lk" style="color:var(--muted)">The ledger lookup isn\'t available yet.</span></div>'
-          : matches.length? matches.map(function(m){ return L(esc(m.ref||"")+" · "+esc(m.name||""), m.loans+" loan"+(m.loans===1?"":"s")+" · "+money0(m.borrowed||0)+" borrowed"+(m.lastIssue?" · last "+esc(fmtDate(m.lastIssue)):"")); }).join("")
+          : matches.length? matches.map(function(m){ var lc=m.ref&&(state.clients||[]).find(function(x){ return x.ref===m.ref; }), lm=lc&&clientLate(lc.id);
+              return L(esc(m.ref||"")+" · "+esc(m.name||"")+(lm?lateFlag(lc.id):""), m.loans+" loan"+(m.loans===1?"":"s")+" · "+money0(m.borrowed||0)+" borrowed"+(m.lastIssue?" · last "+esc(fmtDate(m.lastIssue)):""))
+                + (lm?'<div class="lrow"><span class="lk" style="color:var(--'+(lm.level==="mild"?"steel":(lm.level==="late"?"warn":"bad"))+')">Late payer: '+esc(lateSummary(lm))+'</span></div>':''); }).join("")
           : '<div class="lrow"><span class="lk">No match on ID, passport or cellphone. New client.</span></div>')
         +(others.length?'<div class="lrow"><span class="lk" style="color:var(--muted)">Other applications: '+others.map(function(o){ return esc(o.id)+" ("+esc(APP_STATUS[o.status]||o.status)+")"; }).join(", ")+'</span></div>':'')
         +'</div></div>';
@@ -1707,7 +1736,7 @@ body.doc-open{overflow:hidden}
     var today=todayISO(), principal=(a.amount_cents||0)/100;
     var body=(already?'<p style="color:var(--warn);margin:0 0 10px">Loan '+esc(already.ref||"")+' was already created from this application. Saving links it without creating another.</p>':'')
       +'<div class="field"><label>Client</label><select id="f_client">'
-        +matches.map(function(c){ return '<option value="'+esc(c.id)+'">'+esc((c.ref?c.ref+" · ":"")+c.name)+' (existing)</option>'; }).join("")
+        +matches.map(function(c){ var lm=clientLate(c.id); return '<option value="'+esc(c.id)+'">'+esc((c.ref?c.ref+" · ":"")+c.name)+' (existing'+(lm?" · late payer ×"+lm.late.length:"")+')</option>'; }).join("")
         +'<option value="__new">New client: '+esc(a.full_name)+'</option></select></div>'
       +'<div class="field row"><div><label>Amount paid out (N$)</label><input id="f_principal" class="num" type="number" step="0.01" value="'+esc(principal)+'"></div><div><label>Interest rate (%)</label><input id="f_rate" class="num" type="number" step="0.01" value="30"></div></div>'
       +'<div class="field row"><div><label>Service fee (N$)</label><input id="f_fee" class="num" type="number" step="0.01" value="0"></div><div><label>Purpose</label><input id="f_purpose" value="'+esc(a.purpose||"")+'"></div></div>'
@@ -1750,7 +1779,7 @@ body.doc-open{overflow:hidden}
     });
   }
 
-  // ---- audit trail (owners only) ----
+  // ---- application audit trail (owners only) ----
   // Every action on every application, permanent and filterable, with a
   // spreadsheet download. Decisions carry what they were based on.
   var AUDIT_TYPES=[["","All actions"],["decision","Decisions (approve, decline, paid out)"],["status","Status changes"],["recommended","Recommendations"],["opened","Opened an application"],["document_viewed","Viewed a document"],["affordability_saved","Saved affordability"],["document_added","Applicant sent a document"],["contacted","Contacted the applicant"],["whatsapp_sent","Confirmed applicant was told"],["submitted","Handed in"]];
@@ -1778,7 +1807,7 @@ body.doc-open{overflow:hidden}
     }
     return out.join(" · ");
   }
-  function renderAudit(c){
+  function renderAppAudit(c){
     if(!isOwner()){ c.innerHTML='<div class="empty">Only owners can see the audit trail.</div>'; return; }
     var f=ui.audit=ui.audit||{ from:"", to:"", actor:"", type:"", q:"" };
     setSub("Every action on every online application. Entries can't be changed or deleted.");
@@ -1808,8 +1837,8 @@ body.doc-open{overflow:hidden}
         +(rows.map(row).join("")||'<tr><td colspan="5" class="empty">Nothing matches these filters.</td></tr>')
         +'</tbody></table></div>'+(more?'<div style="padding:12px 18px"><button class="btn ghost sm" id="auMore">Load older entries</button></div>':'')+'</div>';
       var t=null;
-      $("auQ").addEventListener("input",function(){ var v=this.value; clearTimeout(t); t=setTimeout(function(){ f.q=v.trim(); renderAudit(c); },400); });
-      ["auActor","auType","auFrom","auTo"].forEach(function(id){ $(id).addEventListener("change",function(){ f[{auActor:"actor",auType:"type",auFrom:"from",auTo:"to"}[id]]=this.value; renderAudit(c); }); });
+      $("auQ").addEventListener("input",function(){ var v=this.value; clearTimeout(t); t=setTimeout(function(){ f.q=v.trim(); renderAppAudit(c); },400); });
+      ["auActor","auType","auFrom","auTo"].forEach(function(id){ $(id).addEventListener("change",function(){ f[{auActor:"actor",auType:"type",auFrom:"from",auTo:"to"}[id]]=this.value; renderAppAudit(c); }); });
       Array.prototype.forEach.call(c.querySelectorAll("[data-auditapp]"),function(a){ a.addEventListener("click",function(e){ e.preventDefault(); ui.deepApp=a.dataset.auditapp; go("applications"); }); });
       if($("auMore")) $("auMore").onclick=function(){ this.disabled=true; appApi("GET","/v2/admin/audit"+qs("before="+rows[rows.length-1].id)).then(function(r){ if(r._ok){ rows=rows.concat(r.events); draw(r.more); } }); };
       $("auCsv").onclick=function(){
@@ -1957,6 +1986,7 @@ body.doc-open{overflow:hidden}
         + '</div><input type="file" id="expFile" accept=".json,application/json" style="display:none">'
         + '<p style="color:var(--muted);font-size:12px;margin:12px 0 0">Every save is also kept in <a href="#history">History &amp; backups</a>, where any recent version can be restored.</p></div></div>';
     $("expJson").addEventListener("click",exportBackup);
+    if(isOwner()) loadAudit();  // so the backup includes the audit trail
     $("coEdit").addEventListener("click",openCompanyForm);
     wireStaffCard();
     $("expClients").addEventListener("click",exportClientsCSV);
@@ -1978,6 +2008,10 @@ body.doc-open{overflow:hidden}
   }
   function exportBackup(){
     var payload={ exportedAt:new Date().toISOString(), app:"Quickserve Cashloan Ledger", data:state };
+    // The audit trail rides along for reference (restoring a backup ignores it).
+    var trail=auditForBackup();
+    if(trail){ payload.auditTrailNote="Every entry, edit and deletion since "+audit.since+", from the database change log: who (their login), when, and before/after. Kept for reference; restoring this file does not use it."; payload.auditTrail=trail; }
+    else { payload.auditTrailNote=audit.missing?"History isn't switched on, so this backup has no audit trail.":"The audit trail hadn't finished loading when this backup was made; download again in a moment to include it."; loadAudit(); }
     if(!downloadFile("quickserve-backup-"+todayISO()+".json", JSON.stringify(payload,null,2), "application/json")) return;
     toast("Backup downloaded.");
     // Remember it in the book so the reminder knows, whichever device downloaded it.
@@ -1988,16 +2022,16 @@ body.doc-open{overflow:hidden}
   function csvCell(v){ v=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(v) && !/^-?\d+(\.\d+)?$/.test(v)) v="'"+v; return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
   function toCSV(headers, rowsArr){ return [headers.map(csvCell).join(",")].concat(rowsArr.map(function(r){return r.map(csvCell).join(",");})).join("\r\n"); }
   function exportClientsCSV(){
-    var body=state.clients.map(function(c){ var ag=clientAgg(c.id), sc=clientScore(c.id)||{}; return [c.name,c.phone,c.nationalId,c.employer,c.address,c.nextOfKin,ag.openCount,num(ag.borrowed),num(ag.repaid),num(ag.outstanding),sc.isNew?"":sc.score,sc.isNew?"New":(sc.grade?sc.grade.g:""),sc.available==null?"":sc.available]; });
-    if(downloadFile("quickserve-clients-"+todayISO()+".csv", toCSV(["Name","Phone","National ID","Employer","Address","Next of kin","Open loans","Total borrowed","Total repaid","Outstanding","Credit score","Grade","Suggested next loan"], body),"text/csv")) toast("Clients CSV downloaded.");
+    var body=state.clients.map(function(c){ var ag=clientAgg(c.id), sc=clientScore(c.id)||{}; return [c.name,c.phone,c.nationalId,c.employer,c.address,c.nextOfKin,ag.openCount,num(ag.borrowed),num(ag.repaid),num(ag.outstanding),sc.isNew?"":sc.score,sc.isNew?"New":(sc.grade?sc.grade.g:""),sc.available==null?"":sc.available,(lateRecords()[c.id]||{late:[]}).late.length,(lateRecords()[c.id]||{}).worst||0]; });
+    if(downloadFile("quickserve-clients-"+todayISO()+".csv", toCSV(["Name","Phone","National ID","Employer","Address","Next of kin","Open loans","Total borrowed","Total repaid","Outstanding","Credit score","Grade","Suggested next loan","Loans repaid late","Worst days late"], body),"text/csv")) toast("Clients CSV downloaded.");
   }
   function exportLoansCSV(){
     var body=rows.map(function(r){ var l=r.loan; return [clientName(l.clientId),num(l.principal),num(l.interestRate),num(l.serviceFee),num(r.rev),num(r.totalDue),l.issueDate,l.dueDate,pillTxt(r.status),num(r.paid),num(r.outstanding),l.purpose||""]; });
     if(downloadFile("quickserve-loans-"+todayISO()+".csv", toCSV(["Client","Principal","Interest %","Service fee","Interest+fees","Total repayable","Issued","Due","Status","Paid","Outstanding","Purpose"], body),"text/csv")) toast("Loans CSV downloaded.");
   }
   function exportPaymentsCSV(){
-    var body=(state.payments||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}).map(function(p){ var loan=(state.loans||[]).find(function(l){return l.id===p.loanId;}); return [p.date, loan?clientName(loan.clientId):"—", num(p.amount), p.method||"", p.reference||"", accountNameById(acctOf(p))]; });
-    if(downloadFile("quickserve-payments-"+todayISO()+".csv", toCSV(["Date","Client","Amount","Method","Reference","Account"], body),"text/csv")) toast("Payments CSV downloaded.");
+    var body=(state.payments||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}).map(function(p){ var loan=(state.loans||[]).find(function(l){return l.id===p.loanId;}); return [p.date, loan?clientName(loan.clientId):"—", num(p.amount), p.method||"", p.reference||"", accountNameById(acctOf(p)), loan?paymentLateDays(loan,p.date):""]; });
+    if(downloadFile("quickserve-payments-"+todayISO()+".csv", toCSV(["Date","Client","Amount","Method","Reference","Account","Days late"], body),"text/csv")) toast("Payments CSV downloaded.");
   }
   function exportTransfersCSV(){
     var body=(state.transfers||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}).map(function(t){ return [t.date, accountNameById(acctOf({accountId:t.fromAccountId})), accountNameById(acctOf({accountId:t.toAccountId})), num(t.amount), t.reference||"", t.note||""]; });
@@ -2015,7 +2049,7 @@ body.doc-open{overflow:hidden}
   function openClient(id){
     var cl=client(id); if(!cl) return;
     var ag=clientAgg(id);
-    drawerHead("Client"+(cl.ref?" · "+cl.ref:""),"" + (cl.name||"—"));
+    drawerHead("Client"+(cl.ref?" · "+cl.ref:"")+(clientLate(id)?" · late payer":""),"" + (cl.name||"—"));
     var phone=String(cl.phone||"").trim();
     var idv = phone.replace(/[^\d+]/g,"");
     var h='<div class="drawer-actions">'
@@ -2025,6 +2059,7 @@ body.doc-open{overflow:hidden}
       + '<button class="btn ghost sm danger" id="dcDelete">Delete</button>'
       + '</div>'
       + '<div class="dsect">Credit score</div>' + scoreBlock(clientScore(id))
+      + lateSection(id)
       + '<div class="dsect">Financial summary</div>'
       + frow("Total borrowed", money(ag.borrowed), "num")
       + frow("Total repaid", money(ag.repaid), "num")
@@ -2050,7 +2085,10 @@ body.doc-open{overflow:hidden}
         + ag.payments.slice(0,20).map(function(p){ return '<tr><td class="num">'+fmtDate(p.date)+'</td><td>'+esc(p.method||"—")+'</td><td class="r num">'+money(p.amount)+'</td></tr>'; }).join("")
         + '</tbody></table>' + (ag.payments.length>20?'<p style="font-size:11.5px;color:var(--muted);margin-top:6px">Showing latest 20 of '+ag.payments.length+'.</p>':'');
     } else h+='<p style="font-size:12.5px;color:var(--muted)">No payments recorded.</p>';
+    var audBox="aud_c_"+Date.now();
+    h+='<div class="dsect">Audit trail</div><div id="'+audBox+'"></div>';
     $("drawerBody").innerHTML=h; $("drawerBody").scrollTop=0;
+    fillAuditBox(audBox, function(){ return auditForClient(id); }, function(list){ return clientAuditIntro(id, list); });
     $("dcEdit").addEventListener("click",function(){ openClientForm(cl); });
     $("dcNewLoan").addEventListener("click",function(){ openLoanForm(null, id); });
     var dcp=$("dcPaidUp"); if(dcp) dcp.addEventListener("click",function(){ openClientPaidUp(id); });
@@ -2092,7 +2130,9 @@ body.doc-open{overflow:hidden}
     h+='<div class="dsect">Schedule</div>'
       + frow("Issued", fmtDate(l.issueDate), "num")
       + frow("Due", fmtDate(l.dueDate), "num")
-      + frow("Term status", esc(termNote));
+      + frow("Term status", esc(termNote))
+      + frow("Timeliness", loanLateText(loanLateness(r, pays.slice().sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); }))))
+      + (clientLate(l.clientId) ? frow("Client", lateFlag(l.clientId)+' <span style="font-size:12px">'+esc(lateSummary(clientLate(l.clientId)))+'</span>') : "");
     h+='<div class="dsect">Position</div>'
       + frow("Paid to date", money(r.paid), "num")
       + frow("Outstanding", money(r.outstanding), "num")
@@ -2121,10 +2161,13 @@ body.doc-open{overflow:hidden}
     h+='<div class="dsect">Payments ('+pays.length+')</div>';
     if(pays.length){
       h+='<table class="dtable"><thead><tr><th>Date</th><th>Method</th><th class="r">Amount</th></tr></thead><tbody>'
-        + pays.map(function(p){ return '<tr><td class="num">'+fmtDate(p.date)+'</td><td>'+esc(p.method||"—")+'</td><td class="r num">'+money(p.amount)+'<button class="pdel" data-pdel="'+esc(p.id)+'" title="Delete payment">×</button></td></tr>'; }).join("")
+        + pays.map(function(p){ var pl=paymentLateDays(l,p.date); return '<tr><td class="num">'+fmtDate(p.date)+(pl?'<div>'+lateTag(pl)+'</div>':'')+'</td><td>'+esc(p.method||"—")+'</td><td class="r num">'+money(p.amount)+'<button class="pdel" data-pdel="'+esc(p.id)+'" title="Delete payment">×</button></td></tr>'; }).join("")
         + '</tbody></table>';
     } else h+='<p style="font-size:12.5px;color:var(--muted)">No payments recorded against this loan.</p>';
+    var audBox="aud_l_"+Date.now();
+    h+='<div class="dsect">Audit trail</div><div id="'+audBox+'"></div>';
     $("drawerBody").innerHTML=h; $("drawerBody").scrollTop=0;
+    fillAuditBox(audBox, function(){ return auditForLoan(id); }, function(list){ return loanAuditIntro(id, list); });
     if(isOpen){ var dp=$("dlPay"); if(dp) dp.addEventListener("click",function(){ openPaymentForm(id); }); }
     var dr=$("dlRoll"); if(dr) dr.addEventListener("click",function(){ openRolloverForm(id); });
     var dct=$("dlContact"); if(dct) dct.addEventListener("click",function(){ openContactForm(id); });
@@ -2477,9 +2520,307 @@ body.doc-open{overflow:hidden}
     }
     return lines.length?lines:["Saved with no visible change"];
   }
+  // ---- audit trail ----
+  // Read from the database's own change log (ledger_changes): every save, who
+  // made it (from their login), when, and the records added, changed or
+  // deleted. Nobody can edit or delete that log, and restoring an old version
+  // doesn't remove anything from it, so this is the trail to trust. Only the
+  // record collections are fetched (settings carry the signature image), and
+  // later visits fetch only the saves made since.
+  var AUDIT_KINDS=["loans","payments","clients","expenses","capital","transfers","accounts"];
+  var AUDIT_SELECT="id,at,action,actor_email,claimed_by,"+AUDIT_KINDS.map(function(k){ return "detail->"+k; }).join(",")+",detail->lastRestore";
+  var AUDIT_PAGE=500;
+  // Changes to these are routine activity (numbering, notes, rollovers, write-offs),
+  // not an edit of what was entered.
+  var AUDIT_ROUTINE={ref:1,collections:1,extensions:1,status:1,writtenOffAt:1,reopenedAt:1,paidUpRef:1,paidUpIssuedAt:1,updatedAt:1};
+  var AUDIT_TYPES={added:"Entered",edited:"Edited",deleted:"Deleted",activity:"Activity"};
+  var audit={entries:[], lastId:0, since:"", loaded:false, missing:false, error:"", pending:null};
+  function loadAudit(){
+    if(audit.pending) return audit.pending;
+    function next(){
+      return readTable("/rest/v1/ledger_changes?ledger_id=eq.main&id=gt."+audit.lastId+"&select="+encodeURIComponent(AUDIT_SELECT)+"&order=id.asc&limit="+AUDIT_PAGE).then(function(r){
+        if(r.auth===false){ audit.error="auth"; return r; }
+        if(r.missing){ audit.missing=true; return r; }
+        if(r.error||!r.rows){ audit.error=r.error||"read"; return r; }
+        r.rows.forEach(function(row){
+          if(!audit.since) audit.since=row.at;
+          audit.lastId=Math.max(audit.lastId, row.id);
+          auditFlatten(row).forEach(function(e){ audit.entries.push(e); });
+        });
+        if(r.rows.length===AUDIT_PAGE) return next();
+        audit.loaded=true; audit.error=""; return {ok:true};
+      });
+    }
+    audit.pending=next().then(function(res){ audit.pending=null; return res; }, function(){ audit.pending=null; audit.error="network"; return {error:"network"}; });
+    return audit.pending;
+  }
+  function auditChangedKeys(a,b){
+    var ks={}, out=[]; a=a||{}; b=b||{};
+    Object.keys(a).concat(Object.keys(b)).forEach(function(k){ ks[k]=1; });
+    Object.keys(ks).forEach(function(k){ if(k!=="createdAt" && JSON.stringify(a[k])!==JSON.stringify(b[k])) out.push(k); });
+    return out;
+  }
+  function auditFlatten(row){
+    var out=[], by=row.actor_email||row.claimed_by||"", restore=!!row.lastRestore;
+    function mk(kind,type,id,before,after,keys){ return {seq:row.id, at:row.at, by:by, restore:restore, kind:kind, type:type, id:id||"", before:before||null, after:after||null, keys:keys||[]}; }
+    AUDIT_KINDS.forEach(function(kind){
+      var x=row[kind]; if(!x||typeof x!=="object") return;
+      (x.added||[]).forEach(function(r){ if(r) out.push(mk(kind,"added",r.id,null,r)); });
+      (x.removed||[]).forEach(function(r){ if(r) out.push(mk(kind,"deleted",r.id,r,null)); });
+      (x.changed||[]).forEach(function(ch){
+        if(!ch) return;
+        var keys=auditChangedKeys(ch.before, ch.after); if(!keys.length) return;
+        var edit=keys.some(function(k){ return !AUDIT_ROUTINE[k]; });
+        out.push(mk(kind, edit?"edited":"activity", ch.id||(ch.after&&ch.after.id)||(ch.before&&ch.before.id), ch.before, ch.after, keys));
+      });
+    });
+    return out;
+  }
+  function auditRec(e){ return e.after||e.before||{}; }
+  // Names for records that have since been deleted come from the trail itself.
+  function auditClientName(id){
+    var c=client(id); if(c) return c.name||"—";
+    for(var i=audit.entries.length-1;i>=0;i--){ var e=audit.entries[i]; if(e.kind==="clients"&&e.id===id){ var r=auditRec(e); if(r.name) return r.name+" (deleted)"; } }
+    return "a deleted client";
+  }
+  function auditLoan(id){
+    var l=(state.loans||[]).find(function(x){ return x.id===id; }); if(l) return l;
+    for(var i=audit.entries.length-1;i>=0;i--){ var e=audit.entries[i]; if(e.kind==="loans"&&e.id===id) return auditRec(e); }
+    return null;
+  }
+  function auditLoanIds(e){
+    if(e.kind==="loans") return [e.id];
+    if(e.kind==="payments"){ var ids=[]; if(e.before&&e.before.loanId) ids.push(e.before.loanId); if(e.after&&e.after.loanId&&ids.indexOf(e.after.loanId)<0) ids.push(e.after.loanId); return ids; }
+    return [];
+  }
+  function auditForLoan(loanId){ return audit.entries.filter(function(e){ return auditLoanIds(e).indexOf(loanId)>=0; }); }
+  function auditForClient(clientId){
+    var loanIds={};
+    (state.loans||[]).forEach(function(l){ if(l.clientId===clientId) loanIds[l.id]=1; });
+    audit.entries.forEach(function(e){ if(e.kind==="loans"&&((e.before&&e.before.clientId===clientId)||(e.after&&e.after.clientId===clientId))) loanIds[e.id]=1; });
+    return audit.entries.filter(function(e){
+      if(e.kind==="clients") return e.id===clientId;
+      return auditLoanIds(e).some(function(id){ return loanIds[id]; });
+    });
+  }
+  function auditLoanName(id){ var l=auditLoan(id); if(!l) return "a deleted loan"; return (l.ref?l.ref+" · ":"")+auditClientName(l.clientId)+((state.loans||[]).some(function(x){ return x.id===id; })?"":" (loan deleted)"); }
+  function auditRecordName(e){
+    var r=auditRec(e);
+    if(e.kind==="loans") return "Loan "+auditLoanName(e.id);
+    if(e.kind==="payments") return "Payment · "+auditLoanName(r.loanId);
+    if(e.kind==="clients") return "Client "+(r.ref?r.ref+" · ":"")+(r.name||"—");
+    if(e.kind==="expenses") return "Expense · "+(r.category||"Other");
+    if(e.kind==="capital") return r.direction==="out"?"Money out":"Money in";
+    if(e.kind==="transfers") return "Transfer between accounts";
+    if(e.kind==="accounts") return "Bank account · "+(r.name||"—");
+    return KIND_NOUN[e.kind]||e.kind;
+  }
+  function auditSummary(kind, r){
+    r=r||{};
+    if(kind==="loans") return money(r.principal)+" issued "+fmtDate(r.issueDate)+", due "+fmtDate(r.dueDate)+(r.interestRate!=null&&r.interestRate!==""?" at "+num(r.interestRate)+"%":"")+(num(r.serviceFee)?" + fee "+money(r.serviceFee):"");
+    if(kind==="payments") return money(r.amount)+" on "+fmtDate(r.date)+(r.method?" ("+r.method+")":"")+(r.reference?" · ref "+r.reference:"");
+    if(kind==="clients") return (r.name||"client")+(r.nationalId?" · ID "+r.nationalId:"")+(r.phone?" · "+r.phone:"");
+    if(kind==="expenses") return money(r.amount)+" on "+fmtDate(r.date)+(r.note?" — "+r.note:"");
+    if(kind==="capital") return money(r.amount)+" on "+fmtDate(r.date)+(r.note?" — "+r.note:"");
+    if(kind==="transfers") return money(r.amount)+" from "+accountNameById(acctOf({accountId:r.fromAccountId}))+" to "+accountNameById(acctOf({accountId:r.toAccountId}))+" on "+fmtDate(r.date);
+    if(kind==="accounts") return (r.name||"Account")+(r.bank?" · "+r.bank:"");
+    return "";
+  }
+  function auditWhat(e){
+    if(e.type==="added") return "Entered: "+auditSummary(e.kind, e.after);
+    if(e.type==="deleted") return "Deleted: "+auditSummary(e.kind, e.before);
+    var f=changedFields(e.before, e.after);
+    if(!f.length && e.keys.indexOf("ref")>=0 && e.after&&e.after.ref) f=["reference number "+e.after.ref+" given"];
+    return f.length ? f.join("; ").replace(/^./,function(ch){ return ch.toUpperCase(); }) : "Updated";
+  }
+  function auditPill(e){ return '<span class="pill aud-'+e.type+'">'+AUDIT_TYPES[e.type]+'</span>'; }
+  function auditWhen(e){ return fmtDateTime(e.at)+(e.restore?" · restore":""); }
+  function auditLocalStamp(iso){ try{ var d=new Date(iso), p=function(n){ return (n<10?"0":"")+n; }; return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes()); }catch(x){ return iso||""; } }
+  function auditNewestFirst(list){ return list.slice().sort(function(a,b){ return b.seq-a.seq; }); }
+  function auditIsAmountChange(e){ return e.kind==="loans" && e.type==="edited" && e.keys.indexOf("principal")>=0; }
+  // The loan's own story in one paragraph: when and how it was entered, and
+  // every change to its amount.
+  function loanAuditIntro(loanId, list){
+    var mine=list.filter(function(e){ return e.kind==="loans"&&e.id===loanId; }).sort(function(a,b){ return a.seq-b.seq; });
+    var made=mine.find(function(e){ return e.type==="added"; });
+    var edits=mine.filter(function(e){ return e.type==="edited"; });
+    var amt=mine.filter(auditIsAmountChange);
+    var delPays=list.filter(function(e){ return e.kind==="payments"&&e.type==="deleted"; });
+    var parts=[];
+    parts.push(made ? "Entered "+fmtDateTime(made.at)+(made.by?" by "+made.by:"")+" as "+money(made.after.principal)+"."
+                    : "Entered before the audit trail started ("+fmtDate(String(audit.since).slice(0,10))+").");
+    parts.push(edits.length ? "Edited "+edits.length+" time"+(edits.length===1?"":"s")+"." : "Not edited since then.");
+    var h='<div class="audintro'+(amt.length||delPays.length?' warn':'')+'"><div>'+esc(parts.join(" "))+'</div>';
+    if(amt.length){
+      var chain=[money(amt[0].before.principal)].concat(amt.map(function(e){ return money(e.after.principal); })).join(" → ");
+      h+='<div style="margin-top:6px"><b>Amount changed '+amt.length+' time'+(amt.length===1?'':'s')+':</b> '+esc(chain)+'</div>'
+        +amt.map(function(e){ return '<div class="audsub">'+esc(fmtDateTime(e.at))+(e.by?' · '+esc(e.by):'')+' — '+esc(money(e.before.principal))+' → '+esc(money(e.after.principal))+'</div>'; }).join("")
+        +'<div class="audsub" style="margin-top:6px">The whole amount counts as paid out on the issue date ('+esc(fmtDate(auditRec(amt[amt.length-1]).issueDate))+'). If extra money left the bank on a later day, it won\'t appear on that day in the ledger — enter a top-up as a new loan so it matches the bank statement.</div>';
+    }
+    if(delPays.length) h+='<div style="margin-top:6px"><b>'+delPays.length+' payment'+(delPays.length===1?'':'s')+' deleted</b> from this loan — see below.</div>';
+    return h+'</div>';
+  }
+  function clientAuditIntro(clientId, list){
+    var mine=list.filter(function(e){ return e.kind==="clients"&&e.id===clientId; });
+    var made=mine.find(function(e){ return e.type==="added"; }), edits=mine.filter(function(e){ return e.type==="edited"; });
+    var amt={}; list.forEach(function(e){ if(auditIsAmountChange(e)) amt[e.id]=(amt[e.id]||0)+1; });
+    var nAmt=Object.keys(amt).length, del=list.filter(function(e){ return e.type==="deleted"&&e.kind!=="clients"; });
+    var t=(made?"Added "+fmtDateTime(made.at)+(made.by?" by "+made.by:"")+".":"Added before the audit trail started ("+fmtDate(String(audit.since).slice(0,10))+").")
+      +(edits.length?" Details edited "+edits.length+" time"+(edits.length===1?"":"s")+".":"");
+    var w=[];
+    if(nAmt) w.push(nAmt+" loan"+(nAmt===1?"":"s")+" had the amount changed after entry");
+    if(del.length) w.push(del.length+" loan or payment record"+(del.length===1?"":"s")+" deleted");
+    return '<div class="audintro'+(w.length?' warn':'')+'">'+esc(t)+(w.length?'<div style="margin-top:4px"><b>'+esc(w.join(" · "))+'</b> — see below.</div>':'')+'</div>';
+  }
+  function auditListHtml(list, limit, showRecord){
+    if(!list.length) return '<p style="font-size:12.5px;color:var(--muted)">Nothing recorded for this since the audit trail started ('+esc(fmtDate(String(audit.since).slice(0,10)))+').</p>';
+    var shown=list.slice(0, limit||list.length);
+    return '<table class="dtable audtable"><tbody>'
+      + shown.map(function(e){ return '<tr class="rowlink" data-aud="'+e.seq+':'+esc(e.kind)+':'+esc(e.id)+'"><td class="num" style="white-space:nowrap;vertical-align:top">'+esc(fmtDateTime(e.at))+(e.by?'<div class="audsub">'+esc(e.by)+'</div>':'')+'</td>'
+          +'<td style="vertical-align:top">'+auditPill(e)+' '+(showRecord!==false?'<b>'+esc(auditRecordName(e))+'</b><br>':'')+'<span>'+esc(auditWhat(e))+'</span>'+(e.restore?'<div class="audsub">Part of a restore of the whole book</div>':'')+'</td></tr>'; }).join("")
+      + '</tbody></table>'
+      + (list.length>shown.length?'<p class="audsub" style="margin-top:6px">Showing the latest '+shown.length+' of '+list.length+'. The full list is on the <a href="#audit">Audit trail</a> page.</p>':'');
+  }
+  function findAuditEntry(key){ var p=String(key).split(":"); var seq=+p[0], kind=p[1], id=p.slice(2).join(":"); return audit.entries.find(function(e){ return e.seq===seq&&e.kind===kind&&e.id===id; }); }
+  function wireAuditRows(el){ Array.prototype.forEach.call(el.querySelectorAll("[data-aud]"),function(tr){ tr.addEventListener("click",function(){ openAuditEntry(findAuditEntry(tr.getAttribute("data-aud"))); }); }); }
+  // Fills an "Audit trail" box in a drawer once the trail has loaded.
+  function fillAuditBox(boxId, pick, intro){
+    function paint(){
+      var el=$(boxId); if(!el) return;
+      if(audit.missing){ el.innerHTML='<p style="font-size:12.5px;color:var(--muted)">The audit trail comes from the database change log, which isn\'t switched on yet — see <a href="#history">History &amp; backups</a>.</p>'; return; }
+      if(!audit.loaded){ el.innerHTML='<p style="font-size:12.5px;color:var(--muted)">'+(audit.error&&!audit.pending?'Couldn\'t load the audit trail. Close and reopen to try again.':'Loading the audit trail…')+'</p>'; return; }
+      var list=auditNewestFirst(pick());
+      el.innerHTML=(intro?intro(list):'')+auditListHtml(list, 25);
+      wireAuditRows(el);
+    }
+    paint();
+    loadAudit().then(paint);
+  }
+  var AUDIT_LABELS={createdAt:"entered",ref:"reference number",nationalId:"ID number",nextOfKin:"next of kin"};
+  function auditFieldLabel(k){ var n=AUDIT_LABELS[k]||FIELD_NAMES[k]||k; return n.charAt(0).toUpperCase()+n.slice(1); }
+  function auditFieldVal(k,v){
+    if(k==="loanId") return v?auditLoanName(v):"—";
+    if(k==="clientId") return v?auditClientName(v):"—";
+    if(k==="createdAt"||k==="writtenOffAt"&&String(v).length>10) return v?fmtDateTime(v):"—";
+    return fieldVal(k,v);
+  }
+  function openAuditEntry(e){
+    if(!e) return;
+    drawerHead(AUDIT_TYPES[e.type]+" · "+fmtDateTime(e.at), auditRecordName(e));
+    var r=auditRec(e), loanId=e.kind==="loans"?e.id:(e.kind==="payments"?r.loanId:"");
+    var liveLoan=loanId&&(state.loans||[]).some(function(l){ return l.id===loanId; }), liveClient=e.kind==="clients"&&client(e.id);
+    var h='<div class="drawer-actions">'+(liveLoan?'<button class="btn sm" id="aeLoan">Open the loan</button>':'')+(liveClient?'<button class="btn sm" id="aeClient">Open the client</button>':'')+'</div>'
+      + frow("When", esc(fmtDateTime(e.at)))
+      + frow("Who (from their login)", esc(e.by||"unknown"))
+      + frow("What", esc(auditWhat(e)))
+      + (e.restore?frow("Note", "Part of a restore of the whole book"):"");
+    if(e.type==="edited"||e.type==="activity"){
+      h+='<div class="dsect">Before and after</div><table class="dtable"><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>'
+        + e.keys.map(function(k){ return '<tr><td>'+esc(auditFieldLabel(k))+'</td><td>'+esc(auditFieldVal(k,(e.before||{})[k]))+'</td><td>'+esc(auditFieldVal(k,(e.after||{})[k]))+'</td></tr>'; }).join("")
+        + '</tbody></table>';
+    }
+    var rec=e.type==="deleted"?e.before:e.after;
+    if(rec){
+      h+='<div class="dsect">'+(e.type==="deleted"?"The deleted record, in full":"The record "+(e.type==="added"?"as entered":"after the change"))+'</div>'
+        + Object.keys(rec).filter(function(k){ return k!=="id"&&k!=="importKey"&&typeof rec[k]!=="object"; }).map(function(k){ return frow(auditFieldLabel(k), esc(auditFieldVal(k,rec[k]))); }).join("");
+    }
+    $("drawerBody").innerHTML=h; $("drawerBody").scrollTop=0;
+    var b1=$("aeLoan"); if(b1) b1.addEventListener("click",function(){ openLoan(loanId); });
+    var b2=$("aeClient"); if(b2) b2.addEventListener("click",function(){ openClient(e.id); });
+    openDrawer();
+  }
+
+  // The Audit trail page: every entry, newest first, with filters.
+  var AUDIT_FILTERS=[["edits","Edits and deletions"],["amount","Loan amount changes"],["deleted","Deletions only"],["edited","Edits only"],["added","New entries"],["all","Everything (incl. notes, rollovers, numbering)"]];
+  var AUDIT_KIND_FILTERS=[["all","All records"],["loans","Loans"],["payments","Payments"],["clients","Clients"],["expenses","Expenses"],["capital","Money in / out"],["transfers","Transfers"],["accounts","Bank accounts"]];
+  function auditFiltered(){
+    var t=ui.audType||"edits", k=ui.audKind||"all", q=String(ui.audQ||"").toLowerCase().trim();
+    return auditNewestFirst(audit.entries.filter(function(e){
+      if(k!=="all"&&e.kind!==k) return false;
+      if(t==="edits"&&!(e.type==="edited"||e.type==="deleted")) return false;
+      if(t==="amount"&&!auditIsAmountChange(e)) return false;
+      if((t==="deleted"||t==="edited"||t==="added")&&e.type!==t) return false;
+      if(q){ var r=auditRec(e); if([auditRecordName(e),auditWhat(e),e.by,fmtDateTime(e.at),r.ref,r.reference,r.nationalId,r.phone].join(" ").toLowerCase().indexOf(q)<0) return false; }
+      return true;
+    }));
+  }
+  function renderAudit(c){
+    if(audit.missing){
+      setSub("Needs history switched on");
+      c.innerHTML='<div class="card"><div class="ch"><h3>Switch on history first</h3></div><div style="padding:14px 18px;font-size:13px;line-height:1.7;max-width:760px">The audit trail is read from the database change log. It isn\'t switched on yet — <a href="#history">History &amp; backups</a> shows the one-minute setup.</div></div>';
+      return;
+    }
+    if(!audit.loaded){
+      setSub("From the database change log");
+      c.innerHTML='<div class="empty">'+(audit.error&&!audit.pending?'Couldn\'t load the audit trail ('+esc(audit.error)+'). Press Refresh to try again.':'Loading the audit trail…')+'</div>';
+      var n0=audit.entries.length;
+      loadAudit().then(function(){ if(route==="audit"&&(audit.loaded||audit.missing||audit.entries.length!==n0)) render(); });
+      return;
+    }
+    var all=audit.entries, cut=new Date(Date.now()-30*86400000).toISOString();
+    var amountLoans={}; all.forEach(function(e){ if(auditIsAmountChange(e)) amountLoans[e.id]=(amountLoans[e.id]||0)+1; });
+    var nAmountLoans=Object.keys(amountLoans).length, nAmountEdits=Object.keys(amountLoans).reduce(function(s,k){ return s+amountLoans[k]; },0);
+    var delPay=all.filter(function(e){ return e.kind==="payments"&&e.type==="deleted"; }), delLoan=all.filter(function(e){ return e.kind==="loans"&&e.type==="deleted"; });
+    var recent=all.filter(function(e){ return (e.type==="edited"||e.type==="deleted")&&e.at>=cut; }).length;
+    var list=auditFiltered(), limit=ui.audShow||200, shown=list.slice(0,limit);
+    setSub(all.length+" entries since "+fmtDate(String(audit.since).slice(0,10)));
+    function aTile(key,k,v,d,cls){ return '<div class="tile rowlink '+(cls||"")+'" data-audf="'+key+'" title="Show these"><div class="k">'+esc(k)+'</div><div class="v num">'+esc(v)+'</div><div class="d">'+esc(d)+'</div></div>'; }
+    var h='<div class="projsum">'
+      + aTile("amount","Loan amounts changed", String(nAmountLoans), nAmountEdits+" change"+(nAmountEdits===1?"":"s")+" after entry", nAmountLoans?"warn":"")
+      + aTile("delpay","Payments deleted", String(delPay.length), money(delPay.reduce(function(s,e){ return s+num(e.before.amount); },0)), delPay.length?"bad":"")
+      + aTile("delloan","Loans deleted", String(delLoan.length), money(delLoan.reduce(function(s,e){ return s+num(e.before.principal); },0)), delLoan.length?"bad":"")
+      + aTile("edits","Edits and deletions", String(recent), "in the last 30 days")
+      + '</div>'
+      + '<div class="toolbar"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="q_audQ" placeholder="Search name, loan number, amount, who…" value="'+esc(ui.audQ||"")+'"></div>'
+      + '<select class="fld" id="audType" style="width:auto;margin:0">'+AUDIT_FILTERS.map(function(o){ return '<option value="'+o[0]+'"'+((ui.audType||"edits")===o[0]?" selected":"")+'>'+esc(o[1])+'</option>'; }).join("")+'</select>'
+      + '<select class="fld" id="audKind" style="width:auto;margin:0">'+AUDIT_KIND_FILTERS.map(function(o){ return '<option value="'+o[0]+'"'+((ui.audKind||"all")===o[0]?" selected":"")+'>'+esc(o[1])+'</option>'; }).join("")+'</select>'
+      + '<button class="btn ghost sm" id="audCsv">Export CSV</button></div>'
+      + '<div class="panel"><div class="ph"><h3>Audit trail</h3><span class="n">'+list.length+' shown · newest first</span></div><div class="table-scroll"><table><thead><tr><th style="width:150px">When</th><th>Who</th><th>Record</th><th>What happened</th></tr></thead><tbody>'
+      + (shown.map(function(e){ return '<tr class="rowlink" data-aud="'+e.seq+':'+esc(e.kind)+':'+esc(e.id)+'"><td class="num" style="white-space:nowrap">'+esc(fmtDateTime(e.at))+'</td><td style="font-size:12px">'+esc(e.by||"unknown")+'</td><td>'+auditPill(e)+' '+esc(auditRecordName(e))+'</td><td>'+esc(auditWhat(e))+(e.restore?'<div class="audsub">Part of a restore of the whole book</div>':'')+'</td></tr>'; }).join("")
+        || '<tr><td colspan="4" class="empty">Nothing matches.</td></tr>')
+      + '</tbody></table></div>'
+      + (list.length>shown.length?'<div style="padding:10px 18px;border-top:1px solid var(--line)"><button class="btn ghost sm" id="audMore">Show more ('+(list.length-shown.length)+' left)</button></div>':'')
+      + '</div>'
+      + '<p style="font-size:12px;color:var(--muted);margin:12px 2px 0;line-height:1.6">Read from the database\'s own change log, which records every save with the login that made it. Nobody can edit or delete it, and restoring an old version of the book doesn\'t remove anything from it. The trail starts on '+esc(fmtDateTime(audit.since))+', when history was switched on.</p>';
+    c.innerHTML=h;
+    wireSearch("audQ");
+    $("audType").addEventListener("change",function(){ ui.audType=this.value; ui.audShow=200; render(); });
+    $("audKind").addEventListener("change",function(){ ui.audKind=this.value; ui.audShow=200; render(); });
+    Array.prototype.forEach.call(c.querySelectorAll("[data-audf]"),function(t){ t.addEventListener("click",function(){
+      var f=t.getAttribute("data-audf"); ui.audQ=""; ui.audShow=200;
+      if(f==="amount"){ ui.audType="amount"; ui.audKind="loans"; }
+      else if(f==="delpay"){ ui.audType="deleted"; ui.audKind="payments"; }
+      else if(f==="delloan"){ ui.audType="deleted"; ui.audKind="loans"; }
+      else { ui.audType="edits"; ui.audKind="all"; }
+      render();
+    }); });
+    var more=$("audMore"); if(more) more.addEventListener("click",function(){ ui.audShow=(ui.audShow||200)+200; render(); });
+    $("audCsv").addEventListener("click",function(){
+      var body=list.map(function(e){ var r=auditRec(e); return [auditLocalStamp(e.at), e.by||"", AUDIT_TYPES[e.type], KIND_NOUN[e.kind]||e.kind, r.ref||"", auditRecordName(e), auditWhat(e), e.restore?"restore":""]; });
+      if(downloadFile("quickserve-audit-trail-"+todayISO()+".csv", toCSV(["When","Who","Type","Record type","Reference","Record","What happened","Note"], body),"text/csv")) toast("Audit trail CSV downloaded.");
+    });
+    wireAuditRows(c);
+    // Pick up saves made since the page was opened.
+    var n=audit.entries.length;
+    loadAudit().then(function(){ if(route==="audit"&&audit.entries.length!==n) render(); });
+  }
+  // A plain copy of the trail for backup files, so a backup also answers
+  // "who changed what, and when".
+  function auditForBackup(){
+    if(!audit.loaded) return null;
+    return audit.entries.slice().sort(function(a,b){ return a.seq-b.seq; }).map(function(e){
+      var r=auditRec(e), o={ at:e.at, by:e.by||"", type:e.type, record:KIND_NOUN[e.kind]||e.kind, id:e.id, ref:r.ref||"", name:auditRecordName(e), what:auditWhat(e) };
+      if(e.type==="edited"||e.type==="activity"){ o.changes={}; e.keys.forEach(function(k){ if(k!=="collections"&&k!=="extensions") o.changes[k]=[(e.before||{})[k]===undefined?null:(e.before||{})[k], (e.after||{})[k]===undefined?null:(e.after||{})[k]]; }); }
+      if(e.type==="deleted") o.deleted=e.before;
+      if(e.restore) o.restore=true;
+      return o;
+    });
+  }
+
   var historyCache={changes:null, versions:null, missing:false, more:true};
   function renderHistory(c){
     var bk=backupAge();
+    loadAudit();  // so a backup downloaded from here includes the audit trail
     setSub("Every save is recorded");
     var h='<div class="grid2">'
       +'<div class="card"><div class="ch"><h3>Backups</h3><span class="asat">'+(bk===null?"none yet":"last "+fmtDateTime(state.settings.lastBackupAt))+'</span></div><div style="padding:14px 18px;font-size:13px;line-height:1.6">'
@@ -2809,6 +3150,91 @@ body.doc-open{overflow:hidden}
       if(!seen[r.loan.clientId]){ seen[r.loan.clientId]=1; b.clients++; }
     });
     return keys.map(function(k){ return out[k]; });
+  }
+
+  // ---- late payments ----
+  // A repayment is late when it reaches us after the due date in force on that
+  // day (a rollover moves the due date from the day it is agreed). Every day
+  // counts: up to 3 days is "slightly late" (the credit score's grace), up to
+  // 30 days late, beyond that very late. A client is flagged as soon as one of
+  // their loans was repaid late, rolled over, written off or is overdue now.
+  // Worked out from the book every time; nothing is stored.
+  var LATE_MILD=3, LATE_VERY=30;
+  function dueInForce(l, day){
+    var ex=(l.extensions||[]).slice().sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+    var due=(ex.length&&ex[0].previousDueDate)||l.dueDate;
+    ex.forEach(function(e){ if(e.newDueDate && String(e.date)<=String(day)) due=e.newDueDate; });
+    return due;
+  }
+  function paymentLateDays(l, date){ var due=dueInForce(l,date); return (due&&date) ? Math.max(0, dayDiff(due,date)) : 0; }
+  function lateLevel(days){ return days<=0 ? "" : (days<=LATE_MILD ? "mild" : (days<=LATE_VERY ? "late" : "very")); }
+  function lateTag(days, word){ var lv=lateLevel(days); return lv ? '<span class="latetag '+lv+'">'+esc(plural(days,"day")+" "+(word||"late"))+'</span>' : ''; }
+  function loanLateness(r, pays){
+    var l=r.loan, x={ r:r, payLate:[], rolled:(r.extensions||[]).length, settled:"", settledDays:0, overdue:0, writtenOff:r.status==="written-off", worst:0, last:"" };
+    pays.forEach(function(p){ var d=paymentLateDays(l, p.date); if(d>0){ x.payLate.push({ p:p, days:d }); if(String(p.date)>x.last) x.last=String(p.date); } });
+    if(r.status==="paid"){ x.settled=settledOn(r,pays)||l.dueDate; x.settledDays=Math.max(0, dayDiff(l.dueDate, x.settled)); }
+    else if(r.status==="overdue") x.overdue=daysLate(r);
+    x.worst=Math.max(x.settledDays, x.overdue, x.payLate.reduce(function(m,y){ return Math.max(m,y.days); },0));
+    x.late = x.worst>0 || x.rolled>0 || x.writtenOff;
+    return x;
+  }
+  // How the loan stands for timeliness, in a few words (with its tag).
+  function loanLateText(x){
+    if(x.writtenOff) return '<span class="latetag very">Written off</span>';
+    var bits=[];
+    if(x.overdue) bits.push(lateTag(x.overdue,"overdue"));
+    else if(x.settled) bits.push(x.settledDays ? lateTag(x.settledDays,"late") : '<span class="latetag ok">On time</span>');
+    else if(x.payLate.length) bits.push(lateTag(x.worst,"late"));
+    if(x.rolled) bits.push('<span class="latetag late">Rolled over'+(x.rolled>1?" ×"+x.rolled:"")+'</span>');
+    return bits.join(" ") || '<span class="latetag ok">Not due yet</span>';
+  }
+  var lateCache={rows:null, today:"", map:{}};
+  function lateRecords(){
+    var today=todayISO();
+    if(lateCache.rows===rows && lateCache.today===today) return lateCache.map;
+    var paysBy={}, map={};
+    (state.payments||[]).forEach(function(p){ (paysBy[p.loanId]=paysBy[p.loanId]||[]).push(p); });
+    Object.keys(paysBy).forEach(function(k){ paysBy[k].sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); }); });
+    rows.forEach(function(r){
+      if(!(num(r.loan.principal)>0)) return;
+      var x=loanLateness(r, paysBy[r.loan.id]||[]);
+      var m=map[r.loan.clientId]||(map[r.loan.clientId]={ loans:[], late:[], latePays:0, worst:0, rolled:0, overdue:0, writtenOff:0, last:"", level:"" });
+      m.loans.push(x);
+      if(x.late) m.late.push(x);
+      m.latePays+=x.payLate.length; m.worst=Math.max(m.worst, x.worst); m.rolled+=x.rolled;
+      if(x.overdue) m.overdue++;
+      if(x.writtenOff) m.writtenOff++;
+      var lastDay=x.settledDays?x.settled:x.last; if(lastDay>m.last) m.last=lastDay;
+    });
+    Object.keys(map).forEach(function(k){ var m=map[k], n=m.late.length;
+      m.level = !n ? "" : ((m.writtenOff || m.worst>LATE_VERY || n>=3) ? "very" : ((m.worst>LATE_MILD || n>=2 || m.rolled) ? "late" : "mild")); });
+    lateCache={rows:rows, today:today, map:map};
+    return map;
+  }
+  function clientLate(id){ var m=lateRecords()[id]; return m&&m.level ? m : null; }
+  function lateSummary(m){
+    if(!m) return "";
+    var p=[];
+    p.push("Late on "+m.late.length+" of "+plural(m.loans.length,"loan"));
+    if(m.worst) p.push("worst "+plural(m.worst,"day"));
+    if(m.latePays) p.push(plural(m.latePays,"payment")+" after the due date");
+    if(m.rolled) p.push(plural(m.rolled,"rollover"));
+    if(m.overdue) p.push(m.overdue+" overdue now");
+    if(m.writtenOff) p.push(m.writtenOff+" written off");
+    if(m.last && !m.overdue) p.push("last late "+fmtDate(m.last));
+    return p.join(" · ");
+  }
+  function lateFlag(id){ var m=clientLate(id); return m ? '<span class="lateflag '+m.level+'" title="'+esc(lateSummary(m))+'">Late ×'+m.late.length+'</span>' : ''; }
+  // The client drawer's record of every loan: due, repaid, how late.
+  function lateSection(id){
+    var m=lateRecords()[id]; if(!m||!m.loans.length) return "";
+    var list=m.loans.slice().sort(function(a,b){ return String(b.r.loan.issueDate).localeCompare(String(a.r.loan.issueDate)); });
+    var head = m.level ? '<div class="latebox '+m.level+'"><b>'+(m.level==="mild"?"Slightly late payer":(m.level==="late"?"Late payer":"Repeat or serious late payer"))+'</b><div>'+esc(lateSummary(m))+'</div></div>'
+      : '<div class="latebox ok"><b>Always on time</b><div>'+plural(m.loans.length,"loan")+', no payment after a due date.</div></div>';
+    return '<div class="dsect">Repayment timeliness</div>'+head
+      + '<table class="dtable"><thead><tr><th>Loan</th><th>Due</th><th>Repaid</th><th>Timeliness</th></tr></thead><tbody>'
+      + list.map(function(x){ var l=x.r.loan; return '<tr class="rowlink" data-dloan="'+esc(l.id)+'"><td class="num">'+esc(l.ref||fmtDate(l.issueDate))+'</td><td class="num">'+fmtDate(l.dueDate)+'</td><td class="num">'+(x.settled?fmtDate(x.settled):"—")+'</td><td>'+loanLateText(x)+'</td></tr>'; }).join("")
+      + '</tbody></table>';
   }
 
   // ---- paid-up letter ----
@@ -3358,7 +3784,9 @@ body.doc-open{overflow:hidden}
         var txt = sc.isNew ? "New client — no repayment history yet. Check affordability."
           : sc.score+"/100 · "+sc.grade.label+" · "+(sc.limit==null ? "no loan repaid yet — check affordability" : (sc.limit===0 ? "no new loan suggested ("+sc.why.replace(/\.$/,"")+")" : "suggested up to "+money0(sc.available)));
         box.className="scorehint"+(over?" over":"");
-        box.innerHTML=gradeBadge(sc)+'<span>'+esc(txt)+(over&&amt>0&&sc.limit>0?" — "+esc(money0(amt))+" is above that":"")+'</span> <a href="#" data-scorehelp style="color:var(--accent)">How?</a>';
+        var lm=clientLate(fval("f_client"));
+        box.innerHTML=gradeBadge(sc)+'<span>'+esc(txt)+(over&&amt>0&&sc.limit>0?" — "+esc(money0(amt))+" is above that":"")+'</span> <a href="#" data-scorehelp style="color:var(--accent)">How?</a>'
+          +(lm?'<div class="latehint '+lm.level+'">'+lateFlag(fval("f_client"))+' Late payer — '+esc(lateSummary(lm))+'</div>':'');
         Array.prototype.forEach.call(box.querySelectorAll("[data-scorehelp]"),function(a){ a.addEventListener("click",function(ev){ ev.preventDefault(); var c=fval("f_client"), a=fval("f_principal"); openScoreHelp(function(){ openLoanForm(null,c); var pe=$("f_principal"); if(pe){ pe.value=a; pe.dispatchEvent(new Event("input")); } }); }); });
       };
       $("f_client").addEventListener("change",hint); $("f_principal").addEventListener("input",hint); hint();
@@ -3373,6 +3801,7 @@ body.doc-open{overflow:hidden}
     var body=''
       +'<div class="field"><label>Loan</label><select id="f_loan">'+opts+'</select></div>'
       +'<div class="field row"><div><label>Amount paid (N$)</label><input id="f_amount" class="num" type="number" min="0" step="0.01" placeholder="0.00"></div><div><label>Date</label><input id="f_date" type="date" value="'+todayISO()+'"></div></div>'
+      +'<div class="scorehint" id="f_latehint"></div>'
       +'<div class="field row"><div><label>Method</label><select id="f_method"><option>Cash</option><option>Bank transfer</option><option>E-wallet</option><option>Other</option></select></div><div><label>Reference</label><input id="f_ref" placeholder="Optional"></div></div>'
       +'<div class="field"><label>Notes</label><textarea id="f_pnotes" placeholder="Optional"></textarea></div>'
       + accountSelectHtml("f_pacct", preferredAccountId(), "Received into")
@@ -3384,8 +3813,21 @@ body.doc-open{overflow:hidden}
       if(amount>r.outstanding+0.01 && !confirm("This payment ("+money(amount)+") is more than the outstanding "+money(r.outstanding)+". Save it anyway?")){ return; }
       var rec={ id:uid("payment"), loanId:loanId, amount:amount, date:fval("f_date"), method:fval("f_method"), reference:cleanText(fval("f_ref")), notes:cleanText(fval("f_pnotes")), accountId:fval("f_pacct"), createdAt:new Date().toISOString() };
       ui.lastAccount=rec.accountId;
-      commit(function(data){ data.payments.push(rec); }, "Payment recorded.");
+      var pl=paymentLateDays(r.loan, rec.date);
+      commit(function(data){ data.payments.push(rec); }, pl ? "Payment recorded — "+plural(pl,"day")+" late. "+clientName(r.loan.clientId)+" is flagged as a late payer." : "Payment recorded.");
     });
+    // Says straight away whether this payment is late and what that means for the client.
+    function lateHint(){
+      var box=$("f_latehint"); if(!box) return;
+      var r=rows.find(function(x){ return x.loan.id===fval("f_loan"); }), d=fval("f_date");
+      if(!r||!d){ box.innerHTML=""; return; }
+      var due=dueInForce(r.loan, d), days=paymentLateDays(r.loan, d), m=clientLate(r.loan.clientId), nm=clientName(r.loan.clientId);
+      var h = days ? lateTag(days)+'<span>Due '+esc(fmtDate(due))+(m?'':' — '+esc(nm)+' will be flagged as a late payer')+'.</span>'
+                   : '<span class="latetag ok">On time</span><span>Due '+esc(fmtDate(due))+'.</span>';
+      if(m) h+='<div class="latehint '+m.level+'">'+lateFlag(r.loan.clientId)+' '+esc(nm)+': '+esc(lateSummary(m))+'</div>';
+      box.className="scorehint"; box.innerHTML=h;
+    }
+    $("f_loan").addEventListener("change",lateHint); $("f_date").addEventListener("change",lateHint); $("f_date").addEventListener("input",lateHint); lateHint();
   }
   // deletes run outside the modal (triggered from a drawer), so they show a toast
   function runDelete(mutate, okMsg){
