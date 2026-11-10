@@ -6,7 +6,11 @@ built or deployed by the QuickServe workflow.
 - `invoice-template.html`: the GadgetHub invoice layout, copied from invoice
   GH-2026-0831 (logo, address, terms and conditions, footer).
 - `render-invoice.js`: fills the template from a JSON file and writes a PDF.
-- `invoices/<number>.json`: one file per invoice. The PDF is written next to it.
+- `invoices/<number>.json`: one file per invoice (number, dates, items). The PDF
+  is written next to it.
+- `invoices/<number>.client.json`: the client's name, address, phone and email.
+  **Git ignores this file and the PDFs**, because this repository is public.
+  Keep client details only there, never in the main JSON.
 
 ## Make or update an invoice
 
@@ -24,4 +28,4 @@ node gadgethub/render-invoice.js gadgethub/invoices/GH-2026-1110.json
 
 | Invoice | Item | Amount | Still needed |
 |---|---|---|---|
-| GH-2026-1110 | Samsung Galaxy S25 Ultra, Titanium Black, 256 GB, serial R5CY10CHX1H | N$ 23,000.00 | Client name, email (and town/phone if wanted), device condition (new or pre-owned) |
+| GH-2026-1110 | Samsung Galaxy S25 Ultra, Titanium Black, 256 GB, serial R5CY10CHX1H | N$ 23,000.00 | Device condition (new or pre-owned). Client details were supplied on 10 Nov 2026 and kept out of git. |

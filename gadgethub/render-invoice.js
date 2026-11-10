@@ -39,7 +39,10 @@ function words(n) {
   return s + ".";
 }
 
-const c = d.client || {};
+// Client details live in <number>.client.json, which git ignores because
+// this repository is public. Fields there override the main file's client.
+const clientPath = dataPath.replace(/\.json$/, ".client.json");
+const c = Object.assign({}, d.client, fs.existsSync(clientPath) ? JSON.parse(fs.readFileSync(clientPath, "utf8")) : {});
 const clientBlock = [
   `<div class="name">${val(c.name, "Client name")}</div>` +
   [c.town ? esc(c.town) : null,
