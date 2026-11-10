@@ -15,5 +15,7 @@ routes = [
   { pattern = "preview.quickserve.group", custom_domain = true }
 ]
 
+# SITE_MODE: "live" = the full site; "soon" = quickserve.group shows only the
+# coming-soon page (preview.quickserve.group keeps the full site for staff).
 [vars]
-SITE_MODE = "live"
+SITE_MODE = "soon"
