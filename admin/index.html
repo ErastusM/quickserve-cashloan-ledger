@@ -1536,6 +1536,580 @@ body.doc-open{overflow:hidden}
     });
   }
 
+  // ---- bank statements: read and analyse, in this browser ----
+  // An applicant's statement PDF is read here with pdf.js (pinned version,
+  // integrity-checked); nothing is sent anywhere. FNB statements are read with
+  // FNB's own layout and checked against the running balance and FNB's totals.
+  // Bank Windhoek, Nedbank and Standard Bank are read with a general reader
+  // that checks itself against the running balance; photos are entered by hand.
+  var PDFJS_BASE="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/";
+  var PDFJS_FILES=[["pdf.worker.min.js","sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2"],
+                   ["pdf.min.js","sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e"]];
+  var pdfjsReady=null;
+  function loadScriptOnce(src, sri){
+    return new Promise(function(res, rej){
+      var s=document.createElement("script"); s.src=src; s.integrity=sri; s.crossOrigin="anonymous";
+      s.onload=function(){ res(); }; s.onerror=function(){ rej(new Error("Couldn't load the PDF reader. Check the connection and try again.")); };
+      document.head.appendChild(s);
+    });
+  }
+  function loadPdfJs(){
+    if(window.pdfjsLib && window.pdfjsWorker) return Promise.resolve(window.pdfjsLib);
+    if(!pdfjsReady){
+      // The worker script runs on the page (statements are a few pages), so both files are integrity-checked.
+      pdfjsReady=loadScriptOnce(PDFJS_BASE+PDFJS_FILES[0][0], PDFJS_FILES[0][1])
+        .then(function(){ return loadScriptOnce(PDFJS_BASE+PDFJS_FILES[1][0], PDFJS_FILES[1][1]); })
+        .then(function(){ if(!window.pdfjsLib) throw new Error("The PDF reader didn't start."); return window.pdfjsLib; },
+              function(e){ pdfjsReady=null; throw e; });
+    }
+    return pdfjsReady;
+  }
+  // Text lines of a PDF, top to bottom, with column gaps kept as double spaces.
+  function pdfTextLines(buf){
+    return loadPdfJs().then(function(lib){ return lib.getDocument({ data:new Uint8Array(buf), isEvalSupported:false }).promise; })
+      .then(function(doc){
+        var n=[]; for(var i=1;i<=doc.numPages;i++) n.push(i);
+        return Promise.all(n.map(function(p){ return doc.getPage(p).then(function(pg){ return pg.getTextContent(); }).then(function(tc){ return itemsToLines(tc.items, p); }); }))
+          .then(function(pages){ try{ doc.destroy(); }catch(e){} return [].concat.apply([], pages); });
+      });
+  }
+  function itemsToLines(items, page){
+    var rows=[];
+    items.forEach(function(it){
+      if(!it.str || !it.str.trim()) return;
+      var x=it.transform[4], y=it.transform[5], r=null;
+      for(var i=0;i<rows.length;i++) if(Math.abs(rows[i].y-y)<2.5){ r=rows[i]; break; }
+      if(!r){ r={ y:y, items:[] }; rows.push(r); }
+      r.items.push({ x:x, w:it.width||0, s:it.str });
+    });
+    rows.sort(function(a,b){ return b.y-a.y; });
+    return rows.map(function(r){
+      r.items.sort(function(a,b){ return a.x-b.x; });
+      var t="", end=null;
+      r.items.forEach(function(it){
+        if(end!=null){ var gap=it.x-end; t+= gap>4 ? "  " : ((gap>0.8 && !/\s$/.test(t) && !/^\s/.test(it.s)) ? " " : ""); }
+        t+=it.s; end=it.x+it.w;
+      });
+      return { page:page, text:t.replace(/\s+$/,"") };
+    });
+  }
+  var MON3={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  function sNum(s){ return Number(String(s).replace(/,/g,"")); }
+  function ymd(y,m,d){ return y+"-"+pad2(m)+"-"+pad2(d); }
+  function longDate(s){ var m=/(\d{1,2})\s+([A-Za-z]{3,9})\.?\s+(\d{4})/.exec(s||""); var mo=m&&MON3[m[2].slice(0,3).toLowerCase()]; return mo ? ymd(+m[3],mo,+m[1]) : ""; }
+  function whichBank(all){
+    if(/fnbnamibia|First National Bank of Namibia|FIRNNANX/i.test(all)) return "FNB";
+    if(/bank\s*windhoek|BWLINANX/i.test(all)) return "Bank Windhoek";
+    if(/nedbank/i.test(all)) return "Nedbank";
+    if(/standard\s*bank|SBNMNANX/i.test(all)) return "Standard Bank";
+    return "";
+  }
+  function signedBal(tok){ return (tok.cr==="cr" ? 1 : -1)*tok.v; }   // FNB: "Cr" in funds, no suffix = overdrawn
+  function parseFnbStatement(lines){
+    var all=lines.map(function(l){ return l.text; }).join("\n");
+    var per=/Statement Period\s*:\s*(\d{1,2}\s+\w+\s+\d{4})\s+to\s+(\d{1,2}\s+\w+\s+\d{4})/i.exec(all);
+    var from=per?longDate(per[1]):"", to=per?longDate(per[2]):"";
+    function hb(re){ var m=re.exec(all); return m ? (m[2]&&/dr/i.test(m[2])?-1:1)*sNum(m[1]) : null; }
+    var opening=hb(/Opening Balance\s+([\d,]+\.\d{2})\s*(Cr|Dr)?/i), closing=hb(/Closing Balance\s+([\d,]+\.\d{2})\s*(Cr|Dr)?/i);
+    var od=/Overdraft Limit\s+([\d,]+\.\d{2})/i.exec(all), acct=/([A-Za-z][A-Za-z ]*Account)\s*:\s*(\d{6,})/.exec(all);
+    var y0=+from.slice(0,4)||new Date().getFullYear(), m0=+from.slice(5,7)||1, y1=+to.slice(0,4)||y0;
+    var txns=[], prev=opening, bad=0, re=/(\d{1,3}(?:,\d{3})*\.\d{2})(?:\s?(Cr|Dr|CR|DR))?/g;
+    lines.forEach(function(l){
+      var m=/^\s*(\d{2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(.*)$/.exec(l.text); if(!m) return;
+      var rest=m[3], toks=[], mm; re.lastIndex=0;
+      while((mm=re.exec(rest))) toks.push({ v:sNum(mm[1]), cr:mm[2]?mm[2].toLowerCase():"", i:mm.index });
+      if(toks.length<2) return;
+      var mo=MON3[m[2].toLowerCase()], yr=mo<m0 ? y1 : y0, n=toks.length;
+      var cands=[{ a:toks[n-2], b:toks[n-1], f:null }]; if(n>=3) cands.push({ a:toks[n-3], b:toks[n-2], f:toks[n-1] });
+      var pick=null;
+      cands.forEach(function(c){ if(pick) return; var amt=(c.a.cr==="cr"?1:-1)*c.a.v, b=signedBal(c.b);
+        if(prev==null || Math.abs(prev+amt-b)<0.006) pick={ amt:amt, bal:b, fee:c.f?c.f.v:0, at:c.a.i }; });
+      if(!pick){ var c=cands[0]; pick={ amt:(c.a.cr==="cr"?1:-1)*c.a.v, bal:signedBal(c.b), fee:0, at:c.a.i, off:true }; bad++; }
+      var parts=rest.slice(0,pick.at).trim().split(/\s{2,}/);
+      txns.push({ date:ymd(yr,mo,+m[1]), desc:parts[0], ref:parts.slice(1).join(" "), amount:num(pick.amt), balance:num(pick.bal), fee:pick.fee, off:!!pick.off });
+      prev=pick.bal;
+    });
+    var cr=/No\.?\s*Credit Transactions\s+(\d+)\s+([\d,]+\.\d{2})/i.exec(all), dr=/No\.?\s*Debit Transactions\s+(\d+)\s+([\d,]+\.\d{2})/i.exec(all);
+    var ins=txns.filter(function(t){ return t.amount>0; }), outs=txns.filter(function(t){ return t.amount<0; });
+    var sumIn=num(ins.reduce(function(s,t){ return s+t.amount; },0)), sumOut=num(-outs.reduce(function(s,t){ return s+t.amount; },0));
+    var totalsOk = cr&&dr ? (+cr[1]===ins.length && Math.abs(sNum(cr[2])-sumIn)<0.01 && +dr[1]===outs.length && Math.abs(sNum(dr[2])-sumOut)<0.01) : null;
+    return { bank:"FNB", account:acct?acct[1].split(/\s{2,}/).pop().trim()+" ··"+acct[2].slice(-4):"", from:from, to:to, opening:opening, closing:closing,
+      overdraftLimit:od?sNum(od[1]):null, txns:txns,
+      check:{ lines:txns.length, off:bad, closingOk: closing!=null&&txns.length ? Math.abs(txns[txns.length-1].balance-closing)<0.01 : null, totalsOk:totalsOk,
+        bankTotals: cr&&dr ? { credits:+cr[1], creditSum:sNum(cr[2]), debits:+dr[1], debitSum:sNum(dr[2]) } : null } };
+  }
+  // Any other bank: a date at the start of a line, money at the end, and the
+  // running balance to tell money in from money out.
+  function parseGenericStatement(lines, bank){
+    var all=lines.map(function(l){ return l.text; }).join("\n"), yrs=all.match(/\b20\d{2}\b/g), defY=yrs?+yrs[0]:new Date().getFullYear();
+    function hb(re){ var m=re.exec(all); if(!m) return null; var v=sNum(m[2]); return (/^-/.test(m[1]||"")||(m[3]&&/dr/i.test(m[3]))?-1:1)*v; }
+    var opening=hb(/(?:opening balance|balance brought forward|brought forward|previous balance|balance b\/f)[^\d\n-]*(-?)([\d,]+\.\d{2})\s*(cr|dr)?/i);
+    var closing=hb(/(?:closing balance|balance carried forward|carried forward|balance c\/f)[^\d\n-]*(-?)([\d,]+\.\d{2})\s*(cr|dr)?/i);
+    var od=/overdraft (?:limit|facility)[^\d\n]*([\d,]+\.\d{2})/i.exec(all);
+    var DATES=[
+      [/^\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})\b\s*(.*)$/, function(m){ return [m[3].length===2?2000+(+m[3]):+m[3], +m[2], +m[1]]; }],
+      [/^\s*(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})\b\s*(.*)$/, function(m){ return [+m[1], +m[2], +m[3]]; }],
+      [/^\s*(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{4}|\d{2})\b\s*(.*)$/i, function(m){ return [m[3].length===2?2000+(+m[3]):+m[3], MON3[m[2].slice(0,3).toLowerCase()], +m[1]]; }],
+      [/^\s*(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\b\s*(.*)$/i, function(m){ return [defY, MON3[m[2].slice(0,3).toLowerCase()], +m[1]]; }]
+    ];
+    var re=/(-)?(\d{1,3}(?:,\d{3})*\.\d{2})(-)?(?:\s?(CR|DR|Cr|Dr))?/g, txns=[], prev=opening, bad=0, pending=null;
+    function take(dateParts, rest){
+      var toks=[], mm; re.lastIndex=0;
+      while((mm=re.exec(rest))) toks.push({ v:sNum(mm[2]), neg:!!(mm[1]||mm[3])||/dr/i.test(mm[4]||""), cr:/cr/i.test(mm[4]||""), i:mm.index });
+      if(!toks.length) return false;
+      if(/brought forward|carried forward|opening balance|closing balance|b\/f|c\/f/i.test(rest)){ var b0=toks[toks.length-1]; prev=(b0.neg?-1:1)*b0.v; return true; }
+      var d=ymd(dateParts[0],dateParts[1],dateParts[2]), amtTok, bal=null, off=false;
+      if(toks.length>=2){
+        var b=toks[toks.length-1]; bal=(b.neg?-1:1)*b.v;
+        var others=toks.slice(0,-1).filter(function(t){ return t.v>0; }); amtTok=others.length?others[others.length-1]:toks[toks.length-2];
+      } else amtTok=toks[0];
+      var amt;
+      if(bal!=null && prev!=null){
+        if(Math.abs(prev+amtTok.v-bal)<0.006) amt=amtTok.v; else if(Math.abs(prev-amtTok.v-bal)<0.006) amt=-amtTok.v;
+        else { amt=amtTok.cr?amtTok.v:-amtTok.v; off=true; }
+      } else { amt=amtTok.cr?amtTok.v:-amtTok.v; off=true; }
+      if(off) bad++;
+      var desc=rest.slice(0, toks[0].i).trim().split(/\s{2,}/);
+      txns.push({ date:d, desc:desc[0]||"", ref:desc.slice(1).join(" "), amount:num(amt), balance:bal==null?null:num(bal), fee:0, off:off });
+      if(bal!=null) prev=bal;
+      return true;
+    }
+    lines.forEach(function(l){
+      var hit=null;
+      for(var k=0;k<DATES.length&&!hit;k++){ var m=DATES[k][0].exec(l.text); if(m){ var p=DATES[k][1](m); if(p[1]>=1&&p[1]<=12&&p[2]>=1&&p[2]<=31) hit={ p:p, rest:m[m.length-1] }; } }
+      if(hit){ if(!take(hit.p, hit.rest)) pending=hit; else pending=null; return; }
+      if(pending){ if(take(pending.p, pending.rest+"  "+l.text.trim())) pending=null; }
+    });
+    var dates=txns.map(function(t){ return t.date; }).sort();
+    return { bank:bank||"Other bank", account:"", from:dates[0]||"", to:dates[dates.length-1]||"", opening:opening, closing:closing,
+      overdraftLimit:od?sNum(od[1]):null, txns:txns, generic:true,
+      check:{ lines:txns.length, off:bad, closingOk: closing!=null&&txns.length&&txns[txns.length-1].balance!=null ? Math.abs(txns[txns.length-1].balance-closing)<0.01 : null, totalsOk:null } };
+  }
+  function parseStatementLines(lines){
+    var all=lines.map(function(l){ return l.text; }).join("\n"), bank=whichBank(all);
+    return bank==="FNB" ? parseFnbStatement(lines) : parseGenericStatement(lines, bank);
+  }
+  function readStatementPdf(buf){ return pdfTextLines(buf).then(parseStatementLines); }
+
+  // ---- what each transaction is ----
+  var STMT_CATS=[
+    ["salary","Salary","in"],["lenderIn","Loan paid in by a lender","in"],["cashIn","Cash deposit","in"],["transferIn","Transfer or payment in","in"],["income","Other money in","in"],
+    ["lender","Repayment to a lender","out"],["debitOrder","Debit order or insurance","out"],["returned","Returned or unpaid","both"],["gambling","Betting or gambling","out"],
+    ["cash","Cash withdrawal","out"],["fees","Bank fees","out"],["airtime","Airtime and data","out"],["utilities","Electricity and water","out"],["fuel","Fuel and transport","out"],
+    ["shopping","Card purchases","out"],["transferOut","Transfers and payments out","out"],["other","Other","both"]];
+  var STMT_CAT_NAME={}; STMT_CATS.forEach(function(c){ STMT_CAT_NAME[c[0]]=c[1]; });
+  var RX={
+    returned:/\b(unpaid|returned|reversal|reversed|rtd|insufficient|dishono(?:u)?r(?:ed)?|r\/d|bounced|stop payment)\b/i,
+    gambling:/\b(bet|bets|betting|betway|hollywoodbets|supabets|sportingbet|casino|lotto|lottery|slots|bingo|gambl\w*|jackpot)\b/i,
+    lender:/(\bloans?\b|\blend(?:er|ing)?\b|cash ?loan|micro ?l(?:oan|end)|pay ?day|\bpersln\b|pers ?ln|personal loan|letshego|trustco|\badvance\b)/i,
+    debitOrder:/(debit order|\bd\/o\b|\bendo\b|collection|naedo|debicheck|premium|insurance|assurance|\bpolicy\b|funeral|medical aid|\blife\b)/i,
+    fees:/(\b(fees?|charges?|duty|commission|levy|debit interest|interest charged)\b|int(?:erest)? on debit|overdraft interest)/i,
+    cash:/\b(atm cash|atm withdrawal|cash withdrawal|cash wdl|cash out|cashout)\b|^atm\b/i,
+    cashIn:/(cash deposit|adt cash|atm deposit|deposit cash)/i,
+    airtime:/(airtime|data bundle|\bmtc\b|tn mobile|paratus|telecom)/i,
+    utilities:/(electricity|nampower|\bwater\b|municipal|erongo red|cenored|nored)/i,
+    fuel:/(\bfuel\b|engen|\bshell\b|\bpuma\b|petrol|taxi|uber|\bbus\b|\btoll\b)/i,
+    salary:/(salary|salaries|\bsal\b|wages|payroll|magtape|acb credit|remuneration|\bpension\b|\bgipf\b|\bgrn\b|ministry|stipend)/i,
+    shopping:/(pos purchase|card purchase|purchase\b|\bpos\b)/i,
+    transfer:/(transfer|pay 2 cell|paytocell|send money|e-?wallet|payment|inward|outward|\beft\b|interbank|internet)/i
+  };
+  function stmtKey(t){ return t.date+"|"+t.amount+"|"+(t.balance==null?"":t.balance); }
+  function stmtParty(t){ return String(t.desc||"").toLowerCase().replace(/\d+/g,"").replace(/pay 2 cell (credit|debit)|fnb app (transfer|payment) (from|to)|encr inward|inward eft|credit transfer|magtape credit|acb credit|\bp2c\b/g,"").replace(/[^a-z ]/g," ").replace(/\s+/g," ").trim(); }
+  function classifyTxn(t){
+    var s=(t.desc||"")+" "+(t.ref||"");
+    if(t.amount>0){
+      if(RX.returned.test(s)) return "returned";
+      if(RX.salary.test(s)) return "salary";
+      if(RX.lender.test(s)) return "lenderIn";
+      if(RX.cashIn.test(s)) return "cashIn";
+      if(RX.transfer.test(s)) return "transferIn";
+      return "income";
+    }
+    if(RX.returned.test(s)) return "returned";
+    if(RX.gambling.test(s)) return "gambling";
+    if(RX.lender.test(s)) return "lender";
+    if(RX.debitOrder.test(s)) return "debitOrder";
+    if(RX.cash.test(s)) return "cash";
+    if(RX.fees.test(s)) return "fees";
+    if(RX.airtime.test(s)) return "airtime";
+    if(RX.utilities.test(s)) return "utilities";
+    if(RX.fuel.test(s)) return "fuel";
+    if(RX.shopping.test(s)) return "shopping";
+    if(RX.transfer.test(s)) return "transferOut";
+    return "other";
+  }
+  // Credits of N$1,000+ from the same payer in two or more months, at a similar
+  // amount, are taken as salary when nothing says otherwise.
+  function markRecurringSalary(txns){
+    var g={};
+    txns.forEach(function(t){ if(t.amount>=1000 && (t.cat==="transferIn"||t.cat==="income")){ var p=stmtParty(t); if(p) (g[p]=g[p]||[]).push(t); } });
+    Object.keys(g).forEach(function(p){
+      var list=g[p], months={}; list.forEach(function(t){ months[t.date.slice(0,7)]=1; });
+      if(Object.keys(months).length<2) return;
+      var amts=list.map(function(t){ return t.amount; }).sort(function(a,b){ return a-b; }), med=amts[Math.floor(amts.length/2)];
+      if(amts.every(function(a){ return Math.abs(a-med)<=0.3*med; })) list.forEach(function(t){ t.cat="salary"; t.auto="recurring"; });
+    });
+  }
+  // Everything document 03 asks of the statements, from the transactions.
+  function analyseStatements(stmts, overrides){
+    var seen={}, txns=[];
+    stmts.forEach(function(s){ s.txns.forEach(function(t){ var k=stmtKey(t)+"|"+t.desc; if(seen[k]) return; seen[k]=1; txns.push(Object.assign({}, t, { bank:s.bank })); }); });
+    txns.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+    txns.forEach(function(t){ t.cat=classifyTxn(t); });
+    markRecurringSalary(txns);
+    // One month only: suggest the largest credit that looks like pay, for the analyst to confirm.
+    if(!txns.some(function(t){ return t.cat==="salary"; })){
+      var mset={}; txns.forEach(function(t){ mset[t.date.slice(0,7)]=1; });
+      if(Object.keys(mset).length<2){
+        var best=null; txns.forEach(function(t){ if(t.amount>=2000 && (t.cat==="income"||t.cat==="transferIn") && !/pay 2 cell|send money|cash/i.test(t.desc) && (!best||t.amount>best.amount)) best=t; });
+        if(best){ best.cat="salary"; best.auto="guess"; }
+      }
+    }
+    txns.forEach(function(t){ var o=overrides&&overrides[stmtKey(t)]; if(o){ t.cat=o; t.manual=true; } });
+    var from=stmts.map(function(s){ return s.from; }).filter(Boolean).sort()[0]||"", to=stmts.map(function(s){ return s.to; }).filter(Boolean).sort().pop()||"";
+    var limit=stmts.reduce(function(m,s){ return s.overdraftLimit!=null?Math.max(m||0,s.overdraftLimit):m; }, null);
+    var months={};
+    function M(k){ return months[k]||(months[k]={ m:k, in:0, out:0, salary:0, debitOrder:0, lender:0, gambling:0, cash:0, fees:0, spend:0, returned:0, lenderIn:0, low:null }); }
+    txns.forEach(function(t){
+      var m=M(t.date.slice(0,7)), a=Math.abs(t.amount);
+      if(t.amount>0) m.in=num(m.in+a); else m.out=num(m.out+a);
+      if(t.cat==="salary") m.salary=num(m.salary+a);
+      else if(t.cat==="returned") m.returned++;
+      else if(t.cat==="lenderIn") m.lenderIn=num(m.lenderIn+a);
+      else if(t.amount<0 && m[t.cat]!=null) m[t.cat]=num(m[t.cat]+a);
+      if(t.amount<0 && ["airtime","utilities","fuel","shopping","cash","other"].indexOf(t.cat)>=0) m.spend=num(m.spend+a);
+      if(t.fee) m.fees=num(m.fees+t.fee);
+      if(t.balance!=null && (m.low==null || t.balance<m.low)) m.low=t.balance;
+    });
+    // End-of-day balances, carried over days without transactions.
+    var eod={}; txns.forEach(function(t){ if(t.balance!=null) eod[t.date]=t.balance; });
+    var days=Object.keys(eod).sort(), overdrawn=0, unarranged=0, worst=null;
+    if(days.length){
+      var d=from||days[0], last=to||days[days.length-1], bal=null, i=0, start=stmts.map(function(s){ return s.opening; }).filter(function(v){ return v!=null; })[0];
+      bal=start!=null?start:eod[days[0]];
+      for(var guard=0; d<=last && guard<400; guard++){ if(eod[d]!=null) bal=eod[d]; if(bal<0){ overdrawn++; if(limit!=null && bal< -limit-0.005) unarranged++; } if(worst==null||bal<worst) worst=bal; d=addDays(d,1); }
+    }
+    // After each salary: how low did the balance go within 7 days?
+    // (Only transactions after the pay itself count; statement order is kept within a day.)
+    var afterPay=[];
+    txns.forEach(function(p, i){
+      if(p.cat!=="salary") return;
+      var end=addDays(p.date,7), low=p.balance;
+      for(var j=i+1;j<txns.length && txns[j].date<=end;j++){ var b=txns[j].balance; if(b!=null && (low==null||b<low)) low=b; }
+      afterPay.push({ date:p.date, pay:p.amount, low:low, near: low!=null && low < Math.max(200, 0.05*p.amount) });
+    });
+    var list=Object.keys(months).sort().map(function(k){ return months[k]; });
+    var covered=from&&to ? dayDiff(from,to)+1 : 0;
+    function pick(cat){ return txns.filter(function(t){ return t.cat===cat; }); }
+    return { txns:txns, months:list, from:from, to:to, covered:covered, limit:limit, overdrawnDays:overdrawn, unarrangedDays:unarranged, worstBalance:worst,
+      afterPay:afterPay, lenders:pick("lender"), lenderIn:pick("lenderIn"), returned:pick("returned"), gambling:pick("gambling"), salaries:pick("salary"), debitOrders:pick("debitOrder") };
+  }
+
+  // ---- affordability assessment on an application (document 03) ----
+  // The applicant's bank statements are read in this browser, sorted, and the
+  // figures fill in document 03: verified income, commitments, living
+  // expenses, disposable income, the warning signs and the regulatory checks.
+  // The analyst confirms or corrects every figure; the saved assessment
+  // decides whether Approve is allowed.
+  var asm={ appId:"", files:{}, local:[], an:null, overrides:{}, vals:{}, touched:{} };
+  var ASM_HARD={ g1:1, g2:1, g3:1, g8:1, g10:1, g11:1 };
+  function asmPolicyDefault(){ try{ return localStorage.getItem("qs.policyPct")||""; }catch(e){ return ""; } }
+  function asmStart(a){
+    if(asm.appId===a.id) return;
+    var sv=a.affordability||{}, v2=sv.v===2;
+    asm={ appId:a.id, files:{}, local:[], an:null, overrides:Object.assign({}, sv.overrides||{}), touched:{},
+      vals:{ A4: v2?sv.A4:(sv.income!=null?sv.income:(a.net_income_cents||0)/100), A7: v2?sv.A7:"", Bs: v2?sv.B_stmt:(sv.debts!=null?sv.debts:""), Bq: v2?sv.B_qs:"", Bo: v2?sv.B_other:"",
+        Cd: v2?sv.C_decl:(sv.expenses!=null?sv.expenses:""), Cu: v2?sv.C_used:"", dep: v2?sv.dependants:"", pol: v2&&sv.policyPct!=null?sv.policyPct:asmPolicyDefault(),
+        g4: v2?sv.bureau||"pending":"pending", g11: v2?!!sv.g11:false, note: v2?(sv.note||""):(sv.note||""), w:(v2&&sv.warnings)||{} } };
+    if(v2) Object.keys(asm.vals).forEach(function(k){ if(k!=="w") asm.touched[k]=true; });
+  }
+  function asmFileList(files){
+    return files.filter(function(f){ return f.kind==="bank"; }).map(function(f){ return { id:f.id, name:({bank:"Bank statement"})[f.kind]+" · "+fmtDate(String(f.uploaded_at||"").slice(0,10)), mime:f.mime, remote:true }; }).concat(asm.local);
+  }
+  function asmRecompute(){
+    var st=Object.keys(asm.files).map(function(k){ return asm.files[k]; }).filter(function(x){ return x.state==="done"; }).map(function(x){ return x.st; });
+    asm.an = st.length ? analyseStatements(st, asm.overrides) : null;
+    if(asm.an){
+      // Fill figures the analyst hasn't typed over.
+      var avg=function(key){ var ms=asm.an.months; return ms.length ? num(ms.reduce(function(s,m){ return s+m[key]; },0)/ms.length) : 0; };
+      if(!asm.touched.Bs) asm.vals.Bs=num(avg("lender")+avg("debitOrder"));
+    }
+  }
+  function asmRead(a, f){
+    var rec=asm.files[f.id]={ state:"reading", name:f.name };
+    asmDrawStatements(a);
+    var get = f.remote ? fetchAppFile(a.id, f.id) : Promise.resolve(f.buf);
+    return get.then(function(buf){
+      if(f.mime && f.mime!=="application/pdf"){ rec.state="photo"; return; }
+      return readStatementPdf(buf).then(function(st){
+        if(!st.txns.length){ rec.state="error"; rec.err="No transactions found. If this is a scan or a photo of a statement, enter the figures by hand below."; return; }
+        rec.state="done"; rec.st=st;
+      });
+    }).catch(function(e){ rec.state="error"; rec.err=(e&&e.message)||"Couldn't read this file."; })
+      .then(function(){ asmRecompute(); asmDraw(a); });
+  }
+  function fetchAppFile(appId, fileId){
+    return token().then(function(tk){ return fetch(WORKER_BASE+"/v2/admin/applications/"+appId+"/files/"+fileId,{ headers:{ Authorization:"Bearer "+tk } }); })
+      .then(function(r){ if(!r.ok) throw new Error("Couldn't download the statement ("+r.status+")."); return r.arrayBuffer(); });
+  }
+  function stmtCheckText(st){
+    var c=st.check, ok=c.off===0;
+    var t=c.lines+" transactions · "+(ok?"every running balance agrees":c.off+" line"+(c.off===1?"":"s")+" don't agree with the running balance — check them");
+    if(c.totalsOk===true) t+=" · matches the bank's totals"; else if(c.totalsOk===false) t+=" · doesn't match the bank's totals — check";
+    if(c.closingOk===false) t+=" · closing balance differs";
+    if(st.generic) t+=" · read with the general reader (no "+esc(st.bank)+" sample checked yet)";
+    return { ok: ok && c.totalsOk!==false && c.closingOk!==false, text:t };
+  }
+  function asmDrawStatements(a){
+    var el=$("asStmts"); if(!el) return;
+    var list=asmFileList(asm.remote||[]);
+    var h=list.length ? list.map(function(f){
+      var r=asm.files[f.id]||{ state:"idle" }, st=r.st, line;
+      if(r.state==="reading") line='<span style="color:var(--muted)">Reading…</span>';
+      else if(r.state==="done"){ var ck=stmtCheckText(st); line='<b>'+esc(st.bank)+(st.account?" · "+esc(st.account):"")+'</b> · '+esc(fmtDate(st.from))+' – '+esc(fmtDate(st.to))+'<div class="audsub" style="color:'+(ck.ok?"var(--good)":"var(--warn)")+'">'+ck.text+'</div>'; }
+      else if(r.state==="photo") line='<span style="color:var(--warn)">A photo or scan — it can\'t be read automatically. Enter the figures by hand below.</span>';
+      else if(r.state==="error") line='<span style="color:var(--bad)">'+esc(r.err)+'</span>';
+      else line='<span style="color:var(--muted)">Not read yet</span>';
+      return '<div class="lrow" style="align-items:flex-start"><span class="lk">'+esc(f.name)+'</span><span class="lv" style="font-family:var(--sans);font-size:12.5px;text-align:right;white-space:normal">'+line
+        +(r.state==="idle"||r.state==="error"?' <button class="btn ghost sm" data-asread="'+esc(f.id)+'" style="margin-left:6px">Read</button>':'')+'</span></div>';
+    }).join("") : '<div class="lrow"><span class="lk" style="color:var(--muted)">No bank statement uploaded yet. Ask the applicant for 3 months\' statements, or add a PDF you received another way.</span></div>';
+    var an=asm.an;
+    if(an){ var short=an.covered<85;
+      h+='<div class="lrow"><span class="lk" style="color:'+(short?"var(--warn)":"var(--muted)")+'">Statements cover '+esc(fmtDate(an.from))+' – '+esc(fmtDate(an.to))+' ('+plural(an.covered,"day")+').'+(short?' Document 03 asks for three months.':'')+'</span></div>'; }
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 0 2px">'+(list.some(function(f){ var r=asm.files[f.id]; return !r||r.state==="idle"||r.state==="error"; })?'<button class="btn sm" id="asReadAll">Read the statements</button>':'')
+      +'<button class="btn ghost sm" id="asAdd">Add a statement PDF from this device</button><input type="file" id="asFile" accept="application/pdf,.pdf" multiple style="display:none"></div>';
+    el.innerHTML=h;
+    Array.prototype.forEach.call(el.querySelectorAll("[data-asread]"),function(b){ b.onclick=function(){ var f=list.find(function(x){ return x.id===b.getAttribute("data-asread"); }); if(f) asmRead(a,f); }; });
+    if($("asReadAll")) $("asReadAll").onclick=function(){ list.reduce(function(p,f){ var r=asm.files[f.id]; return (!r||r.state==="idle"||r.state==="error") ? p.then(function(){ return asmRead(a,f); }) : p; }, Promise.resolve()); };
+    $("asAdd").onclick=function(){ $("asFile").value=""; $("asFile").click(); };
+    $("asFile").onchange=function(){
+      Array.prototype.forEach.call(this.files||[],function(file){
+        if(file.size>15*1024*1024){ toast("That file is too large for a statement.","err"); return; }
+        var rd=new FileReader(); rd.onload=function(){ var f={ id:"local-"+Date.now()+"-"+asm.local.length, name:file.name+" (this device)", mime:"application/pdf", buf:rd.result }; asm.local.push(f); asmRead(a,f); };
+        rd.readAsArrayBuffer(file);
+      });
+    };
+  }
+  function stmtTxnRow(t){ return '<tr><td class="num" style="white-space:nowrap">'+esc(fmtDate(t.date))+'</td><td>'+esc(t.desc)+(t.ref?'<div class="audsub">'+esc(t.ref)+'</div>':'')+'</td><td class="r num" style="white-space:nowrap;color:'+(t.amount<0?"var(--ink)":"var(--good)")+'">'+money(t.amount)+'</td></tr>'; }
+  function asmDrawFindings(a){
+    var el=$("asShow"); if(!el) return;
+    var an=asm.an; if(!an){ el.innerHTML=""; return; }
+    var cols=[["in","Money in"],["salary","Salary"],["debitOrder","Debit orders"],["lender","To lenders"],["gambling","Betting"],["cash","Cash out"],["spend","Spending"],["low","Lowest balance"]];
+    var h='<div class="dsect">What the statements show</div><div class="table-scroll"><table class="dtable"><thead><tr><th>Month</th>'+cols.map(function(c){ return '<th class="r">'+c[1]+'</th>'; }).join("")+'</tr></thead><tbody>'
+      + an.months.map(function(m){ return '<tr><td class="num">'+esc(m.m)+'</td>'+cols.map(function(c){ var v=m[c[0]]; return '<td class="r num"'+(c[0]==="low"&&v<0?' style="color:var(--bad)"':'')+'>'+(v==null?"—":money0(v))+'</td>'; }).join("")+'</tr>'; }).join("")
+      + '</tbody></table></div>';
+    var sal=an.salaries;
+    h+='<div class="audsub" style="margin:6px 0">Salary: '+(sal.length?sal.map(function(t){ return esc(fmtDate(t.date))+' '+esc(money0(t.amount))+' ('+esc(t.desc)+(t.auto==="guess"?', a guess — check it':'')+')'; }).join(" · "):'<span style="color:var(--warn)">no salary found — mark it in the transaction list</span>')+'</div>';
+    function flagList(title, list, empty){ return '<details'+(list.length?' open':'')+'><summary style="cursor:pointer;font-size:12.5px;padding:4px 0"><b>'+esc(title)+'</b> ('+list.length+(list.length?', '+esc(money0(list.reduce(function(s,t){ return s+Math.abs(t.amount); },0))):'')+')</summary>'
+      + (list.length?'<table class="dtable"><tbody>'+list.map(stmtTxnRow).join("")+'</tbody></table>':'<p class="audsub">'+esc(empty)+'</p>')+'</details>'; }
+    h+=flagList("Repayments to lenders", an.lenders, "None found.")
+      + flagList("Loans paid in by lenders", an.lenderIn, "None found.")
+      + flagList("Returned or unpaid debits", an.returned, "None found.")
+      + flagList("Betting and gambling", an.gambling, "None found.")
+      + flagList("Debit orders and insurance", an.debitOrders, "None found.");
+    h+='<details><summary style="cursor:pointer;font-size:12.5px;padding:6px 0"><b>All '+an.txns.length+' transactions</b> — correct what each one is</summary><div class="table-scroll"><table class="dtable"><thead><tr><th>Date</th><th>Description</th><th class="r">Amount</th><th class="r">Balance</th><th>What it is</th></tr></thead><tbody>'
+      + an.txns.map(function(t){ var k=stmtKey(t); return '<tr'+(t.off?' style="background:var(--warn-soft)"':'')+'><td class="num" style="white-space:nowrap">'+esc(fmtDate(t.date))+'</td><td>'+esc(t.desc)+(t.ref?'<div class="audsub">'+esc(t.ref)+'</div>':'')+'</td><td class="r num" style="white-space:nowrap">'+money(t.amount)+'</td><td class="r num" style="white-space:nowrap">'+(t.balance==null?"—":money(t.balance))+'</td>'
+        + '<td><select class="fld" data-ascat="'+esc(k)+'" style="margin:0;padding:4px 6px;font-size:12px;width:auto">'+STMT_CATS.filter(function(c){ return c[2]==="both"||(t.amount>0?c[2]==="in":c[2]==="out"); }).map(function(c){ return '<option value="'+c[0]+'"'+(c[0]===t.cat?" selected":"")+'>'+esc(c[1])+'</option>'; }).join("")+'</select></td></tr>'; }).join("")
+      + '</tbody></table></div></details>';
+    el.innerHTML=h;
+    Array.prototype.forEach.call(el.querySelectorAll("[data-ascat]"),function(s){ s.onchange=function(){ asm.overrides[s.getAttribute("data-ascat")]=s.value; asmRecompute(); asmDraw(a, true); }; });
+  }
+  // Auto answers to section 8, from the statements.
+  function asmAutoWarnings(a){
+    var an=asm.an, w={};
+    if(!an) return w;
+    w[1]= an.unarrangedDays ? { yes:true, d:"Over the overdraft limit on "+plural(an.unarrangedDays,"day")+" (lowest "+money0(an.worstBalance)+")" }
+        : (an.overdrawnDays ? (an.limit!=null ? { yes:false, d:"Overdrawn within the "+money0(an.limit)+" overdraft limit on "+plural(an.overdrawnDays,"day") } : { yes:true, d:"Overdrawn on "+plural(an.overdrawnDays,"day")+"; overdraft limit not shown" })
+        : { yes:false, d:"Never overdrawn" });
+    w[2]= an.returned.length ? { yes:true, d:plural(an.returned.length,"returned or unpaid item") } : { yes:false, d:"None" };
+    var parties={}; an.lenders.forEach(function(t){ parties[stmtParty(t)||t.desc]=1; });
+    w[3]= an.lenders.length ? { yes:true, d:plural(an.lenders.length,"repayment")+" to lenders ("+Object.keys(parties).slice(0,4).join(", ")+") — check they were declared" } : { yes:false, d:"None found" };
+    w[4]= an.lenderIn.length ? { yes:true, d:plural(an.lenderIn.length,"loan")+" paid in by lenders" } : { yes:false, d:"None found" };
+    var near=an.afterPay.filter(function(p){ return p.near; });
+    w[5]= an.afterPay.length ? (near.length*2>=an.afterPay.length ? { yes:true, d:near.map(function(p){ return "pay of "+fmtDate(p.date)+" down to "+money0(p.low)+" within 7 days"; }).join("; ") } : { yes:false, d:"Balance stays up after payday" }) : { yes:false, d:"No salary marked" };
+    var bet=an.gambling.reduce(function(s,t){ return s-t.amount; },0), inn=an.months.reduce(function(s,m){ return s+m.in; },0);
+    w[6]= an.gambling.length ? { yes: bet>=Math.max(200, 0.02*inn), d:money0(bet)+" on betting ("+(inn>0?Math.round(bet/inn*100):0)+"% of money in)" } : { yes:false, d:"None found" };
+    return w;
+  }
+  var ASM_WARN=[[1,"Unarranged overdraft"],[2,"Returned or unpaid debit orders"],[3,"Payments to other lenders not declared"],[4,"Many recent loans or applications"],[5,"Balance at or near zero within days of payday"],[6,"Significant betting or gambling"],[7,"Anything else from the statements"]];
+  function asmCompute(a){
+    var v=asm.vals, an=asm.an, n=function(k){ return num(v[k]); }, blank=function(k){ return v[k]===""||v[k]==null; };
+    var salM=an ? an.months.filter(function(m){ return m.salary>0; }).map(function(m){ return m.salary; }) : [];
+    var A5=salM.length ? num(salM.reduce(function(s,x){ return s+x; },0)/salM.length) : null;
+    var lowM=salM.length ? Math.min.apply(null,salM) : null, highM=salM.length ? Math.max.apply(null,salM) : null;
+    var everyMonth=an ? (salM.length>0 && salM.length===an.months.length) : null, stable=salM.length>=2 ? (highM-lowM)<=0.1*highM : null;
+    var A4=n("A4"), base=A5==null ? A4 : (stable===false ? lowM : A5), A6=(A4>0 && base!=null) ? Math.min(A4, base) : (base||A4||0);
+    var A8=num(A6+n("A7")), B12=num(n("Bs")+n("Bq")+n("Bo")), C10=blank("Cu") ? n("Cd") : n("Cu");
+    var D4=num(A8-B12-C10), pol=blank("pol") ? null : n("pol"), D6=pol!=null ? num(D4*pol/100) : null;
+    var rep=num((a.total_cents||0)/100), amt=num((a.amount_cents||0)/100), share=D4>0 ? Math.round(rep/D4*100) : null;
+    var auto=asmAutoWarnings(a), warn={}, yes=0;
+    ASM_WARN.forEach(function(x){ var k=x[0], m=v.w[k]||{}, au=auto[k];
+      var y = m.ans==="yes" ? true : (m.ans==="no" ? false : !!(au&&au.yes));
+      warn[k]={ ans:m.ans||"", yes:y, d:m.d!=null&&m.d!==""?m.d:(au?au.d:""), auto:au||null }; if(y) yes++; });
+    var otherLoans = n("Bs")>0 || n("Bq")>0 || n("Bo")>0 || warn[3].yes;
+    var g={
+      g1:{ ok: amt>0 && (a.interest_cents||0)<=0.3*(a.amount_cents||0)+0.5, t:(amt>0?Math.round((a.interest_cents||0)/(a.amount_cents||1)*1000)/10:0)+"% of the amount" },
+      g2:{ ok: amt<=100000, t:money0(amt) },
+      g3:{ ok: true, t:"Repaid on the next payday" },
+      g4:{ ok: v.g4==="done" ? true : (v.g4==="pending" ? null : false), t: v.g4==="done" ? "Done" : (v.g4==="pending" ? "No bureau subscription yet — not counted" : "Not done") },
+      g5:{ ok: !!a.consent_at, t: a.consent_at ? "Given "+fmtDate(String(a.consent_at).slice(0,10)) : "Missing" },
+      g6:{ ok: !!(a.signed_name && a.full_name && a.national_id && a.phone), t: a.signed_name ? "Signed online as "+a.signed_name : "Not signed" },
+      g7:{ ok: null, t: otherLoans ? "Yes" : "No" },
+      g8:{ ok: D4>0 && rep<=(D6!=null?D6:D4), t: "Repayment "+money0(rep)+" against "+(D6!=null?"the maximum "+money0(D6):"disposable income "+money0(D4)) },
+      g9:{ ok: null, t:"No salary deduction" },
+      g10:{ ok: true, t:"No insurance required" },
+      g11:{ ok: !!v.g11, t: v.g11 ? "Confirmed" : "Not confirmed yet" }
+    };
+    var fails=Object.keys(ASM_HARD).filter(function(k){ return g[k].ok===false; });
+    return { A4:A4, A5:A5, A6:num(A6), A7:n("A7"), A8:A8, lowMonth:lowM, everyMonth:everyMonth, stable:stable, salaryMonths:salM.length,
+      B12:B12, C10:num(C10), D4:D4, policyPct:pol, D6:D6, repayment:rep, share:share, warn:warn, yesCount:yes, g:g, hardFail:fails,
+      mustDecline: D4<=0 };
+  }
+  var ASM_G=[["g1","G1 Total finance charges 30% of the amount or less"],["g2","G2 Amount N$100,000 or less"],["g3","G3 Term 5 months or less"],["g4","G4 Credit bureau enquiry"],
+    ["g5","G5 Consent on file"],["g6","G6 Application complete and signed"],["g7","G7 Already has a loan with any lender"],["g8","G8 Can repay on top of everything else"],
+    ["g9","G9 Salary deductions within a third of pay"],["g10","G10 No insurance required"],["g11","G11 No card, PIN or original ID held"]];
+  function asmVerdict(r){
+    if(r.mustDecline) return { cls:"bad", t:"Disposable income is "+money(r.D4)+". Document 03's hard rule: this application must be declined. If a figure is wrong, correct it and save again." };
+    if(r.hardFail.length) return { cls:"bad", t:"Can't be approved: "+r.hardFail.map(function(k){ return ASM_G.find(function(x){ return x[0]===k; })[1]; }).join("; ")+"." };
+    if(r.yesCount>=2) return { cls:"warn", t:plural(r.yesCount,"warning sign")+" — document 03 says this normally means a smaller amount or a decline. Explain each one in the decision notes." };
+    return { cls:"ok", t:"Passes the checks. The repayment of "+money(r.repayment)+" takes "+(r.share!=null?r.share+"%":"—")+" of disposable income ("+money(r.D4)+")"+(r.policyPct!=null?"; the policy maximum is "+money(r.D6)+".":". No policy maximum has been set yet.") };
+  }
+  function asmPaint(a){
+    var r=asmCompute(a), el;
+    function put(id, html){ var e=$(id); if(e) e.innerHTML=html; }
+    put("asA5", r.A5==null?'<span style="color:var(--muted)">read the statements</span>':money(r.A5)+(r.salaryMonths?' <span class="audsub">('+plural(r.salaryMonths,"month")+(r.stable===false?", irregular — lowest month "+money(r.lowMonth)+" used":"")+')</span>':''));
+    put("asA6", money(r.A6)); put("asA8", '<b>'+money(r.A8)+'</b>'); put("asB12", '<b>'+money(r.B12)+'</b>'); put("asC10", '<b>'+money(r.C10)+'</b>');
+    put("asD4", '<b style="color:'+(r.D4>0?"var(--good)":"var(--bad)")+'">'+money(r.D4)+'</b>');
+    put("asD6", r.D6==null?'<span style="color:var(--muted)">no policy % yet</span>':money(r.D6));
+    put("asShare", r.share==null?"—":r.share+"% of disposable income");
+    ASM_WARN.forEach(function(x){ var w=r.warn[x[0]]; put("asWa"+x[0], w.auto?'<span class="audsub">Found: '+esc(w.auto.d)+'</span>':''); });
+    put("asWcount", r.yesCount+" yes");
+    put("asG", ASM_G.map(function(x){ var c=r.g[x[0]], tag=c.ok===true?'<span class="latetag ok">Pass</span>':(c.ok===false?'<span class="latetag very">Fail</span>':'<span class="latetag mild">'+(x[0]==="g4"?"Later":"—")+'</span>');
+      return '<tr><td>'+esc(x[1])+'</td><td style="font-size:12px">'+esc(c.t)+'</td><td>'+tag+'</td></tr>'; }).join(""));
+    var vd=asmVerdict(r); el=$("asVerdict"); if(el){ el.className="latebox "+(vd.cls==="ok"?"ok":(vd.cls==="warn"?"late":"very")); el.innerHTML='<b>'+(vd.cls==="ok"?"Affordable":(vd.cls==="warn"?"Caution":"Decline or correct"))+'</b><div>'+esc(vd.t)+'</div>'; }
+    return r;
+  }
+  function asmField(id, label, val, hint, type){
+    return '<div><label>'+esc(label)+'</label><input id="as'+id+'" data-asv="'+id+'" class="num" type="'+(type||"number")+'" step="0.01" value="'+esc(val==null?"":val)+'">'+(hint?'<div class="audsub">'+hint+'</div>':'')+'</div>';
+  }
+  function asmDraw(a, keepWorksheet){
+    asmDrawStatements(a); asmDrawFindings(a);
+    var el=$("asSheet"); if(!el) return;
+    if(keepWorksheet && el.innerHTML){ var bs=$("asBs"); if(bs && !asm.touched.Bs) bs.value=asm.vals.Bs; asmPaint(a); return; }
+    var v=asm.vals, owed=asmQsOwed(a);
+    if(owed!=null && !asm.touched.Bq) v.Bq=owed;
+    var row=function(k,l,val){ return '<div class="lrow"><span class="lk">'+l+'</span><span class="lv" id="'+k+'">'+(val||"")+'</span></div>'; };
+    var h='<div class="dsect">Income (section 4)</div><div class="field row">'
+      + asmField("A4","A4 Net pay on the payslip (N$)", v.A4, "Declared on the application: "+esc(cents(a.net_income_cents)))
+      + asmField("A7","A7 Other regular income, with proof (N$)", v.A7) + '</div>'
+      + row("asA5","A5 Average salary paid into the bank") + row("asA6","A6 Lower of A4 and A5") + row("asA8","A8 Total verified income")
+      + '<div class="dsect">Commitments (section 5)</div><div class="field row">'
+      + asmField("Bs","Debit orders and loan repayments seen in the statements (N$ a month)", v.Bs, "Average a month, filled in from the statements")
+      + asmField("Bq","Still owed to QuickServe (N$)", v.Bq, owed!=null?"From the ledger":(isOwner()?"No match in the ledger":"Only owners see the ledger — ask the owner")) + '</div>'
+      + '<div class="field row">'+asmField("Bo","Other debts declared or on the bureau report (N$ a month)", v.Bo)+'<div></div></div>'
+      + row("asB12","B12 Total commitments")
+      + '<div class="dsect">Living expenses (section 6)</div><div class="field row">'
+      + asmField("Cd","Declared by the applicant (N$ a month)", v.Cd, asm.an?"Spending seen in the statements: "+esc(money0(asm.an.months.reduce(function(s,m){ return s+m.spend; },0)/Math.max(1,asm.an.months.length)))+" a month":"")
+      + asmField("Cu","Used in the assessment, if different (N$)", v.Cu, "Leave blank to use the declared figure") + '</div>'
+      + '<div class="field row">'+asmField("dep","Dependants", v.dep, "", "number")+'<div></div></div>'
+      + row("asC10","C10 Living expenses used")
+      + '<div class="dsect">Disposable income (section 7)</div>'
+      + row("asD4","D4 Disposable income a month")
+      + '<div class="field row">'+asmField("pol","D5 Policy: most of disposable income one repayment may take (%)", v.pol, "Not set yet — leave blank until you decide")+'<div></div></div>'
+      + row("asD6","D6 Maximum responsible repayment") + row("asRep","This loan repays", money((a.total_cents||0)/100)) + row("asShare","Share")
+      + '<div class="dsect">Warning signs from the statements (section 8) · <span id="asWcount"></span></div>'
+      + ASM_WARN.map(function(x){ var m=v.w[x[0]]||{};
+          return '<div class="lrow" style="flex-wrap:wrap;gap:6px"><span class="lk" style="flex:1 1 220px">8.'+x[0]+' '+esc(x[1])+'<div id="asWa'+x[0]+'"></div></span>'
+            + '<span style="display:flex;gap:6px;flex:1 1 260px"><select class="fld" data-asw="'+x[0]+'" style="margin:0;width:auto;padding:6px 8px"><option value=""'+(!m.ans?" selected":"")+'>'+(x[0]===7?"No":"As found")+'</option><option value="yes"'+(m.ans==="yes"?" selected":"")+'>Yes</option><option value="no"'+(m.ans==="no"?" selected":"")+'>No</option></select>'
+            + '<input class="fld" data-aswd="'+x[0]+'" style="margin:0" placeholder="Detail" value="'+esc(m.d||"")+'"></span></div>'; }).join("")
+      + '<div class="dsect">Regulatory checks (section 10)</div>'
+      + '<div class="field row"><div><label>G4 Credit bureau enquiry</label><select id="asg4" data-asv="g4" class="fld" style="margin:0"><option value="pending"'+(v.g4==="pending"?" selected":"")+'>No bureau subscription yet</option><option value="done"'+(v.g4==="done"?" selected":"")+'>Done and recorded</option><option value="notdone"'+(v.g4==="notdone"?" selected":"")+'>Not done</option></select></div>'
+      + '<div><label>G11</label><label style="display:flex;gap:8px;align-items:center;font-size:13px;text-transform:none;letter-spacing:0;font-weight:400"><input type="checkbox" id="asg11"'+(v.g11?" checked":"")+' style="width:17px;height:17px"> No bank card, PIN or original ID, passport or licence is held</label></div></div>'
+      + '<table class="dtable"><tbody id="asG"></tbody></table>'
+      + '<div class="dsect">Decision</div><div id="asVerdict" class="latebox"></div>'
+      + '<div class="field"><label>Reasons (section 11): explain every warning sign</label><textarea id="asNote" rows="3">'+esc(v.note||"")+'</textarea></div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn sm" id="asSave">Save assessment</button><button class="btn ghost sm" id="asPrint">Print document 03</button>'
+      + (a.affordability&&a.affordability.savedBy?'<span class="audsub">Last saved by '+esc(a.affordability.savedBy)+(a.affordability.savedAt?' · '+esc(fmtDateTime(a.affordability.savedAt)):'')+'</span>':'')+'</div>';
+    el.innerHTML=h;
+    Array.prototype.forEach.call(el.querySelectorAll("[data-asv]"),function(i){ var k=i.getAttribute("data-asv"); i.addEventListener(i.tagName==="SELECT"?"change":"input",function(){ v[k]=i.value; asm.touched[k]=true; if(k==="pol"){ try{ localStorage.setItem("qs.policyPct", i.value); }catch(e){} } asmPaint(a); }); });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-asw]"),function(s){ s.onchange=function(){ var k=s.getAttribute("data-asw"); v.w[k]=Object.assign({}, v.w[k]||{}, { ans:s.value }); asmPaint(a); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-aswd]"),function(s){ s.oninput=function(){ var k=s.getAttribute("data-aswd"); v.w[k]=Object.assign({}, v.w[k]||{}, { d:s.value }); }; });
+    $("asg11").onchange=function(){ v.g11=this.checked; asmPaint(a); };
+    $("asNote").oninput=function(){ v.note=this.value; };
+    $("asSave").onclick=function(){ asmSave(a, this); };
+    $("asPrint").onclick=function(){ asmPrint(a); };
+    asmPaint(a);
+  }
+  // What the applicant still owes QuickServe, when the ledger is open here (owners).
+  function asmQsOwed(a){
+    if(!isOwner() || !(state.clients||[]).length) return null;
+    var refs=(asm.matches||[]).map(function(m){ return m.ref; }).filter(Boolean);
+    var ids=(state.clients||[]).filter(function(c){ return refs.indexOf(c.ref)>=0; }).map(function(c){ return c.id; });
+    return ids.length ? num(ids.reduce(function(s,id){ return s+clientAgg(id).outstanding; },0)) : null;
+  }
+  function asmSheet(a){
+    var r=asmCompute(a), v=asm.vals, an=asm.an;
+    function few(list){ return list.slice(0,40).map(function(t){ return { d:t.date, t:t.desc, a:t.amount }; }); }
+    var sheet={ v:2, A4:r.A4, A5:r.A5, A6:r.A6, A7:r.A7, A8:r.A8, lowMonth:r.lowMonth, everyMonth:r.everyMonth, stable:r.stable,
+      B_stmt:num(v.Bs), B_qs:num(v.Bq), B_other:num(v.Bo), B12:r.B12, C_decl:num(v.Cd), C_used:v.Cu===""||v.Cu==null?"":num(v.Cu), C10:r.C10, dependants:v.dep||"",
+      D4:r.D4, policyPct:r.policyPct, D6:r.D6, repayment:r.repayment, share:r.share,
+      warnings:{}, yesCount:r.yesCount, bureau:v.g4, g11:!!v.g11, checks:{}, hardFail:r.hardFail, mustDecline:r.mustDecline, note:String(v.note||"").trim(), overrides:asm.overrides,
+      statements: Object.keys(asm.files).map(function(k){ return asm.files[k]; }).filter(function(x){ return x.state==="done"; }).map(function(x){ var s=x.st; return { bank:s.bank, account:s.account, from:s.from, to:s.to, lines:s.check.lines, off:s.check.off, totalsOk:s.check.totalsOk, generic:!!s.generic }; }),
+      months: an ? an.months : [], overdrawnDays: an?an.overdrawnDays:null, unarrangedDays: an?an.unarrangedDays:null,
+      flagged: an ? { lenders:few(an.lenders), lenderIn:few(an.lenderIn), returned:few(an.returned), gambling:few(an.gambling), salaries:few(an.salaries) } : null,
+      // The first worksheet's fields, kept so older screens still read it.
+      income:r.A8, expenses:r.C10, debts:r.B12, leftOver:num(r.D4-r.repayment),
+      savedBy:me.email, savedAt:new Date().toISOString() };
+    ASM_WARN.forEach(function(x){ var w=r.warn[x[0]]; sheet.warnings[x[0]]={ ans:w.ans, yes:w.yes, d:w.d }; });
+    ASM_G.forEach(function(x){ sheet.checks[x[0]]={ ok:r.g[x[0]].ok, t:r.g[x[0]].t }; });
+    return sheet;
+  }
+  function asmSave(a, btn){
+    var sheet=asmSheet(a); btn.disabled=true;
+    appApi("PUT","/v2/admin/applications/"+a.id+"/affordability", sheet).then(function(r){
+      btn.disabled=false;
+      if(!r._ok){ toast(r.error||"Couldn't save the assessment.","err"); return; }
+      a.affordability=sheet; toast("Assessment saved."+(sheet.mustDecline||sheet.hardFail.length?" It doesn't pass, so it can't be approved.":""));
+    });
+  }
+  function asmPrint(a){
+    var s=asmSheet(a), co=company(), r=asmCompute(a);
+    function tr(k,v){ return '<tr><td class="k">'+esc(k)+'</td><td>'+v+'</td></tr>'; }
+    var yn=function(b){ return b===true?"Yes":(b===false?"No":"—"); };
+    var sheet='<div class="sheet">'
+      + '<div class="head"><div>'+logoSvg()+'</div><div class="biz">'+letterBizLines(co).join("")+'</div></div>'
+      + '<h1>Affordability assessment</h1><p class="muted" style="text-align:center">Document 03 · application '+esc(a.id)+' · '+esc(fmtDate(todayISO()))+'</p>'
+      + '<h2>1. Applicant and loan</h2><table>'+tr("Applicant", esc(a.full_name)+' · '+esc(a.national_id||""))+tr("Employer and payday", esc(a.employer||"—")+' · '+esc(a.payday||"—"))
+        + tr("Amount", esc(cents(a.amount_cents)))+tr("Interest", esc(cents(a.interest_cents)))+tr("Total repayable on payday", '<b>'+esc(cents(a.total_cents))+'</b>')+'</table>'
+      + '<h2>2. Bank statements examined</h2><table>'+(s.statements.length?s.statements.map(function(x){ return tr(x.bank+(x.account?" · "+x.account:""), esc(fmtDate(x.from))+' – '+esc(fmtDate(x.to))+' · '+x.lines+' transactions · '+(x.off?x.off+' lines to check':'running balance agrees')+(x.totalsOk===true?' · bank totals match':'')); }).join(""):tr("Statements","Entered by hand"))+'</table>'
+      + '<h2>4. Verified monthly income</h2><table>'+tr("A4 Net pay per payslip", money(s.A4))+tr("A5 Average salary into the bank", s.A5==null?"—":money(s.A5))+tr("A6 Lower of A4 and A5", money(s.A6))+tr("A7 Other regular income", money(s.A7))+tr("A8 Total verified income", '<b>'+money(s.A8)+'</b>')
+        + tr("A9 Salary in every month", yn(s.everyMonth))+tr("A10 Stable amount", yn(s.stable))+(s.lowMonth!=null?tr("A11 Lowest month", money(s.lowMonth)):"")+'</table>'
+      + '<h2>5. Existing commitments</h2><table>'+tr("From the statements (a month)", money(s.B_stmt))+tr("Owed to QuickServe", money(s.B_qs))+tr("Other declared or on the bureau", money(s.B_other))+tr("B12 Total", '<b>'+money(s.B12)+'</b>')+'</table>'
+      + '<h2>6. Living expenses</h2><table>'+tr("Declared", money(s.C_decl))+tr("Used", '<b>'+money(s.C10)+'</b>')+tr("Dependants", esc(s.dependants||"—"))+'</table>'
+      + '<h2>7. Disposable income</h2><table>'+tr("D4 Disposable income a month", '<b>'+money(s.D4)+'</b>')+tr("D5 Policy share", s.policyPct==null?"Not set":s.policyPct+"%")+tr("D6 Maximum responsible repayment", s.D6==null?"—":money(s.D6))+tr("This loan repays", money(s.repayment)+(s.share!=null?" ("+s.share+"% of D4)":""))+'</table>'
+      + '<h2>8. Warning signs from the statements</h2><table>'+ASM_WARN.map(function(x){ var w=s.warnings[x[0]]; return tr("8."+x[0]+" "+x[1], '<b>'+yn(w.yes)+'</b>'+(w.d?' — '+esc(w.d):'')); }).join("")+'</table>'
+      + '<h2>10. Regulatory checks</h2><table>'+ASM_G.map(function(x){ var c=s.checks[x[0]]; return tr(x[1], (c.ok===true?"<b>Pass</b>":(c.ok===false?"<b>Fail</b>":"—"))+' — '+esc(c.t)); }).join("")+'</table>'
+      + '<h2>11. Decision and reasons</h2><p><b>'+esc(asmVerdict(r).t)+'</b></p><p>'+esc(s.note||"—")+'</p>'
+      + '<div class="sign"><div class="who"><div class="sig-line"></div><div style="border-top:1px solid #333;padding-top:3px">Assessed by '+esc(me.email||"")+'</div><div class="muted">'+esc(fmtDate(todayISO()))+'</div></div></div>'
+      + '</div>';
+    showDocument({ title:"Affordability assessment "+a.id, css:letterCss(), sheet:sheet });
+  }
+  function asmCardHtml(){
+    return '<div class="card" style="margin-top:16px"><div class="ch"><h3>Bank statements and affordability</h3><span class="asat">Document 03</span></div>'
+      + '<div class="ledger" style="padding-top:8px"><div id="asStmts"></div><div id="asShow"></div><div id="asSheet"></div></div></div>';
+  }
+  function asmMount(a, files, matches){
+    asmStart(a); asm.matches=matches||[]; asm.remote=files||[];
+    asmDraw(a);
+  }
+  function asmApproveBlock(a){
+    var sv=a.affordability;
+    if(!sv || sv.v!==2) return null;
+    if(sv.mustDecline) return "The saved assessment shows disposable income of "+money(sv.D4)+". Document 03 says it must be declined.";
+    if(sv.hardFail && sv.hardFail.length) return "The saved assessment fails: "+sv.hardFail.map(function(k){ return (ASM_G.find(function(x){ return x[0]===k; })||[k,k])[1]; }).join("; ")+".";
+    return null;
+  }
+
   function renderApplication(c, id){
     c.innerHTML='<div class="empty">Opening '+esc(id)+'…</div>';
     appApi("GET","/v2/admin/applications/"+encodeURIComponent(id)).then(function(res){
@@ -1585,18 +2159,13 @@ body.doc-open{overflow:hidden}
       h+='<div class="card"><div class="ch"><h3>Returning client?</h3></div><div class="ledger">'
         +(matches==null?'<div class="lrow"><span class="lk" style="color:var(--muted)">The ledger lookup isn\'t available yet.</span></div>'
           : matches.length? matches.map(function(m){ var lc=m.ref&&(state.clients||[]).find(function(x){ return x.ref===m.ref; }), lm=lc&&clientLate(lc.id);
-              return L(esc(m.ref||"")+" · "+esc(m.name||"")+(lm?lateFlag(lc.id):""), m.loans+" loan"+(m.loans===1?"":"s")+" · "+money0(m.borrowed||0)+" borrowed"+(m.lastIssue?" · last "+esc(fmtDate(m.lastIssue)):""))
+              return L((m.ref||"")+" · "+(m.name||""), (lm?lateFlag(lc.id)+" ":"")+m.loans+" loan"+(m.loans===1?"":"s")+" · "+money0(m.borrowed||0)+" borrowed"+(m.lastIssue?" · last "+esc(fmtDate(m.lastIssue)):""))
                 + (lm?'<div class="lrow"><span class="lk" style="color:var(--'+(lm.level==="mild"?"steel":(lm.level==="late"?"warn":"bad"))+')">Late payer: '+esc(lateSummary(lm))+'</span></div>':''); }).join("")
           : '<div class="lrow"><span class="lk">No match on ID, passport or cellphone. New client.</span></div>')
         +(others.length?'<div class="lrow"><span class="lk" style="color:var(--muted)">Other applications: '+others.map(function(o){ return esc(o.id)+" ("+esc(APP_STATUS[o.status]||o.status)+")"; }).join(", ")+'</span></div>':'')
         +'</div></div>';
-      h+='<div class="card"><div class="ch"><h3>Affordability</h3><span class="asat">Document 03</span></div><div class="ledger" style="padding-top:12px">'
-        +'<div class="field row"><div><label>Take-home pay (N$)</label><input id="afInc" class="num" type="number" step="0.01" value="'+esc(income)+'"></div><div><label>Living expenses (N$)</label><input id="afExp" class="num" type="number" step="0.01" value="'+esc(aff.expenses!=null?aff.expenses:"")+'" placeholder="From statements"></div></div>'
-        +'<div class="field row"><div><label>Other debt repayments (N$)</label><input id="afDebt" class="num" type="number" step="0.01" value="'+esc(aff.debts!=null?aff.debts:"")+'" placeholder="0.00"></div><div><label>This repayment (N$)</label><input class="num" disabled value="'+esc(((a.total_cents||0)/100).toFixed(2))+'"></div></div>'
-        +'<div id="afOut"></div>'
-        +'<div class="field"><label>Notes</label><textarea id="afNote" placeholder="What you checked on the statements">'+esc(aff.note||"")+'</textarea></div>'
-        +'<button class="btn ghost sm" id="afSave">Save worksheet</button>'+(aff.savedBy?'<span style="margin-left:10px;color:var(--muted);font-size:12px">Saved by '+esc(aff.savedBy)+'</span>':'')+'</div></div>';
       h+='</div>';
+      h+=asmCardHtml();
       h+='<div class="card" style="margin-top:16px"><div class="ch"><h3>Documents</h3><span class="asat">'+files.length+' file'+(files.length===1?"":"s")+'</span></div>'
         +'<div style="padding:10px 18px;display:flex;flex-wrap:wrap;gap:6px" id="appDocTabs">'+files.map(function(f,i){ return '<button class="btn ghost sm" data-doc="'+i+'">'+esc({id:"ID / passport",payslip:"Payslip",bank:"Bank statement",other:"Other"}[f.kind]||f.kind)+(f.uploaded_by==="applicant"&&events.some(function(e){ return e.type==="document_added"&&e.detail&&e.detail.fileId===f.id; })?" (added later)":"")+'</button>'; }).join("")+'</div>'
         +'<div id="appDocView" style="padding:0 18px 18px"><div class="empty">Choose a document above.</div></div></div>';
@@ -1607,18 +2176,7 @@ body.doc-open{overflow:hidden}
       c.innerHTML=h;
 
       $("appBack").onclick=function(e){ e.preventDefault(); ui.appId=null; render(); };
-      function afDraw(){
-        var inc=num($("afInc").value), ex=num($("afExp").value), db=num($("afDebt").value), rep=(a.total_cents||0)/100, left=inc-ex-db-rep;
-        $("afOut").innerHTML='<div class="lrow total"><span class="lk">Left over after this loan</span><span class="lv" style="color:'+(left>=0?"var(--good)":"var(--bad)")+'">'+money(left)+'</span></div>'
-          +'<div class="lrow sub"><span class="lk">Repayment as share of take-home pay</span><span class="lv">'+(inc>0?Math.round(rep/inc*100)+"%":"—")+'</span></div>';
-        return { income:inc, expenses:ex, debts:db, repayment:rep, leftOver:left };
-      }
-      ["afInc","afExp","afDebt"].forEach(function(i){ $(i).addEventListener("input",afDraw); }); afDraw();
-      $("afSave").onclick=function(){
-        var b=this; b.disabled=true;
-        appApi("PUT","/v2/admin/applications/"+a.id+"/affordability", Object.assign(afDraw(),{ note:$("afNote").value.trim(), savedBy:me.email, savedAt:new Date().toISOString() }))
-          .then(function(r){ b.disabled=false; toast(r._ok?"Worksheet saved.":(r.error||"Couldn't save."), r._ok?"":"err"); });
-      };
+      asmMount(a, files, matches);
       var urls={};
       Array.prototype.forEach.call(c.querySelectorAll("[data-doc]"),function(b){ b.addEventListener("click",function(){
         Array.prototype.forEach.call(c.querySelectorAll("[data-doc]"),function(x){ x.classList.toggle("on",x===b); x.style.background=x===b?"var(--accent-soft)":""; });
@@ -1690,7 +2248,9 @@ body.doc-open{overflow:hidden}
         $("f_reason").addEventListener("change",function(){ var r=DECLINE_REASONS[Number(this.value)]; $("f_msg").value=declineText(r[1]); if(!r[1]){ $("f_msg").value="Thank you for applying to QuickServe. We can’t approve this loan because "; $("f_msg").focus(); } });
       };
       if($("aApprove")) $("aApprove").onclick=function(){
-        var leftOk=afDraw().leftOver;
+        var blockMsg=asmApproveBlock(a);
+        if(blockMsg){ openModal("Can't approve "+a.id, '<p style="margin:0 0 10px;color:var(--bad)">'+esc(blockMsg)+'</p><p style="margin:0;font-size:12.5px;color:var(--muted)">Correct the assessment if a figure is wrong and save it again, or decline the application.</p>', "Close", closeModal); return; }
+        var leftOk=(a.affordability&&a.affordability.leftOver!=null)?a.affordability.leftOver:0;
         openModal("Approve "+a.id,
           '<p style="margin:0 0 10px">Approve <b>'+esc(cents(a.amount_cents))+'</b> for '+esc(a.full_name)+', repaying <b>'+esc(cents(a.total_cents))+'</b> on payday.</p>'
           +(leftOk<0?'<p style="color:var(--bad);margin:0 0 10px">The affordability worksheet shows a shortfall of '+esc(money(-leftOk))+'.</p>':'')

@@ -163,6 +163,44 @@ screen:
   vs cash chart and a month-by-month table so you can see where the book is
   heading.
 - **Applications** — the intake inbox, read through the Worker's owner token.
+- **Bank statements and affordability** (on each application; document 03).
+  The applicant's statement PDFs are read **in the browser** with pdf.js
+  3.11.174 (from jsDelivr, pinned, integrity-checked), so statements are never
+  sent anywhere.
+  - **FNB** statements are read using FNB's own layout and checked against the
+    running balance and FNB's totals.
+  - **Bank Windhoek, Nedbank, Standard Bank** and others go through a general
+    reader that checks itself against the running balance. It needs a real
+    sample of each to be confirmed.
+  - **Photos and scans** are entered by hand.
+
+  Every transaction is sorted into a category: salary, loans paid in by
+  lenders, debit orders, repayments to lenders, returned or unpaid items,
+  betting, cash, fees, spending and transfers. The analyst can correct any
+  of them, and corrections are saved.
+
+  From the statements it shows money in and out per month and the salary.
+  It also shows days overdrawn (within or over the limit), the balance in the
+  week after each payday, and the flagged lists.
+
+  It then fills in document 03:
+  - **Section 4 (income):** payslip vs bank, the lower figure (or the lowest
+    month if pay is irregular).
+  - **Section 5 (commitments):** from the statements, plus what is still owed
+    to QuickServe from the ledger (owners), plus other declared debts.
+  - **Section 6 (living expenses):** declared, tested against the spending
+    seen in the statements.
+  - **Section 7 (disposable income):** the policy percentage D5 is optional
+    until it's decided.
+  - **Section 8 (warning signs):** found automatically, each confirmable.
+  - **Section 10 (regulatory checks):** G4 shows *later* until there is a
+    bureau subscription.
+
+  The verdict follows the form's hard rules. If disposable income is zero or
+  less, or G1, G2, G3, G8, G10 or G11 fails, the saved assessment can't be
+  approved. The application service enforces this too, for owners as well.
+  *Print document 03* produces the completed form on the letterhead for the
+  loan file.
 - **Settings** — the registered entity, lending parameters, the live status of
   the cloud ledger and intake service, and **Export & backup**: download the
   live book as a JSON backup (same format as the phone app, so it re-imports

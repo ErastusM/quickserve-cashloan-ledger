@@ -425,3 +425,38 @@ test("clean-up removes old drafts and old declined documents", async () => {
   assert.equal(env.DB.raw.prepare(`SELECT COUNT(*) n FROM applications`).get().n, 0);
   assert.ok(d.reference);
 });
+
+test("affordability assessment: stored whole, too large refused, hard rules block approval", async () => {
+  const env = makeEnv();
+  const d = await draftWithDocs(env);
+  await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: { "X-Upload-Token": d.uploadToken } });
+  const url = `/v2/admin/applications/${d.reference}/affordability`;
+  // A full assessment is far longer than the old 8 000-character cut-off.
+  const months = Array.from({ length: 3 }, (_, i) => ({ m: `2026-0${i + 7}`, in: 12000, salary: 9800, debitOrder: 506, lender: 1200, low: 85 }));
+  const flagged = { lenders: Array.from({ length: 40 }, (_, i) => ({ d: "2026-09-01", t: `Endo Internal D/O loan ${i} ` + "x".repeat(220), a: -300 })) };
+  const fails = { v: 2, A8: 9800, B12: 1706, C10: 9000, D4: -906, repayment: 2600, mustDecline: true, hardFail: ["g8"], months, flagged, savedBy: "staff@quickserve.group" };
+  assert.ok(JSON.stringify(fails).length > 8000);
+  assert.equal((await call(env, "PUT", url, { headers: staff, body: fails })).status, 200);
+  const det = await (await call(env, "GET", `/v2/admin/applications/${d.reference}`, { headers: staff })).json();
+  assert.equal(det.application.affordability.flagged.lenders.length, 40, "read back intact");
+  assert.equal((await call(env, "PUT", url, { headers: staff, body: { v: 2, note: "x".repeat(70000) } })).status, 413);
+  assert.equal((await call(env, "PUT", url, { headers: staff, body: [1, 2] })).status, 400);
+
+  // No disposable income: nobody can approve, the owner included.
+  let r = await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "approved" } });
+  assert.equal(r.status, 409);
+  assert.equal((await r.json()).code, "assessment_fails");
+  await call(env, "PUT", url, { headers: staff, body: Object.assign({}, fails, { D4: 4000, mustDecline: false }) });
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "approved" } })).status, 409, "a failed check still blocks");
+
+  // Passing: approved, and the decision keeps the figures, not the statement detail.
+  await call(env, "PUT", url, { headers: staff, body: Object.assign({}, fails, { D4: 4000, mustDecline: false, hardFail: [], share: 65 }) });
+  r = await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "approved", note: "Fits" } });
+  assert.equal(r.status, 200);
+  const log = await (await call(env, "GET", "/v2/admin/audit", { headers: staff })).json();
+  const basis = log.events.find((e) => e.type === "status" && e.detail.to === "approved").detail.basis.affordability;
+  assert.equal(basis.D4, 4000);
+  assert.equal(basis.share, 65);
+  assert.equal(basis.months, undefined);
+  assert.equal(basis.flagged, undefined);
+});
