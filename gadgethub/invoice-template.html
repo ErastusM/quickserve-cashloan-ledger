@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>GadgetHub Invoice</title>
+<!--
+  GadgetHub invoice template. Do not fill this in by hand: put the invoice's
+  details in gadgethub/invoices/<number>.json and run
+    node gadgethub/render-invoice.js gadgethub/invoices/<number>.json
+  which writes the finished PDF next to the JSON file.
+  {{...}} markers are replaced by the render script.
+-->
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #fff; }
+  body {
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    color: #111827; font-size: 9.5pt; line-height: 1.35;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .page { width: 210mm; height: 297mm; padding: 14mm 20mm 12mm; position: relative; }
+
+  header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 6mm; border-bottom: 2px solid #111827; }
+  .brand { display: flex; align-items: center; gap: 9mm; }
+  .brand svg { width: 16mm; height: 16mm; display: block; }
+  .wordmark { font-size: 24pt; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+  .wordmark span { color: #4b5563; font-weight: 600; }
+  .tagline { font-size: 6.5pt; letter-spacing: 0.35em; color: #6b7280; margin-top: 2.5mm; }
+  .head-addr { text-align: right; font-size: 8.5pt; color: #4b5563; line-height: 1.35; padding-top: 1mm; }
+  .head-addr b { color: #111827; font-weight: 600; }
+
+  h1 { font-size: 30pt; font-weight: 700; letter-spacing: -0.02em; margin-top: 2mm; }
+  .meta { display: grid; grid-template-columns: 42mm auto; row-gap: 1mm; margin-top: 3mm; font-size: 9.5pt; }
+  .meta dt { color: #4b5563; }
+  .meta dd { font-weight: 500; }
+
+  .parties { display: grid; grid-template-columns: 1fr 1fr; margin-top: 8mm; font-size: 9pt; color: #4b5563; }
+  .parties .name { color: #111827; font-weight: 600; font-size: 10pt; }
+  .parties .label { color: #6b7280; font-weight: 600; font-size: 8.5pt; margin-bottom: 1mm; }
+  .parties .client .name { font-size: 10.5pt; }
+
+  .due { margin-top: 7mm; font-size: 12pt; color: #4b5563; }
+  .due b { font-size: 15pt; color: #111827; font-weight: 700; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 5mm; }
+  th { text-align: left; font-size: 8pt; font-weight: 600; color: #6b7280; letter-spacing: 0.03em; padding-bottom: 3mm; }
+  td { vertical-align: top; padding-bottom: 3mm; font-size: 10pt; }
+  .num { text-align: right; }
+  .qty { text-align: center; width: 18mm; }
+  .unit { width: 32mm; }
+  .amt { width: 32mm; }
+  .sub { font-size: 8pt; color: #6b7280; line-height: 1.3; }
+
+  .totals { margin-left: auto; width: 83mm; margin-top: 3mm; font-size: 9.5pt; }
+  .totals .row { display: flex; justify-content: space-between; padding: 1.8mm 0; }
+  .totals .row span:first-child { padding-left: 30mm; color: #4b5563; }
+  .totals .total { border-top: 1px solid #d1d5db; font-weight: 700; font-size: 10.5pt; }
+  .totals .total span:first-child { color: #111827; }
+
+  .words { margin-top: 7mm; font-size: 8.5pt; color: #4b5563; }
+
+  .terms { margin-top: 7mm; border-top: 2px solid #e5e7eb; padding-top: 3mm; font-size: 8pt; color: #374151; }
+  .terms h2 { font-size: 8.5pt; letter-spacing: 0.2em; color: #4b5563; font-weight: 600; margin-bottom: 3mm; }
+  .terms h3 { font-size: 8.5pt; font-weight: 700; color: #111827; margin-top: 1.5mm; }
+  .issued { margin-top: 6mm; font-size: 7pt; font-style: italic; color: #9ca3af; }
+
+  footer { position: absolute; left: 20mm; right: 20mm; bottom: 12mm; border-top: 1px solid #e5e7eb; padding-top: 6mm; text-align: center; font-size: 7pt; color: #6b7280; }
+  footer b { color: #111827; font-size: 8pt; margin-right: 2mm; }
+  footer i { display: block; color: #9ca3af; margin-top: 0.5mm; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <rect width="64" height="64" rx="12" fill="#0b0b0c"/>
+        <path d="M43.5 24.5 A14 14 0 1 0 46 33 H33" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M38 12.5 A20 20 0 0 1 51.5 26" fill="none" stroke="#8b8f97" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <div class="wordmark">Gadget<span>Hub</span></div>
+        <div class="tagline">TECHNOLOGY · DEVICES · SERVICE</div>
+      </div>
+    </div>
+    <div class="head-addr">Erf 3403 Danger Ashipala Street<br>Swakopmund, Namibia<br>P.O. Box 197<br><b>+264 81 281 9840</b></div>
+  </header>
+
+  <h1>Invoice</h1>
+  <dl class="meta">
+    <dt>Invoice number</dt><dd>{{number}}</dd>
+    <dt>Date of issue</dt><dd>{{issueDate}}</dd>
+    <dt>Date due</dt><dd>{{dueDate}}</dd>
+  </dl>
+
+  <div class="parties">
+    <div>
+      <div class="name">GadgetHub</div>
+      Erf 3403 Danger Ashipala Street<br>Swakopmund, Namibia<br>P.O. Box 197<br>+264 81 281 9840
+    </div>
+    <div class="client">
+      <div class="label">Bill to</div>
+      {{clientBlock}}
+    </div>
+  </div>
+
+  <div class="due"><b>{{total}}</b> due on receipt</div>
+
+  <table>
+    <thead><tr><th>Description</th><th class="qty">Qty</th><th class="num unit">Unit price</th><th class="num amt">Amount</th></tr></thead>
+    <tbody>{{itemRows}}</tbody>
+  </table>
+
+  <div class="totals">
+    <div class="row"><span>Subtotal</span><span>{{subtotal}}</span></div>
+    <div class="row total"><span>Total due</span><span>{{total}}</span></div>
+  </div>
+
+  <div class="words">Amount in words:&nbsp; {{amountWords}}</div>
+
+  <section class="terms">
+    <h2>TERMS &amp; CONDITIONS</h2>
+    <h3>Payment</h3>
+    <p>Payment is due on receipt unless a written arrangement has been agreed. Goods remain the property of GadgetHub until payment is received in full.</p>
+    <h3>Returns &amp; Refunds</h3>
+    <p>Pre-owned devices may only be returned within 7 days where a verified software fault exists; approved refunds are limited to 70% of the purchase price. No returns are accepted on physically damaged or tampered devices.</p>
+    <h3>Warranty</h3>
+    <p>New devices carry a 12-month software warranty and pre-owned devices a 6-month software warranty. Warranty excludes physical damage, water damage, battery wear, unauthorised repairs, and lost or stolen devices. No hardware warranty applies unless stated in writing.</p>
+    <h3>General</h3>
+    <p>Customers must back up personal data before any service or inspection; GadgetHub is not liable for data loss. By accepting this invoice, the customer acknowledges and agrees to these terms.</p>
+  </section>
+
+  <p class="issued">Issued by Erastus Matheus, Manager — GadgetHub. This invoice is electronically generated and is valid without a signature.</p>
+
+  <footer>
+    <b>GadgetHub</b> Erf 3403 Danger Ashipala Street, Swakopmund, Namibia &nbsp;·&nbsp; P.O. Box 197 &nbsp;·&nbsp; +264 81 281 9840
+    <i>This is an electronically generated document and is valid without a signature.</i>
+  </footer>
+</div>
+</body>
+</html>
