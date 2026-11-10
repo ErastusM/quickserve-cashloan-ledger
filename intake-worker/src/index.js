@@ -490,7 +490,7 @@ async function getApplication(request, env, staff, id) {
   ).bind(id, app.national_id, app.phone).all();
 
   for (const k of ["upload_token_hash", "track_token_hash"]) delete app[k];
-  app.affordability = app.affordability_json ? JSON.parse(app.affordability_json) : null;
+  app.affordability = app.affordability_json ? safeJson(app.affordability_json) : null;
   delete app.affordability_json;
   return json(request, env, {
     application: app,
@@ -535,6 +535,13 @@ async function setStatus(request, env, staff, id) {
       ? "You can't approve applications. Recommend it to the owner instead."
       : `This is above your approval limit of N$ ${(staff.limitCents / 100).toLocaleString("en-US")}. Recommend it to the owner instead.`, { code: "above_limit" });
   }
+  // The assessment's hard rules (document 03) can't be overridden by anyone.
+  const sheet = app.affordability_json ? safeJson(app.affordability_json) : null;
+  if (to === "approved" && sheet && sheet.v === 2 && (sheet.mustDecline || (Array.isArray(sheet.hardFail) && sheet.hardFail.length))) {
+    throw new HttpError(409, sheet.mustDecline
+      ? "The saved affordability assessment shows no disposable income, so the application must be declined."
+      : "The saved affordability assessment fails a regulatory check, so it can't be approved.", { code: "assessment_fails" });
+  }
   const note = String(body.note || "").trim().slice(0, 1000) || null;
   const t = now();
   const decided = to === "approved" || to === "declined";
@@ -554,17 +561,31 @@ async function setStatus(request, env, staff, id) {
     basis: decided ? {
       role: staff.role, approvalLimit: staff.limitCents == null ? null : staff.limitCents / 100,
       amount: app.amount_cents / 100, total: app.total_cents / 100, aboveStandard: Boolean(app.above_standard),
-      affordability: app.affordability_json ? JSON.parse(app.affordability_json) : null,
+      affordability: assessmentSummary(sheet),
       recommendation: app.recommendation ? { by: app.recommended_by, recommendation: app.recommendation, note: app.recommendation_note } : null
     } : undefined
   });
   return json(request, env, { ok: true, status: to });
 }
 
+// The assessment (document 03): the worksheet, the statement figures and what
+// the analyst found. Stored whole; too large is refused rather than cut short.
+const ASSESSMENT_MAX = 64000;
+function safeJson(text) { try { return JSON.parse(text); } catch { return null; } }
+// What a decision keeps of the assessment: the figures it rested on.
+function assessmentSummary(a) {
+  if (!a || a.v !== 2) return a || null;
+  const keep = ["v", "A8", "B12", "C10", "D4", "policyPct", "D6", "repayment", "share", "yesCount", "hardFail", "mustDecline", "bureau",
+    "income", "expenses", "debts", "leftOver", "savedBy", "savedAt"];
+  return Object.fromEntries(keep.filter((k) => k in a).map((k) => [k, a[k]]));
+}
+
 async function saveAffordability(request, env, staff, id) {
   await loadApp(env, id);
   const body = await readJson(request);
-  const sheet = JSON.stringify(body).slice(0, 8000);
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new HttpError(400, "Expected the assessment.");
+  const sheet = JSON.stringify(body);
+  if (sheet.length > ASSESSMENT_MAX) throw new HttpError(413, "The assessment is too large to save. Remove some notes and try again.");
   await env.DB.prepare(`UPDATE applications SET affordability_json = ?, updated_at = ? WHERE id = ?`).bind(sheet, now(), id).run();
   await event(env, id, "staff:" + staff.email, "affordability_saved", null);
   return json(request, env, { ok: true });
