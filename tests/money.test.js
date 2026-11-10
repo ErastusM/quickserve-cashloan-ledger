@@ -755,6 +755,117 @@ test("investor report: an empty book reports nothing rather than dividing by zer
   assert.ok(r.monthsActive >= 1, "months active never drops below one");
 });
 
+// ---- credit quality ----
+// Dates are relative to today so the days-late buckets stay stable.
+function daysFromToday(app, n) {
+  return app.run(`addDays(todayISO(), ${n})`);
+}
+
+test("book health: open loans land in the right days-late bucket", () => {
+  const app = loadApp();
+  const d = (n) => daysFromToday(app, n);
+  app.setState(baseState({
+    loans: [
+      loan({ id: "cur", issueDate: d(-5), dueDate: d(25) }),
+      loan({ id: "rol", issueDate: d(-40), dueDate: d(20), extensions: [{ id: "e1", date: d(-10), addedInterest: 300, previousDueDate: d(-10), newDueDate: d(20) }] }),
+      loan({ id: "l10", issueDate: d(-40), dueDate: d(-10) }),
+      loan({ id: "l45", issueDate: d(-75), dueDate: d(-45) }),
+      loan({ id: "l75", issueDate: d(-105), dueDate: d(-75) }),
+      loan({ id: "l120", issueDate: d(-150), dueDate: d(-120) }),
+      loan({ id: "paid", issueDate: d(-40), dueDate: d(-10) }),
+      loan({ id: "wo", issueDate: d(-150), dueDate: d(-120), status: "written-off" })
+    ],
+    payments: [payment({ id: "p1", loanId: "paid", amount: 1300, date: d(-12) })]
+  }));
+  const aging = JSON.parse(app.run(`JSON.stringify(bookAging())`));
+  const byKey = Object.fromEntries(aging.buckets.map((b) => [b.key, b.loans]));
+  assert.deepStrictEqual(byKey, { current: 1, rolled: 1, late30: 1, late60: 1, late90: 1, late90plus: 1 });
+  assert.strictEqual(aging.totalLoans, 6, "paid and written-off loans are not owed");
+  assert.strictEqual(aging.atRiskLoans, 5, "everything but the current loan");
+  // Rolled loan owes 1000 + 300 + 300; the others 1300 each.
+  assert.strictEqual(aging.total, 1600 + 5 * 1300);
+  assert.strictEqual(aging.atRisk, aging.total - 1300);
+});
+
+test("book health: a rolled-over loan is at risk even before its new due date", () => {
+  const app = loadApp();
+  const d = (n) => daysFromToday(app, n);
+  app.setState(baseState({
+    loans: [loan({ issueDate: d(-40), dueDate: d(20), extensions: [{ id: "e1", addedInterest: 300, newDueDate: d(20) }] })]
+  }));
+  assert.strictEqual(app.run(`isAtRisk(analyzeLoan(getLoan("l1")))`), true);
+});
+
+test("losses: loss rate, loss cover and cost-to-income for a period", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    loans: [
+      loan({ id: "good", principal: 1000, issueDate: "2026-03-01", dueDate: "2026-03-31" }),
+      loan({ id: "bad", principal: 1000, issueDate: "2026-03-02", dueDate: "2026-04-01", status: "written-off",
+        extensions: [{ id: "e1", addedInterest: 300, newDueDate: "2026-04-01" }] }),
+      loan({ id: "other", principal: 5000, issueDate: "2026-04-05", dueDate: "2026-05-05", status: "written-off" })
+    ],
+    payments: [
+      payment({ id: "p1", loanId: "good", amount: 1300, date: "2026-03-30" }),
+      payment({ id: "p2", loanId: "bad", amount: 400, date: "2026-03-20" }) // 400 revenue, no principal back
+    ],
+    expenses: [{ id: "x1", amount: 350, date: "2026-03-15", category: "Transport" }]
+  }));
+  const c = JSON.parse(app.run(`JSON.stringify(creditFigures("month", "2026-03", "2026"))`));
+  assert.strictEqual(c.loansIssued, 2, "April's loan is a different cohort");
+  assert.strictEqual(c.advanced, 2000);
+  assert.strictEqual(c.lost, 1000, "the bad loan's principal was never recovered");
+  assert.strictEqual(c.lossRate, 50);
+  assert.strictEqual(c.earned, 700, "300 from the good loan + 400 from the bad one");
+  assert.strictEqual(c.lossCover, 0.7);
+  assert.strictEqual(c.rolled, 1);
+  assert.strictEqual(c.rolledShare, 50);
+  assert.strictEqual(c.costToIncome, 50, "350 expenses on 700 revenue");
+});
+
+test("losses: no write-offs and no revenue report as such, not as zero-division", () => {
+  const app = loadApp();
+  app.setState(baseState({ loans: [loan()] }));
+  const c = JSON.parse(app.run(`JSON.stringify(creditFigures("month", "2026-03", "2026"))`));
+  assert.strictEqual(c.lossCover, null);
+  assert.strictEqual(c.costToIncome, null);
+  assert.strictEqual(c.lossRate, 0);
+});
+
+test("client mix: a client's earliest loan is their first, later ones are repeat", () => {
+  const app = loadApp();
+  app.setState(baseState({
+    clients: [{ id: "c1", name: "A" }, { id: "c2", name: "B" }],
+    loans: [
+      loan({ id: "a2", clientId: "c1", principal: 2000, issueDate: "2026-04-01", dueDate: "2026-05-01" }),
+      loan({ id: "a1", clientId: "c1", principal: 1000, issueDate: "2026-03-01", dueDate: "2026-03-31" }),
+      loan({ id: "b1", clientId: "c2", principal: 500, issueDate: "2026-04-03", dueDate: "2026-05-03", status: "written-off" })
+    ]
+  }));
+  const kinds = JSON.parse(app.run(`JSON.stringify(loanSequenceKinds())`));
+  assert.deepStrictEqual(kinds, { a1: "first", a2: "repeat", b1: "first" }, "order by issue date, not by array position");
+
+  // April only: a2 is repeat even though a1 falls outside the period.
+  const april = JSON.parse(app.run(`JSON.stringify(clientMix("month", "2026-04", "2026"))`));
+  assert.strictEqual(april.first.loans, 1);
+  assert.strictEqual(april.repeat.loans, 1);
+  assert.strictEqual(april.first.lossRate, 100, "b1 was written off with nothing repaid");
+  assert.strictEqual(april.repeat.lossRate, 0);
+  assert.strictEqual(april.repeat.avgLoan, 2000);
+});
+
+test("investor report: carries book health, loss and client-mix figures", () => {
+  const app = loadApp();
+  app.setState(baseState({ loans: [loan({ status: "written-off" })] }));
+  const r = JSON.parse(app.run(`JSON.stringify(investorReport())`));
+  assert.ok(r.aging && Array.isArray(r.aging.buckets));
+  assert.strictEqual(r.mix.first.loans, 1);
+  assert.strictEqual(r.mix.first.lossRate, 100);
+  const text = app.run(`investorReportText(investorReport())`);
+  assert.ok(text.includes("BOOK HEALTH"));
+  assert.ok(text.includes("FIRST-TIME VS REPEAT CLIENTS"));
+});
+
 // Money comparisons: guard against float dust.
 function roundish(value) {
   return Math.round(value * 100) / 100;

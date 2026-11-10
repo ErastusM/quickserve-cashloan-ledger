@@ -20,6 +20,8 @@ The app runs entirely in a phone browser and stores all data **on that device on
 - Per-client statement: open a client to see every loan and payment with a running balance, then copy, share, or export it.
 - PIN lock: protect the loan book on a phone with a passcode asked each time the app opens.
 - Reports: monthly, yearly and all-time figures, a monthly breakdown table, and a collections trend chart.
+- **Book health:** the dashboard sorts what is still owed by how late it is — current, rolled over, 1–30, 31–60, 61–90 and over 90 days late — and shows how much is at risk. The **At risk** filter on Loans lists those loans.
+- **Losses & costs, and first-time vs repeat clients:** Reports shows the loss rate, loss cover, rollover share and cost-to-income for the selected period, and compares clients' first loans with repeat loans.
 - **Investor report:** a one-page summary of the whole book — lifetime performance, portfolio quality, capital and cash position, a year-by-year table and a modelled forward view — for handing to a lender or investor. It is **aggregate only**: no client names, phone numbers or ID numbers appear in it. Copy it, share it, download it as a self-contained HTML file, or print / save it as a PDF.
 - CSV export for the loan book, payments, and expenses.
 - **Backup, with warnings:** save and restore the full loan book as a JSON file, optionally encrypted. The dashboard warns when the last backup is getting old.
@@ -45,6 +47,16 @@ These match the labels shown in the app.
 - **Capital out** — original loan money still not recovered.
 - **Overdue** — unpaid collectable balance where the due date has passed.
 - **Written off** — balances marked unrecoverable; excluded from outstanding and from the float.
+
+**Credit quality** (Dashboard › Book health, Reports › Losses & costs)
+
+- **At risk** — collectable balance on open loans that are past due **or have been rolled over**. A rolled-over loan was not repaid on time, so it counts as at risk even while its new due date is still ahead.
+- **Days-late buckets** — open loans grouped by days past the current due date: 1–30, 31–60, 61–90, over 90. Paid and written-off loans are not included.
+- **Loss rate** — principal written off ÷ principal lent, on the loans issued in the period.
+- **Loss cover** — revenue earned ÷ principal written off, on those same loans. Below 1× means losses ate more than the interest and fees earned.
+- **Rolled over** — share of the period's loans that were rolled over at least once.
+- **Cost-to-income** — expenses ÷ revenue for the period.
+- **First loan / repeat** — a loan is a client's first when they had no earlier loan (by issue date); every later loan is a repeat.
 
 **Cash float**
 
