@@ -508,7 +508,7 @@ body.doc-open{overflow:hidden}
     address:"3403 Danger Ashipala Street, Swakopmund, Namibia", postal:"P.O. Box 197, Swakopmund", town:"Swakopmund",
     cell:"+264 81 281 9840", whatsapp:"+264 81 281 9840", email:"info@quickserve.group", website:"",
     officer:"Erastus Taapopi Matheus", officerCapacity:"Owner and Member",
-    repayBank:"", repayAccountName:"", repayAccountNo:"", repayBranch:""
+    repayBank:"FNB Namibia", repayAccountName:"Quickserve Financial Services CC", repayAccountNo:"64284783965", repayBranch:"282672"
   };
   var COMPANY_FIELDS=[
     ["legalName","Legal name"],["tradingAs","Trading as"],["cc","CC registration no."],["namfisa","NAMFISA registration no."],
@@ -517,7 +517,7 @@ body.doc-open{overflow:hidden}
     ["repayBank","Repayments: bank"],["repayAccountName","Repayments: account name"],["repayAccountNo","Repayments: account number"],["repayBranch","Repayments: branch code"]];
   function company(){
     var saved=(state.settings&&state.settings.company&&typeof state.settings.company==="object")?state.settings.company:{}, out={};
-    Object.keys(COMPANY_DEFAULTS).forEach(function(k){ out[k]=Object.prototype.hasOwnProperty.call(saved,k)?cleanText(saved[k]):COMPANY_DEFAULTS[k]; });
+    Object.keys(COMPANY_DEFAULTS).forEach(function(k){ out[k]=Object.prototype.hasOwnProperty.call(saved,k)?cleanText(saved[k]):COMPANY_DEFAULTS[k]; if(!out[k]&&/^repay/.test(k)) out[k]=COMPANY_DEFAULTS[k]; });
     if(!out.legalName) out.legalName=COMPANY_DEFAULTS.legalName;
     return out;
   }
