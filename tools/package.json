@@ -6,7 +6,8 @@
   "scripts": {
     "flyer": "node render-flyer.js",
     "poster": "node render-launch-poster.js",
-    "docs": "node md2docx.js ../documents/pack.json ../documents/docx && node md2pdf.js ../documents/pack.json ../documents/pdf"
+    "docs": "node md2docx.js ../documents/pack.json ../documents/docx && node md2pdf.js ../documents/pack.json ../documents/pdf",
+    "poster:soon": "node render-coming-soon-poster.js"
   },
   "dependencies": {
     "docx": "^9.7.1",
