@@ -134,3 +134,12 @@ The same launch poster for WhatsApp Status and Instagram/Facebook Stories,
 140 px and the bottom 160 px, so the headline, slip, QR code and phone
 number sit clear of them; the legal line runs along the bottom strip.
 `npm run poster` renders both sizes.
+
+## `website-coming-soon-poster.html` / `website-coming-soon-status.html`
+
+Teaser posters announcing that the website is launching soon, in the same
+style as the launch posters: "Going online. Apply from your phone." with a
+COMING SOON stamp, and a QR code that opens quickserve.group on launch day.
+1080×1350 for feeds and 1080×1920 for WhatsApp Status. To add a launch date,
+change the stamp's `<small>WATCH THIS SPACE</small>` line. Re-render with
+`cd tools && npm run poster:soon` (it also checks nothing overlaps).

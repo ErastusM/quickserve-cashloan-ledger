@@ -30,7 +30,7 @@ for (const name of readdirSync(web)) {
   }
   files["/" + name] = { type: TYPES[ext], body: body.replace(/__BUILD__/g, BUILD) };
 }
-for (const need of ["/index.html", "/apply.html", "/track.html", "/privacy.html", "/404.html"]) {
+for (const need of ["/soon.html", "/index.html", "/apply.html", "/track.html", "/privacy.html", "/404.html"]) {
   if (!files[need]) throw new Error("missing " + need);
 }
 
@@ -78,6 +78,16 @@ export default {
       const urls = ["/", "/privacy"].map((p) => "<url><loc>https://quickserve.group" + p + "</loc></url>").join("");
       return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + urls + "</urlset>", { headers: { "Content-Type": "application/xml" } });
     }
+    // SITE_MODE "soon": quickserve.group shows only the coming-soon page (and
+    // the privacy notice). preview.quickserve.group keeps the full site.
+    const soon = env.SITE_MODE === "soon" && !url.hostname.startsWith("preview.");
+    if (soon) {
+      if (path === "/privacy" || path === "/privacy.html") return send(FILES["/privacy.html"], 200, hidden);
+      if (/\\.(css|js|svg)$/.test(path) && FILES[path]) return send(FILES[path], 200, hidden);
+      if (path !== "/") return Response.redirect(url.origin + "/", 302);
+      return send(FILES["/soon.html"], 200, hidden);
+    }
+    if (path === "/soon.html") return send(FILES["/404.html"], 404, hidden);
     const pretty = Object.keys(PAGES).find((k) => PAGES[k] === path);
     if (pretty) return Response.redirect(url.origin + pretty + url.search, 301);
     const file = FILES[PAGES[path] || path];
