@@ -2170,7 +2170,7 @@ body.doc-open{overflow:hidden}
         +'<div style="padding:10px 18px;display:flex;flex-wrap:wrap;gap:6px" id="appDocTabs">'+files.map(function(f,i){ return '<button class="btn ghost sm" data-doc="'+i+'">'+esc({id:"ID / passport",payslip:"Payslip",bank:"Bank statement",other:"Other"}[f.kind]||f.kind)+(f.uploaded_by==="applicant"&&events.some(function(e){ return e.type==="document_added"&&e.detail&&e.detail.fileId===f.id; })?" (added later)":"")+'</button>'; }).join("")+'</div>'
         +'<div id="appDocView" style="padding:0 18px 18px"><div class="empty">Choose a document above.</div></div></div>';
       h+='<div class="card" style="margin-top:16px"><div class="ch"><h3>Activity</h3></div><div class="ledger">'
-        +events.map(function(e){ var d=e.detail||{}, what={whatsapp_sent:"Confirmed the applicant was told on WhatsApp",contacted:(d.channel==="call"?"Called the applicant":"Messaged the applicant on WhatsApp")+(d.message?": “"+d.message+"”":""),opened:"Opened the application",document_viewed:"Viewed a document ("+({id:"ID / passport",payslip:"payslip",bank:"bank statement",other:"other"}[d.kind]||d.kind||"")+")",draft_created:"Started the application",submitted:"Handed in",document_added:"Added a document",affordability_saved:"Saved the affordability worksheet",recommended:"Recommended "+(d.recommendation||"")+(d.note?": "+d.note:"")}[e.type] || (e.type==="status" ? (APP_STATUS[d.to]||d.to)+(d.applicantMessage?": “"+d.applicantMessage+"”":"")+(d.loanRef?" · "+d.loanRef:"") : e.type);
+        +events.map(function(e){ var d=e.detail||{}, what={whatsapp_sent:"Confirmed the applicant was told on WhatsApp",statement_issued:"Sent the Pre-Agreement Statement"+(d.total?" ("+d.total+")":""),statement_viewed:"Applicant opened the Pre-Agreement Statement",contacted:(d.channel==="call"?"Called the applicant":"Messaged the applicant on WhatsApp")+(d.message?": “"+d.message+"”":""),opened:"Opened the application",document_viewed:"Viewed a document ("+({id:"ID / passport",payslip:"payslip",bank:"bank statement",other:"other"}[d.kind]||d.kind||"")+")",draft_created:"Started the application",submitted:"Handed in",document_added:"Added a document",affordability_saved:"Saved the affordability worksheet",recommended:"Recommended "+(d.recommendation||"")+(d.note?": "+d.note:"")}[e.type] || (e.type==="status" ? (APP_STATUS[d.to]||d.to)+(d.applicantMessage?": “"+d.applicantMessage+"”":"")+(d.loanRef?" · "+d.loanRef:"") : e.type);
           return '<div class="lrow"><span class="lk">'+esc(what)+'<small>'+esc(String(e.actor||"").replace(/^staff:/,""))+'</small></span><span class="lv" style="font-size:12px">'+esc(new Date(e.at).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))+'</span></div>'; }).join("")
         +'</div></div>';
       c.innerHTML=h;
@@ -2342,7 +2342,7 @@ body.doc-open{overflow:hidden}
   // ---- application audit trail (owners only) ----
   // Every action on every application, permanent and filterable, with a
   // spreadsheet download. Decisions carry what they were based on.
-  var AUDIT_TYPES=[["","All actions"],["decision","Decisions (approve, decline, paid out)"],["status","Status changes"],["recommended","Recommendations"],["opened","Opened an application"],["document_viewed","Viewed a document"],["affordability_saved","Saved affordability"],["document_added","Applicant sent a document"],["contacted","Contacted the applicant"],["whatsapp_sent","Confirmed applicant was told"],["submitted","Handed in"]];
+  var AUDIT_TYPES=[["","All actions"],["decision","Decisions (approve, decline, paid out)"],["status","Status changes"],["recommended","Recommendations"],["opened","Opened an application"],["document_viewed","Viewed a document"],["affordability_saved","Saved affordability"],["document_added","Applicant sent a document"],["contacted","Contacted the applicant"],["statement_issued","Sent the Pre-Agreement Statement"],["statement_viewed","Applicant opened the statement"],["whatsapp_sent","Confirmed applicant was told"],["submitted","Handed in"]];
   function auditWhat(e){
     var d=e.detail||{};
     if(e.type==="status"){
@@ -2350,7 +2350,7 @@ body.doc-open{overflow:hidden}
       if(d.loanRef) s+=" · loan "+d.loanRef+(d.clientRef?" for "+d.clientRef:"");
       return s;
     }
-    return { whatsapp_sent:"Confirmed the applicant was told on WhatsApp", contacted:(d.channel==="call"?"Called the applicant":"Messaged the applicant on WhatsApp"), submitted:"Handed in", draft_created:"Started an application", document_added:"Sent a requested document ("+(d.kind||"")+")",
+    return { whatsapp_sent:"Confirmed the applicant was told on WhatsApp", statement_issued:"Sent the Pre-Agreement Statement", statement_viewed:"Opened the Pre-Agreement Statement", contacted:(d.channel==="call"?"Called the applicant":"Messaged the applicant on WhatsApp"), submitted:"Handed in", draft_created:"Started an application", document_added:"Sent a requested document ("+(d.kind||"")+")",
       opened:"Opened the application", document_viewed:"Viewed a document ("+({id:"ID / passport",payslip:"payslip",bank:"bank statement",other:"other"}[d.kind]||d.kind||"")+")",
       affordability_saved:"Saved the affordability worksheet", recommended:"Recommended "+(d.recommendation||"") }[e.type] || e.type;
   }
@@ -3968,7 +3968,29 @@ body.doc-open{overflow:hidden}
       if(!o.issue||!o.due||o.due<=o.issue) return showErr("The due date must be after the payout date.");
       var d=pasFigures(a,o);
       if(d.rate>PAS_CAP+1e-9) return showErr("The finance charge is "+pctTxt(d.rate)+" of the amount. The law allows at most "+PAS_CAP+"%.");
-      closeModal(); trimmedSignature().then(function(sig){ showDocument(pasParts(a,o,d,sig)); });
+      closeModal(); trimmedSignature().then(function(sig){
+        var doc=pasParts(a,o,d,sig);
+        doc.send=function(btn){ sendStatement(a,o,d,doc,btn); };
+        doc.sendLabel="Send to client on WhatsApp";
+        showDocument(doc);
+      });
+    });
+  }
+  // Saves the statement exactly as shown, then opens WhatsApp with a private
+  // link the client uses to read, print or save it (valid for 14 days).
+  function sendStatement(a,o,d,doc,btn){
+    var page='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'+esc(doc.title)+'</title>'
+      +'<style>@page{size:A4;margin:13mm 15mm 11mm}html,body{margin:0;background:#fff}'+doc.css+'.doc{background:#fff}.sheet{box-shadow:none;margin:0 auto}</style></head>'
+      +'<body><div class="doc">'+doc.sheet+'</div></body></html>';
+    var w=null; try{ w=window.open("about:blank","_blank"); }catch(e){}
+    btn.disabled=true; btn.textContent="Saving…";
+    appApi("POST","/v2/admin/applications/"+a.id+"/statement",{ html:page, total:money(d.C), due:o.due, validUntil:addDays(o.issue,o.valid) }).then(function(r){
+      btn.disabled=false; btn.textContent="Send again";
+      if(!r._ok){ if(w) w.close(); toast(r.error||"Couldn't save the statement.","err"); return; }
+      var text="Hello "+firstName(a.full_name)+", this is QuickServe Cashloan. Your Pre-Agreement Statement for "+a.id+" is ready: we lend you "+money(d.A)+" and you repay "+money(d.C)+" on "+fmtLong(o.due)+". Please read it before you sign anything: "+r.link+" (the link works for "+r.days+" days).";
+      var link=waLink(a.phone,text);
+      if(w) w.location.href=link; else window.open(link,"_blank");
+      toast("Statement saved. WhatsApp is open with the link.");
     });
   }
   function showErr(t){ var e=$("f_err"); if(e) e.textContent=t; return false; }
@@ -4099,9 +4121,10 @@ body.doc-open{overflow:hidden}
     if(!host){ host=document.createElement("div"); host.id="docView"; document.body.appendChild(host); host.attachShadow({mode:"open"}); }
     host.shadowRoot.innerHTML='<style>:host{display:block}'+d.css
       + '.bar .ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4)}</style>'
-      + '<div class="doc"><div class="bar"><button type="button" data-doc="print">Print / Save as PDF</button><button type="button" class="ghost" data-doc="close">Close</button></div>'+d.sheet+'</div>';
+      + '<div class="doc"><div class="bar">'+(d.send?'<button type="button" data-doc="send">'+esc(d.sendLabel||"Send to client")+'</button>':'')+'<button type="button"'+(d.send?' class="ghost"':'')+' data-doc="print">Print / Save as PDF</button><button type="button" class="ghost" data-doc="close">Close</button>'+(d.note?'<span>'+esc(d.note)+'</span>':'')+'</div>'+d.sheet+'</div>';
     host.shadowRoot.querySelector('[data-doc="print"]').addEventListener("click",function(){ window.print(); });
     host.shadowRoot.querySelector('[data-doc="close"]').addEventListener("click",closeDocument);
+    var sendBtn=host.shadowRoot.querySelector('[data-doc="send"]'); if(sendBtn) sendBtn.addEventListener("click",function(){ d.send(sendBtn); });
     if(!$("docPage")){ var st=document.createElement("style"); st.id="docPage"; st.textContent="@page{size:A4;margin:13mm 15mm 11mm}"; document.head.appendChild(st); }
     document.body.classList.add("doc-open"); host.scrollTop=0; fitDocument();
   }
