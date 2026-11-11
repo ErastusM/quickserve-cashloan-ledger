@@ -46,11 +46,39 @@
           <p class="alert" id="tAlert" role="alert" hidden></p>
         </div>
       </div>
-      <div class="note-card" id="tPas" hidden style="background:var(--bond)">
-        <p class="eyebrow" style="font-size:11px">Your Pre-Agreement Statement</p>
-        <p style="margin:8px 0 0;font-size:17px">The full cost of your loan, in writing, before you sign anything. Read it, and save or print a copy.</p>
-        <button type="button" class="btn btn-ink btn-block" id="tPasOpen" style="margin-top:14px">Read your statement</button>
-        <p class="alert" id="tPasAlert" role="alert" hidden></p>
+      <div class="sheet" id="tNext" hidden style="margin-top:14px">
+        <p class="eyebrow" style="font-size:11px;margin:0" id="tNextTitle">Next steps</p>
+        <ol class="steps-list" id="tSteps"></ol>
+        <form id="bankForm" hidden novalidate style="border-top:2px dashed #9aa6a3;margin-top:6px;padding-top:4px">
+          <p style="margin:12px 0 0;color:var(--ink-2)">How should we pay you? The account or wallet must be in your own name.</p>
+          <div class="choice" role="radiogroup" aria-label="How we pay you" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+            <label class="opt"><input type="radio" name="method" value="bank" checked><span>Bank account</span></label>
+            <label class="opt"><input type="radio" name="method" value="ewallet"><span>E-wallet</span></label>
+          </div>
+          <div id="walletFields" hidden>
+            <label class="field"><span class="label">E-wallet</span>
+              <select name="walletProvider" class="sel"><option value="">Choose</option><option>FNB eWallet</option><option>Bank Windhoek EasyWallet</option><option>Standard Bank Blue Wallet</option><option>Nedbank Send-iMali</option><option>Other e-wallet</option></select>
+              <span class="err" data-err="walletProvider"></span></label>
+            <label class="field"><span class="label">Cellphone number to send it to</span><input name="walletNumber" type="tel" inputmode="tel" autocomplete="tel" placeholder="081 234 5678"><span class="hint">You collect the money at an ATM with the PIN sent to this number.</span><span class="err" data-err="walletNumber"></span></label>
+          </div>
+          <div id="bankFields">
+          <label class="field"><span class="label">Bank</span>
+            <select name="bankName" class="sel"><option value="">Choose your bank</option><option>Bank Windhoek</option><option>FNB Namibia</option><option>Nedbank Namibia</option><option>Standard Bank Namibia</option><option>Letshego Bank Namibia</option><option>Trustco Bank</option><option value="other">Another bank</option></select>
+            <span class="err" data-err="bankName"></span></label>
+          <label class="field" id="bankOther" hidden><span class="label">Name of your bank</span><input name="bankOther" autocomplete="off"></label>
+          <label class="field"><span class="label">Account holder</span><input name="accountHolder" autocomplete="name"><span class="err" data-err="accountHolder"></span></label>
+          <label class="field"><span class="label">Account number</span><input name="accountNumber" inputmode="numeric" autocomplete="off"><span class="err" data-err="accountNumber"></span></label>
+          <label class="field"><span class="label">Branch code</span><input name="branchCode" inputmode="numeric" autocomplete="off"><span class="hint">On your bank app or a bank statement.</span><span class="err" data-err="branchCode"></span></label>
+          <label class="field"><span class="label">Account type</span>
+            <select name="accountType" class="sel"><option value="">Choose</option><option>Savings</option><option>Cheque / current</option><option>Transmission</option></select>
+            <span class="err" data-err="accountType"></span></label>
+          </div>
+          <label class="field"><span class="label">Your street address and town</span><input name="address" autocomplete="street-address" placeholder="Not a P.O. Box"><span class="err" data-err="address"></span></label>
+          <p class="alert" id="bankAlert" role="alert" hidden></p>
+          <button class="btn btn-ink btn-block" type="submit" style="margin-top:18px">Save payment details</button>
+          <p style="text-align:center;margin:8px 0 0"><button type="button" class="link-btn" id="bankCancel">Cancel</button></p>
+        </form>
+        <p class="alert" id="tNextAlert" role="alert" hidden></p>
       </div>
       <p style="text-align:center;margin-top:20px"><button type="button" class="link-btn" id="other" style="color:var(--desk-ink)">Look up a different application</button></p>
     </div>
@@ -66,6 +94,20 @@
   <div id="pasScroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:12px 0">
     <div id="pasBox" style="margin:0 auto;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.15);overflow:hidden"></div>
   </div>
+  <form id="actPanel" hidden novalidate style="background:var(--bond);color:var(--ink);border-top:3px solid var(--ink);padding:12px 16px 14px;max-height:62vh;overflow:auto">
+    <div style="max-width:560px;margin:0 auto">
+      <p style="margin:0;font-weight:700" id="actTitle"></p>
+      <label class="field" style="margin-top:10px"><span class="label">Type your full name</span><input name="name" autocomplete="name"></label>
+      <div id="sigWrap" hidden style="margin-top:12px">
+        <span class="label" style="font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)">Sign with your finger</span>
+        <canvas id="sigPad" style="display:block;width:100%;height:130px;background:#fff;border:2px solid var(--ink);margin-top:6px;touch-action:none"></canvas>
+        <button type="button" class="link-btn" id="sigClear" style="min-height:36px">Clear signature</button>
+      </div>
+      <label style="display:flex;gap:10px;align-items:flex-start;margin-top:10px;font-size:15px"><input type="checkbox" name="tick" style="width:22px;height:22px;flex:none;margin-top:2px"><span id="actTick"></span></label>
+      <p class="alert" id="actAlert" role="alert" hidden></p>
+      <button class="btn btn-ink btn-block" type="submit" style="margin-top:12px" id="actGo"></button>
+    </div>
+  </form>
 </div>
 <!--#footer-->
 <script src="/common.js?v=__BUILD__"></script>
@@ -77,7 +119,7 @@
     received: "We have your application. It’s in the queue to be checked.",
     in_review: "We’re checking your documents and affordability.",
     waiting_on_you: "We need something from you before we can carry on. See the note below.",
-    approved: "Approved. Your Pre-Agreement Statement, with the full cost, is on its way to your WhatsApp.",
+    approved: "Approved. Follow the next steps below to get your money.",
     paid: "Paid out. Your repayment is due on your payday.",
     declined: "We weren’t able to approve this application.",
     withdrawn: "This application was withdrawn."
@@ -85,7 +127,7 @@
 
   // A tracking link (#t=…) or the copy saved on this device.
   var m = location.hash.match(/t=([A-Za-z0-9_.-]{20,})/);
-  if (m) { token = m[1]; history.replaceState(null, "", location.pathname); }
+  if (m) { token = m[1]; history.replaceState(null, "", location.pathname); if (/^s\./.test(token)) QS.store.set("qs_track_session", { token: token }); }
   else {
     var rc = QS.store.get("qs_receipt"), ss = QS.store.get("qs_track_session");
     if (rc && rc.trackToken) token = rc.trackToken; else if (ss && ss.token) token = ss.token;
@@ -116,7 +158,7 @@
     $("tNoteTitle").textContent = r.stage === "declined" ? "Why we couldn’t approve this application" : "Note from QuickServe";
     $("tMsg").textContent = r.message || "";
     $("tUpload").hidden = !r.canUpload;
-    $("tPas").hidden = !r.statementAvailable;
+    renderSteps(r);
   }
 
   // Keeps the page current while it's open: every 30 s while on screen, and
@@ -167,8 +209,76 @@
     x.send(file);
   });
 
-  // The statement opens in a frame that can't run scripts, scaled to fit the phone.
-  var PAGE_W = 794;
+  // ---- after approval: accept, bank details, sign -----------------------------
+  function money(c) { return QS.money(c / 100, 2); }
+  function renderSteps(r) {
+    var st = r.steps, box = $("tNext");
+    if (!st || !r.statementAvailable && r.stage !== "approved") { box.hidden = true; return; }
+    box.hidden = false;
+    var paid = r.stage === "paid";
+    $("tNextTitle").textContent = paid ? "Your documents" : "Next steps";
+    var rows = [];
+    function row(done, title, text, btn) {
+      rows.push('<li class="' + (done ? "done" : "") + '"><b>' + title + '</b><span>' + text + "</span>" + (btn || "") + "</li>");
+    }
+    function b(id, label, ghost) { return '<button type="button" class="btn ' + (ghost ? "btn-ghost" : "btn-ink") + ' btn-block" data-act="' + id + '">' + label + "</button>"; }
+    if (!r.statementAvailable) row(false, "Your Pre-Agreement Statement", "We’re preparing it. We’ll WhatsApp you when it’s ready.");
+    else if (st.statementAccepted) row(true, "Statement accepted", "You accepted the full cost of the loan.", b("statement", "View statement", true));
+    else row(false, "1. Read and accept your statement", "The full cost of your loan, in writing, before you sign anything.", b("accept", "Read and accept"));
+    if (!paid) {
+      if (st.bank) row(true, "Payment details saved", st.bank.method === "ewallet" ? QS.esc(st.bank.bank) + " to the number ending " + QS.esc(st.bank.last4) : QS.esc(st.bank.bank) + " · account ending " + QS.esc(st.bank.last4), st.agreementSigned ? "" : b("bank", "Change payment details", true));
+      else row(false, "2. How we pay you", "Your bank account, or an e-wallet to your cellphone.", b("bank", "Add bank or e-wallet details"));
+    }
+    if (st.agreementSigned) row(true, "Agreement signed", "You signed on " + new Date(st.agreementSignedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) + ".", b("agreement", "View signed agreement", true));
+    else if (st.agreementAvailable) row(false, "3. Read and sign your loan agreement", "Sign on your phone with your finger.", b("sign", "Read and sign"));
+    else if (!paid) row(false, "3. Sign your loan agreement", "We’ll WhatsApp it to you once steps 1 and 2 are done.");
+    if (st.agreementSigned && !paid) rows.push('<li class="done"><b>All done</b><span>We’ll pay ' + money(r.amountCents) + (st.bank && st.bank.method === "ewallet" ? " to your e-wallet" : " into your account") + '. The PAID stamp appears when the money is on its way.</span></li>');
+    $("tSteps").innerHTML = rows.join("");
+    Array.prototype.forEach.call($("tSteps").querySelectorAll("[data-act]"), function (el) {
+      el.onclick = function () {
+        var a = el.getAttribute("data-act");
+        if (a === "bank") return openBank();
+        openDoc(a === "accept" || a === "statement" ? "statement" : "agreement", a === "accept" ? "accept" : a === "sign" ? "sign" : null, el);
+      };
+    });
+  }
+
+  function trackCall(method, path, body) {
+    return new Promise(function (resolve) {
+      var x = new XMLHttpRequest();
+      x.open(method, QS.API + "/v2/track/" + current.reference + path);
+      x.setRequestHeader("X-Track-Token", token);
+      if (body) x.setRequestHeader("Content-Type", "application/json");
+      x.onload = function () { var j = {}; try { j = JSON.parse(x.responseText); } catch (e) {} j._status = x.status; resolve(j); };
+      x.onerror = function () { resolve({ _status: 0, error: "Check your connection and try again." }); };
+      x.send(body ? JSON.stringify(body) : null);
+    });
+  }
+
+  // Bank details
+  function openBank() { $("bankForm").hidden = false; $("bankForm").elements.bankName.focus(); }
+  $("bankCancel").onclick = function () { $("bankForm").hidden = true; };
+  $("bankForm").elements.bankName.onchange = function () { $("bankOther").hidden = this.value !== "other"; };
+  Array.prototype.forEach.call($("bankForm").elements.method, function (r) {
+    r.onchange = function () { var w = $("bankForm").elements.method.value === "ewallet"; $("walletFields").hidden = !w; $("bankFields").hidden = w; };
+  });
+  $("bankForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = e.target.elements, btn = e.target.querySelector("[type=submit]");
+    Array.prototype.forEach.call(e.target.querySelectorAll("[data-err]"), function (el) { el.textContent = ""; });
+    $("bankAlert").hidden = true; btn.disabled = true;
+    trackCall("PUT", "/bank", { method: f.method.value, walletProvider: f.walletProvider.value, walletNumber: f.walletNumber.value, bankName: f.bankName.value === "other" ? f.bankOther.value : f.bankName.value, accountHolder: f.accountHolder.value,
+      accountNumber: f.accountNumber.value, branchCode: f.branchCode.value, accountType: f.accountType.value, address: f.address.value }).then(function (j) {
+      btn.disabled = false;
+      if (j._status === 200) { $("bankForm").hidden = true; return lookUp({ trackToken: token }); }
+      var errs = j.errors || {};
+      Object.keys(errs).forEach(function (k) { var el = e.target.querySelector('[data-err="' + k + '"]'); if (el) el.textContent = errs[k]; });
+      if (!Object.keys(errs).length) { $("bankAlert").textContent = j.error || "That didn’t save. Try again."; $("bankAlert").hidden = false; }
+    });
+  });
+
+  // Documents open in a frame that can't run scripts, scaled to fit the phone.
+  var PAGE_W = 794, mode = null, kindOpen = null;
   function fitPas() {
     var f = $("pasBox").firstChild; if (!f) return;
     var w = Math.min(PAGE_W, $("pasScroll").clientWidth - 16), k = w / PAGE_W;
@@ -176,30 +286,88 @@
     f.style.height = h + "px"; f.style.transform = "scale(" + k + ")";
     $("pasBox").style.width = w + "px"; $("pasBox").style.height = Math.ceil(h * k) + "px";
   }
-  $("tPasOpen").onclick = function () {
-    var b = this; b.disabled = true; $("tPasAlert").hidden = true;
-    var x = new XMLHttpRequest();
-    x.open("GET", QS.API + "/v2/track/" + current.reference + "/statement");
-    x.setRequestHeader("X-Track-Token", token);
-    x.onload = function () {
-      b.disabled = false;
-      var j = {}; try { j = JSON.parse(x.responseText); } catch (e) {}
-      if (x.status !== 200 || !j.html) { $("tPasAlert").textContent = j.error || "The statement didn't open. Try again."; $("tPasAlert").hidden = false; return; }
+  function openDoc(kind, act, btn) {
+    btn.disabled = true; $("tNextAlert").hidden = true;
+    trackCall("GET", "/" + kind).then(function (j) {
+      btn.disabled = false;
+      if (j._status !== 200 || !j.html) { $("tNextAlert").textContent = j.error || "That didn’t open. Try again."; $("tNextAlert").hidden = false; return; }
       var f = document.createElement("iframe");
       f.setAttribute("sandbox", "allow-same-origin allow-modals");
-      f.setAttribute("title", "Pre-Agreement Statement");
+      f.setAttribute("title", kind === "statement" ? "Pre-Agreement Statement" : "Loan agreement");
       f.style.cssText = "border:0;display:block;width:" + PAGE_W + "px;transform-origin:0 0";
       f.onload = fitPas;
-      $("pasBox").innerHTML = ""; $("pasBox").appendChild(f);
-      f.srcdoc = j.html;
+      $("pasBox").innerHTML = ""; $("pasBox").appendChild(f); f.srcdoc = j.html;
+      mode = act; kindOpen = kind;
+      var p = $("actPanel");
+      p.hidden = !act; $("actAlert").hidden = true; p.elements.tick.checked = false; p.elements.name.value = "";
+      $("sigWrap").hidden = act !== "sign";
+      if (act === "accept") {
+        $("actTitle").textContent = "Accept this statement";
+        $("actTick").textContent = "I have read the statement and I understand what the loan costs and when I must repay it.";
+        $("actGo").textContent = "I accept";
+      } else if (act === "sign") {
+        $("actTitle").textContent = "Sign your loan agreement";
+        $("actTick").textContent = "I have read the agreement and I agree to sign it electronically. My typed name and signature count as my signature on paper.";
+        $("actGo").textContent = "Sign the agreement";
+        setTimeout(sizePad, 50);
+      }
       $("pasView").hidden = false; document.body.style.overflow = "hidden";
-    };
-    x.onerror = function () { b.disabled = false; $("tPasAlert").textContent = "Check your connection and try again."; $("tPasAlert").hidden = false; };
-    x.send();
-  };
+    });
+  }
   $("pasPrint").onclick = function () { var f = $("pasBox").firstChild; if (f) { try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) { window.print(); } } };
-  $("pasClose").onclick = function () { $("pasView").hidden = true; $("pasBox").innerHTML = ""; document.body.style.overflow = ""; };
-  window.addEventListener("resize", fitPas);
+  function closeDoc() { $("pasView").hidden = true; $("pasBox").innerHTML = ""; $("actPanel").hidden = true; document.body.style.overflow = ""; }
+  $("pasClose").onclick = closeDoc;
+  window.addEventListener("resize", function () { fitPas(); });
+
+  // Signature pad
+  var pad = $("sigPad"), ctx2 = pad.getContext("2d"), inked = 0, last = null;
+  function sizePad() {
+    var r = pad.getBoundingClientRect(), k = window.devicePixelRatio || 1;
+    pad.width = Math.round(r.width * k); pad.height = Math.round(r.height * k);
+    ctx2.setTransform(k, 0, 0, k, 0, 0); ctx2.lineWidth = 2.4; ctx2.lineCap = "round"; ctx2.lineJoin = "round"; ctx2.strokeStyle = "#111";
+    inked = 0;
+  }
+  function pt(e) { var r = pad.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  pad.addEventListener("pointerdown", function (e) { pad.setPointerCapture(e.pointerId); last = pt(e); e.preventDefault(); });
+  pad.addEventListener("pointermove", function (e) {
+    if (!last) return; var p = pt(e);
+    ctx2.beginPath(); ctx2.moveTo(last.x, last.y); ctx2.lineTo(p.x, p.y); ctx2.stroke();
+    inked += Math.abs(p.x - last.x) + Math.abs(p.y - last.y); last = p; e.preventDefault();
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(function (t) { pad.addEventListener(t, function () { last = null; }); });
+  $("sigClear").onclick = sizePad;
+  // The drawing, cropped to the ink, as a PNG.
+  function signaturePng() {
+    var w = pad.width, h = pad.height, d = ctx2.getImageData(0, 0, w, h).data, x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return "";
+    var pad2 = 6, c = document.createElement("canvas"); x0 = Math.max(0, x0 - pad2); y0 = Math.max(0, y0 - pad2); x1 = Math.min(w - 1, x1 + pad2); y1 = Math.min(h - 1, y1 + pad2);
+    var k = Math.min(1, 480 / (x1 - x0 + 1)); c.width = Math.round((x1 - x0 + 1) * k); c.height = Math.round((y1 - y0 + 1) * k);
+    c.getContext("2d").drawImage(pad, x0, y0, x1 - x0 + 1, y1 - y0 + 1, 0, 0, c.width, c.height);
+    return c.toDataURL("image/png");
+  }
+
+  $("actPanel").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = e.target.elements, al = $("actAlert"); al.hidden = true;
+    function fail(t) { al.textContent = t; al.hidden = false; }
+    if (!f.name.value.trim()) return fail("Type your full name.");
+    if (!f.tick.checked) return fail("Tick the box to confirm.");
+    var body, path;
+    if (mode === "accept") { path = "/accept"; body = { name: f.name.value, understood: true }; }
+    else {
+      if (inked < 60) return fail("Draw your signature in the box.");
+      path = "/agreement/sign"; body = { name: f.name.value, agree: true, signature: signaturePng() };
+    }
+    $("actGo").disabled = true;
+    trackCall("POST", path, body).then(function (j) {
+      $("actGo").disabled = false;
+      if (j._status !== 200) return fail(j.error || "That didn’t work. Try again.");
+      var signed = mode === "sign";
+      closeDoc(); lookUp({ trackToken: token });
+      if (signed) setTimeout(function () { var b2 = $("tSteps").querySelector('[data-act="agreement"]'); if (b2) b2.click(); }, 900);
+    });
+  });
 
   if (token) lookUp({ trackToken: token }); else showFind();
 })();
