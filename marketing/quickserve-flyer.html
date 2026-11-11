@@ -153,7 +153,7 @@ body {
 /* ---------- contact bar ---------- */
 .contact {
   position: absolute; left: 62px; right: 62px; bottom: 96px; z-index: 5;
-  height: 148px; border-radius: 26px;
+  height: 170px; border-radius: 26px;
   border: 2.5px solid rgba(10,91,84,.34);
   background: rgba(255,255,255,.55);
   display: flex; align-items: center; padding: 0 32px; gap: 26px;
@@ -178,11 +178,16 @@ body {
   display: inline-block; background: var(--amber);
   color: #3d2a00; font-weight: 600; font-size: 19px;
   letter-spacing: 1.6px; padding: 7px 17px; border-radius: 7px;
-  margin-bottom: 9px;
+  margin-bottom: 6px;
 }
 .contact .digits {
   font-weight: 700; font-size: 46px; color: var(--ink);
   letter-spacing: -1.4px; white-space: nowrap;
+}
+
+.contact .mail {
+  font-family: Inter, sans-serif; font-weight: 600; font-size: 21px;
+  color: var(--body); letter-spacing: -0.2px; white-space: nowrap; margin-top: 2px;
 }
 
 /* ---------- compliance disclosure ribbon ---------- */
@@ -403,6 +408,7 @@ body {
     <span class="pill">CONTACT US</span>
     <!-- ===== CONTACT NUMBER — edit this one line ===== -->
     <div class="digits">+264 81 281 9840</div>
+    <div class="mail">info@quickserve.group</div>
   </div>
 </div>
 
