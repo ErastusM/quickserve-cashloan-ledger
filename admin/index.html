@@ -3939,9 +3939,18 @@ body.doc-open{overflow:hidden}
     return letterCss()+'.pas{font-size:9.1pt;line-height:1.3}.pas .qs-logo{height:38px}.pas h1{font-size:12.5pt;margin:8px 0 2px}.pas .sub{text-align:center;color:#555;font-size:8.8pt;margin:0 0 5px}'
       +'.pas h2{font-size:9.8pt;margin:7px 0 3px}.pas p{margin:0 0 3.5px}.pas table{margin:3px 0 5px;font-size:9.2pt}.pas td{padding:2px 7px}'
       +'.pas ol{margin:0 0 4px;padding-left:18px}.pas li{margin:0 0 2.5px}.pas .box{display:inline-block;width:9px;height:9px;border:1px solid #333;margin:0 3px -1px 0}'
-      +'.pas .sign{margin-top:10px;flex-wrap:nowrap;gap:18px}.pas .sign .who{min-width:0;flex:1}.pas .sig-line{width:auto;height:34px}.pas .sig-img{max-height:44px}'
-      +'.pas .blank{display:inline-block;min-width:150px;border-bottom:1px solid #888;height:1em}'
+      +'.pas .sigrow{display:grid;grid-template-columns:1fr 1fr 1fr 92px;gap:0 22px;align-items:start;margin-top:8px;break-inside:avoid}.pas .sigrow.two{grid-template-columns:1fr 1fr 92px}'
+      +'.pas .sigspace{height:46px;display:flex;align-items:flex-end}.pas .sigspace img{max-height:44px;max-width:100%;mix-blend-mode:multiply}'
+      +'.pas .sigrule{border-top:1px solid #444;margin-top:2px}.pas .signame{font-weight:700;margin-top:3px;font-size:9pt}.pas .muted{font-size:8.6pt;line-height:1.3}'
+      +'.pas .stampc svg{width:88px;height:88px;display:block}'
+      +'.pas td.fill{height:24px}'
       +'@media print{.pas{padding:0}}';
+  }
+  // One signature column: the signature (or an empty space) sits on the line,
+  // so every line in the row is at the same height.
+  function sigCol(img, name, role){
+    return '<div class="sigc"><div class="sigspace">'+(img?'<img src="'+img+'" alt="Signature">':'')+'</div><div class="sigrule"></div>'
+      +'<div class="signame">'+(name?esc(name):'&nbsp;')+'</div><div class="muted">'+role+'</div></div>';
   }
   function docRow2(k1,v1,k2,v2){ return '<tr><td class="k">'+esc(k1)+'</td><td>'+v1+'</td><td class="k">'+esc(k2)+'</td><td>'+v2+'</td></tr>'; }
   function docLine(l,t,v,b){ return '<tr'+(b?' style="font-weight:700"':'')+'><td style="width:6%">'+l+'</td><td>'+t+'</td><td style="text-align:right;white-space:nowrap">'+v+'</td></tr>'; }
@@ -3994,10 +4003,9 @@ body.doc-open{overflow:hidden}
       +'<p>Pay <strong>'+M(d.C)+'</strong> on or before <strong>'+esc(fmtLong(o.due))+'</strong> in cash (get a receipt) or by EFT to '+repayAccountHtml(co)+'. Use your name and loan number as the reference, and WhatsApp the proof to '+esc(co.whatsapp||co.cell)+'.</p>'
       +'<h2>5. This quotation</h2>'
       +'<p>If you accept by <strong>'+esc(fmtLong(validTo))+'</strong> and your circumstances have not changed, your loan agreement will be on exactly these terms and can cost no more. We may withdraw it earlier only if information you gave us was untrue or incomplete, or your ability to repay has materially changed, and we will tell you why. After that date we must reassess. Questions? Ask before you sign; we will explain in a language you understand.</p>'
-      +'<div class="sign"><div class="who">'+(sig?'<img class="sig-img" src="'+sig+'" alt="Signature">':'<div class="sig-line"></div>')
-        +'<div style="border-top:1px solid #555;padding-top:4px"><strong>'+esc(co.officer)+'</strong><br><span class="muted">For '+esc(co.legalName)+(co.cc?' · '+esc(co.cc):'')+'</span></div></div>'
-        +'<div class="who"><div class="sig-line"></div><div style="border-top:1px solid #555;padding-top:4px"><strong>'+esc(a.full_name)+'</strong><br><span class="muted">I received this statement before signing any agreement. Date: ____________</span></div></div>'
-        +'<div>'+stampSvg(co)+'</div></div>'
+      +'<div class="sigrow two">'+sigCol(sig, co.officer, 'For '+esc(co.legalName)+(co.cc?' · '+esc(co.cc):''))
+        +sigCol('', a.full_name, 'I received this statement before signing any agreement. Date: ____________')
+        +'<div class="stampc">'+stampSvg(co)+'</div></div>'
       +'</div>';
     return { title:"Pre-Agreement Statement — "+a.full_name, css:onePageCss(), sheet:sheet };
   }
@@ -4006,7 +4014,7 @@ body.doc-open{overflow:hidden}
   function agreementParts(l, sig){
     var co=company(), cl=client(l.clientId)||{}, M=function(n){ return esc(money(n)); };
     var A=num(l.principal), B=num(A*num(l.interestRate)/100+num(l.serviceFee)), C=num(A+B), rate=A?B/A*100:0;
-    var blank='<span class="blank"></span>', box='<span class="box"></span>';
+    var blank='', box='<span class="box"></span>';
     var payday=l.dueDate?("Day "+Number(String(l.dueDate).slice(8,10))+" of the month"):"";
     var sheet='<div class="sheet pas">'
       +'<div class="head"><div>'+logoSvg()+'</div><div class="biz">'+letterBizLines(co).join("")+'</div></div>'
@@ -4014,9 +4022,9 @@ body.doc-open{overflow:hidden}
       +'<table class="four">'+docRow2("Loan no.",'<strong>'+esc(loanRef(l))+'</strong>',"Client no.",esc(cl.ref||"—"))+'</table>'
       +'<h2>1. You — the borrower</h2>'
       +'<table class="four">'+docRow2("Full names (as on your ID)",esc(cl.name||""),"ID or passport number",esc(cl.nationalId||""))
-        +docRow2("Physical address (not a P.O. Box)",cl.address?esc(cl.address):blank,"Mobile / WhatsApp",esc(cl.phone||""))
-        +docRow2("Employer",cl.employer?esc(cl.employer):blank,"Your payday",esc(payday))
-        +docRow2("Your bank and account number",blank,"Next of kin — name and phone",cl.nextOfKin?esc(cl.nextOfKin):blank)+'</table>'
+        +docRow2("Physical address (not a P.O. Box)",cl.address?esc(cl.address):blank,"Mobile / WhatsApp",esc(cl.phone||"")).replace('<td></td>','<td class="fill"></td>')
+        +docRow2("Employer",cl.employer?esc(cl.employer):blank,"Your payday",esc(payday)).replace('<td></td>','<td class="fill"></td>')
+        +docRow2("Your bank and account number",blank,"Next of kin — name and phone",cl.nextOfKin?esc(cl.nextOfKin):blank).replace(/<td><\/td>/g,'<td class="fill"></td>')+'</table>'
       +'<h2>2. The loan and what it costs</h2>'
       +'<table>'+docLine("A","Amount lent to you (the principal)",M(A))+docLine("B","Finance charge, fixed: "+pctTxt(rate)+" of A (never more than 30% of A)",M(B))
         +docLine("C","Total to repay (A + B) in one payment on the due date",M(C),1)+'</table>'
@@ -4033,12 +4041,11 @@ body.doc-open{overflow:hidden}
       +'<li><strong>Your information.</strong> We may verify the details above and keep a confidential record of this loan, used only for your loans.</li>'
       +'<li><strong>Complaints.</strong> Contact us first on '+esc(co.cell)+' or '+esc(co.email)+'.</li>'
       +'<li><strong>Your declaration.</strong> By signing you confirm that the information above is true, that you received the Pre-Agreement Statement for this loan, and that you can afford to repay this loan on your next payday.</li></ol>'
-      +'<h2>4. Signatures</h2><p>Signed at '+blank+' on ____ / ____ / 20____</p>'
-      +'<div class="sign">'
-        +'<div class="who"><div class="sig-line"></div><div style="border-top:1px solid #555;padding-top:4px"><strong>'+esc(cl.name||"Borrower")+'</strong><br><span class="muted">Borrower</span></div></div>'
-        +'<div class="who">'+(sig?'<img class="sig-img" src="'+sig+'" alt="Signature">':'<div class="sig-line"></div>')+'<div style="border-top:1px solid #555;padding-top:4px"><strong>'+esc(co.officer)+'</strong><br><span class="muted">For '+esc(co.tradingAs||co.legalName)+(co.officerCapacity?' · '+esc(co.officerCapacity):'')+'</span></div></div>'
-        +'<div class="who"><div class="sig-line"></div><div style="border-top:1px solid #555;padding-top:4px"><strong>&nbsp;</strong><br><span class="muted">Witness — full names</span></div></div>'
-        +'<div>'+stampSvg(co)+'</div></div>'
+      +'<h2>4. Signatures</h2><p>Signed at ______________________ on ____ / ____ / 20____</p>'
+      +'<div class="sigrow">'+sigCol('', cl.name||"", 'Borrower')
+        +sigCol(sig, co.officer, 'For '+esc(co.tradingAs||co.legalName)+(co.officerCapacity?' · '+esc(co.officerCapacity):''))
+        +sigCol('', '', 'Witness — full names')
+        +'<div class="stampc">'+stampSvg(co)+'</div></div>'
       +'<table style="margin-top:8px"><tr><td><strong>Receipt.</strong> I received '+M(A)+' by '+box+'cash '+box+'EFT '+box+'e-wallet on ___/___/20___, and my signed copy.<br>Borrower’s signature ________________________ &nbsp; Paid out by (QuickServe) ________________________</td></tr></table>'
       +'</div>';
     return { title:"Loan agreement — "+(cl.name||loanRef(l)), css:onePageCss(), sheet:sheet };
