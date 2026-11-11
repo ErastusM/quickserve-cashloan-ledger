@@ -18,4 +18,4 @@ routes = [
 # SITE_MODE: "live" = the full site; "soon" = quickserve.group shows only the
 # coming-soon page (preview.quickserve.group keeps the full site for staff).
 [vars]
-SITE_MODE = "soon"
+SITE_MODE = "live"
