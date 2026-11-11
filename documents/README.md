@@ -25,7 +25,7 @@ below).
 | 01 | Loan Application Form | Client applies |
 | 02 | Pre-Agreement Statement & Quotation | Cost disclosure given *before* signing |
 | 03 | Affordability Assessment Worksheet | Internal — proves the loan was affordable |
-| 04 | Microloan Agreement | The contract the client signs |
+| 04 | Payday Loan Agreement (one page) | The contract the client signs — same terms as 02 |
 | 05 | Schedule of Fees & Charges (Annexure A) | Attaches to the agreement |
 | 06 | Payment Receipt | Issued for every payment received |
 | 07 | Paid-Up Letter / Settlement Confirmation | "To whom it may concern" — loan settled in full |

@@ -2672,6 +2672,7 @@ body.doc-open{overflow:hidden}
       + (isOpen||r.status==="written-off"?'<button class="btn ghost sm" id="dlRoll">Roll over</button>':'')
       + (remind?'<a class="btn ghost sm" id="dlRemind" href="'+esc(remind)+'" target="_blank" rel="noopener">WhatsApp reminder</a>':'')
       + (isOpen?'<button class="btn ghost sm" id="dlContact">Log contact</button>':'')
+      + '<button class="btn ghost sm" id="dlAgree">Loan agreement</button>'
       + '<button class="btn '+(r.status==="paid"?'':'ghost ')+'sm" id="dlPaidUp">Paid-up letter</button>'
       + '<button class="btn ghost sm" id="dlEdit">Edit</button>'
       + (isOpen?'<button class="btn ghost sm" id="dlWriteOff">Write off</button>':'')
@@ -2735,6 +2736,7 @@ body.doc-open{overflow:hidden}
     var dw=$("dlWriteOff"); if(dw) dw.addEventListener("click",function(){ setLoanStatus(id,"written-off"); });
     var dro=$("dlReopen"); if(dro) dro.addEventListener("click",function(){ setLoanStatus(id,"active"); });
     var dpu=$("dlPaidUp"); if(dpu) dpu.addEventListener("click",function(){ openPaidUpLetter(id); });
+    var dag=$("dlAgree"); if(dag) dag.addEventListener("click",function(){ openAgreement(id); });
     $("dlEdit").addEventListener("click",function(){ openLoanForm(l); });
     $("dlDelete").addEventListener("click",function(){ deleteLoan(id); });
     Array.prototype.forEach.call($("drawerBody").querySelectorAll("[data-pdel]"),function(b){ b.addEventListener("click",function(){ deletePayment(b.getAttribute("data-pdel"), id); }); });
@@ -3898,20 +3900,74 @@ body.doc-open{overflow:hidden}
   // Filled in from the application; staff only confirm the dates and how the
   // money moves. Two pages, and it refuses to print a quote above the legal cap.
   var PAS_CAP=30;
+  // ---- wording shared by the Pre-Agreement Statement and the loan agreement ----
+  // Both documents read these, so they always say the same thing.
+  var TERMS={
+    early:"The finance charge is fixed. Paying before the due date does not reduce it.",
+    late:"If the total is not paid in full on the due date, we will send you a written demand. If it is still unpaid 5 business days after the due date, we will hand your account to a collector or attorney. We add no late fees or default interest.",
+    applied:"Each payment clears the finance charge first and then the amount lent.",
+    extension:"A new due date counts only if it is written and signed by both of us. No new money is paid out.",
+    never:"We never take or keep your bank card, PIN, banking password, original ID, passport or driver’s licence."
+  };
+  function repayAccountHtml(co){
+    return esc(co.repayBank||"FNB Namibia")+', account name <strong>'+esc(co.repayAccountName||co.legalName)+'</strong>, account <strong>'+esc(co.repayAccountNo||"")+'</strong>'+(co.repayBranch?', branch code <strong>'+esc(co.repayBranch)+'</strong>':'');
+  }
+  function pctTxt(n){ return (Math.round(n*100)/100).toFixed(2).replace(/\.00$/,"")+"%"; }
+  // 3250 → "Three thousand two hundred and fifty Namibia dollars"
+  function amountInWords(v){
+    var ones=["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"],
+        tens=["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+    function under1000(n){
+      var out=[], h=Math.floor(n/100), r=n%100;
+      if(h) out.push(ones[h]+" hundred");
+      if(r){ if(h) out.push("and"); out.push(r<20?ones[r]:tens[Math.floor(r/10)]+(r%10?"-"+ones[r%10]:"")); }
+      return out.join(" ");
+    }
+    function words(n){
+      if(!n) return "zero";
+      var parts=[];
+      [[1e9,"billion"],[1e6,"million"],[1e3,"thousand"]].forEach(function(sc){ var q=Math.floor(n/sc[0]); if(q){ parts.push(under1000(q)+" "+sc[1]); n%=sc[0]; } });
+      if(n){ if(parts.length&&n<100) parts.push("and"); parts.push(under1000(n)); }
+      return parts.join(" ");
+    }
+    var c=Math.round(num(v)*100), d=Math.floor(c/100), cc=c%100;
+    var w=words(d)+" Namibia dollar"+(d===1?"":"s")+(cc?" and "+words(cc)+" cent"+(cc===1?"":"s"):"");
+    return w.charAt(0).toUpperCase()+w.slice(1);
+  }
+  // One A4 page for both documents.
+  function onePageCss(){
+    return letterCss()+'.pas{font-size:9.1pt;line-height:1.3}.pas .qs-logo{height:38px}.pas h1{font-size:12.5pt;margin:8px 0 2px}.pas .sub{text-align:center;color:#555;font-size:8.8pt;margin:0 0 5px}'
+      +'.pas h2{font-size:9.8pt;margin:7px 0 3px}.pas p{margin:0 0 3.5px}.pas table{margin:3px 0 5px;font-size:9.2pt}.pas td{padding:2px 7px}'
+      +'.pas ol{margin:0 0 4px;padding-left:18px}.pas li{margin:0 0 2.5px}.pas .box{display:inline-block;width:9px;height:9px;border:1px solid #333;margin:0 3px -1px 0}'
+      +'.pas .sigrow{display:grid;grid-template-columns:1fr 1fr 1fr 92px;gap:0 22px;align-items:start;margin-top:8px;break-inside:avoid}.pas .sigrow.two{grid-template-columns:1fr 1fr 92px}'
+      +'.pas .sigspace{height:46px;display:flex;align-items:flex-end}.pas .sigspace img{max-height:44px;max-width:100%;mix-blend-mode:multiply}'
+      +'.pas .sigrule{border-top:1px solid #444;margin-top:2px}.pas .signame{font-weight:700;margin-top:3px;font-size:9pt}.pas .muted{font-size:8.6pt;line-height:1.3}'
+      +'.pas .stampc svg{width:88px;height:88px;display:block}'
+      +'.pas td.fill{height:24px}'
+      +'@media print{.pas{padding:0}}';
+  }
+  // One signature column: the signature (or an empty space) sits on the line,
+  // so every line in the row is at the same height.
+  function sigCol(img, name, role){
+    return '<div class="sigc"><div class="sigspace">'+(img?'<img src="'+img+'" alt="Signature">':'')+'</div><div class="sigrule"></div>'
+      +'<div class="signame">'+(name?esc(name):'&nbsp;')+'</div><div class="muted">'+role+'</div></div>';
+  }
+  function docRow2(k1,v1,k2,v2){ return '<tr><td class="k">'+esc(k1)+'</td><td>'+v1+'</td><td class="k">'+esc(k2)+'</td><td>'+v2+'</td></tr>'; }
+  function docLine(l,t,v,b){ return '<tr'+(b?' style="font-weight:700"':'')+'><td style="width:6%">'+l+'</td><td>'+t+'</td><td style="text-align:right;white-space:nowrap">'+v+'</td></tr>'; }
+
   function openPas(a){
     var today=todayISO(), loan=state.loans.find(function(l){ return l.applicationRef===a.id; });
     var issue=loan&&loan.issueDate||today, due=loan&&loan.dueDate||nextPayday(a.payday,issue);
-    var body='<div class="field row"><div><label>Cash paid out on</label><input id="p_issue" type="date" value="'+issue+'"></div><div><label>Repay on (payday)</label><input id="p_due" type="date" value="'+due+'"></div></div>'
-      +'<div class="field row"><div><label>Service fee (N$)</label><input id="p_fee" class="num" type="number" step="0.01" min="0" value="'+esc(loan?num(loan.serviceFee):0)+'"></div><div><label>Quote valid for (days)</label><input id="p_valid" class="num" type="number" min="1" max="30" value="5"></div></div>'
-      +'<div class="field row"><div><label>We pay the cash by</label><select id="p_out"><option>Bank transfer to your account</option><option>Cash</option></select></div>'
-      +'<div><label>You repay by</label><select id="p_in"><option>Bank transfer (EFT)</option><option>Cash at our office</option><option>Debit order</option></select></div></div>'
-      +'<p style="color:var(--muted);font-size:12.5px;margin:4px 0 0">Name, ID, cellphone, amount and the 30% interest come from the application. Interest and service fee together may not go over 30%.</p><div class="formerr" id="f_err"></div>';
+    var body='<div class="field row"><div><label>Cash paid out on</label><input id="p_issue" type="date" value="'+issue+'"></div><div><label>Due date (payday)</label><input id="p_due" type="date" value="'+due+'"></div></div>'
+      +'<div class="field row"><div><label>Paid out by</label><select id="p_out"><option>EFT</option><option>Cash</option><option>E-wallet</option></select></div>'
+      +'<div><label>You repay by</label><select id="p_in"><option>EFT</option><option>Cash</option></select></div></div>'
+      +'<div class="field"><label>Quote valid for (days)</label><input id="p_valid" class="num" type="number" min="1" max="30" value="5"></div>'
+      +'<p style="color:var(--muted);font-size:12.5px;margin:4px 0 0">Name, ID, cellphone, amount and the finance charge come from the application. The wording matches the loan agreement.</p><div class="formerr" id="f_err"></div>';
     openModal("Pre-Agreement Statement · "+a.id, body, "Show statement", function(){
-      var o={ issue:fval("p_issue"), due:fval("p_due"), fee:Number(fval("p_fee")||0), valid:Math.round(Number(fval("p_valid")||5)), out:fval("p_out"), inn:fval("p_in") };
-      if(!o.issue||!o.due||o.due<=o.issue) return showErr("The repayment date must be after the payout date.");
-      if(!(o.fee>=0)) return showErr("Check the service fee.");
+      var o={ issue:fval("p_issue"), due:fval("p_due"), valid:Math.round(Number(fval("p_valid")||5)), out:fval("p_out"), inn:fval("p_in") };
+      if(!o.issue||!o.due||o.due<=o.issue) return showErr("The due date must be after the payout date.");
       var d=pasFigures(a,o);
-      if(d.pct>PAS_CAP+1e-9) return showErr("Interest plus service fee is "+d.pct.toFixed(2)+"% of the amount. The law allows at most "+PAS_CAP+"%. Lower the service fee.");
+      if(d.rate>PAS_CAP+1e-9) return showErr("The finance charge is "+pctTxt(d.rate)+" of the amount. The law allows at most "+PAS_CAP+"%.");
       closeModal(); trimmedSignature().then(function(sig){ showDocument(pasParts(a,o,d,sig)); });
     });
   }
@@ -3919,57 +3975,88 @@ body.doc-open{overflow:hidden}
   function fmtPhone(p){ var d=String(p||"").replace(/\D/g,""); return /^264\d{8,9}$/.test(d)?"+264 "+d.slice(3,5)+" "+d.slice(5,8)+" "+d.slice(8):String(p||""); }
   function pasFigures(a,o){
     var A=(a.amount_cents||0)/100, rate=(a.interest_rate_bp||3000)/100;
-    var B=Math.round(A*rate)/100, C=Math.round(o.fee*100)/100, D=Math.round((B+C)*100)/100, E=Math.round((A+D)*100)/100;
+    var B=Math.round(A*rate)/100, C=Math.round((A+B)*100)/100;
     var days=Math.round((new Date(o.due+"T00:00:00")-new Date(o.issue+"T00:00:00"))/864e5);
-    return { A:A, B:B, C:C, D:D, E:E, rate:rate, days:days, pct:A?D/A*100:0, per100:A?D/A*100:0, yearly:A&&days?D/A*100*365/days:0 };
+    return { A:A, B:B, C:C, rate:rate, days:days };
   }
   function pasParts(a,o,d,sig){
-    var co=company(), name=co.tradingAs||co.legalName, M=function(n){ return esc(money(n)); };
-    var validTo=addDays(o.issue,o.valid), pct=function(n){ return n.toFixed(2).replace(/\.00$/,"")+"%"; };
-    function row(k,v){ return '<tr><td class="k">'+esc(k)+'</td><td>'+v+'</td></tr>'; }
-    function row2(k1,v1,k2,v2){ return '<tr><td class="k">'+esc(k1)+'</td><td>'+v1+'</td><td class="k">'+esc(k2)+'</td><td>'+v2+'</td></tr>'; }
-    function line(l,t,v,b){ return '<tr'+(b?' style="font-weight:700"':'')+'><td style="width:6%">'+l+'</td><td>'+t+'</td><td style="text-align:right;white-space:nowrap">'+v+'</td></tr>'; }
+    var co=company(), M=function(n){ return esc(money(n)); }, validTo=addDays(o.issue,o.valid);
     var idLabel=a.id_type==="passport"?"Passport"+(a.nationality?" ("+a.nationality+")":""):"Namibian ID";
-    var bank=co.repayBank&&co.repayAccountNo
-      ? esc(co.repayBank)+', account name '+esc(co.repayAccountName||co.legalName)+', account '+esc(co.repayAccountNo)+(co.repayBranch?', branch code '+esc(co.repayBranch):'')
-      : 'the bank account named in your loan agreement';
-    var sheet='<div class="sheet">'
+    var sheet='<div class="sheet pas">'
       +'<div class="head"><div>'+logoSvg()+'</div><div class="biz">'+letterBizLines(co).join("")+'</div></div>'
       +'<h1>Pre-Agreement Statement and Quotation</h1>'
-      +'<table class="four">'+row2("Quotation",'<strong>'+esc(a.id)+'-Q</strong>',"Issued",esc(fmtLong(todayISO())))+row2("Application",esc(a.id),"Valid until",'<strong>'+esc(fmtLong(validTo))+'</strong>')+'</table>'
+      +'<table class="four">'+docRow2("Quotation",'<strong>'+esc(a.id)+'-Q</strong>',"Issued",esc(fmtLong(todayISO())))+docRow2("Application",esc(a.id),"Valid until",'<strong>'+esc(fmtLong(validTo))+'</strong>')+'</table>'
       +'<p><strong>This is not a loan agreement and you are not bound by it.</strong> It is free. It shows the full cost before you sign anything, so you can think it over, compare other registered lenders, or walk away.</p>'
       +'<h2>1. You and the loan</h2>'
-      +'<table class="four">'+row2("Name",esc(a.full_name),idLabel,esc(a.national_id||""))
-        +row2("Cellphone",esc(fmtPhone(a.phone)),"Type","Payday microloan, one repayment")
-        +row2("Cash paid to you",esc(fmtLong(o.issue)),"Repay on",'<strong>'+esc(fmtLong(o.due))+'</strong> ('+d.days+' days)')
-        +row2("Paid to you by",esc(o.out),"You repay by",esc(o.inn))+'</table>'
+      +'<table class="four">'+docRow2("Name",esc(a.full_name),idLabel,esc(a.national_id||""))
+        +docRow2("Cellphone",esc(fmtPhone(a.phone)),"Type","Payday loan, one repayment")
+        +docRow2("Cash paid to you",esc(fmtLong(o.issue)),"Due date (your payday)",'<strong>'+esc(fmtLong(o.due))+'</strong> ('+d.days+' days)')
+        +docRow2("Paid out by",esc(o.out),"You repay by",esc(o.inn))+'</table>'
       +'<h2>2. What it costs</h2>'
-      +'<table>'+line("A","Amount we pay you (principal)",M(d.A))+line("B","Interest: "+pct(d.rate)+" of A, once off",M(d.B))
-        +line("C","Service fee, once off",M(d.C))+line("D","Total cost of the loan (B + C)",M(d.D),1)
-        +line("E","Total you repay, in one payment on "+esc(fmtLong(o.due))+" (A + D)",M(d.E),1)+'</table>'
-      +'<p>In plain words: we pay you <strong>'+M(d.A)+'</strong> and you pay back <strong>'+M(d.E)+'</strong>. The loan costs you <strong>'+M(d.D)+'</strong> and nothing more.</p>'
-      +'<table class="four">'+row2("Cost as % of A",'<strong>'+pct(d.pct)+'</strong> (legal maximum 30%, once off)',"Cost per N$100",M(d.per100))
-        +row2("Same cost as a yearly rate",pct(d.yearly)+' <span class="muted">(comparison only)</span>',"Within the legal limit?",'<strong>Yes</strong>')+'</table>'
+      +'<table>'+docLine("A","Amount lent to you (the principal)",M(d.A))+docLine("B","Finance charge, fixed: "+pctTxt(d.rate)+" of A (never more than 30% of A)",M(d.B))
+        +docLine("C","Total to repay (A + B) in one payment on "+esc(fmtLong(o.due)),M(d.C),1)+'</table>'
+      +'<p>In plain words: we pay you <strong>'+M(d.A)+'</strong> and you pay back <strong>'+M(d.C)+'</strong>. The loan costs you <strong>'+M(d.B)+'</strong> and nothing more.</p>'
       +'<h2>3. The rules that protect you</h2>'
-      +'<p><strong>3.1 No other charges.</strong> No application, assessment, quotation, payout, monthly or insurance fee. B and C are charged once, are flat, never compound and never repeat.</p>'
-      +'<p><strong>3.2 Pay early, pay less.</strong> Settle any time with no penalty. You pay the cost only for the days you had the money (for this loan '+M(d.days?d.D/d.days:0)+' a day). Ask us for a free settlement figure in writing.</p>'
-      +'<p><strong>3.3 How payments are used.</strong> Each payment goes first to any court-allowed legal costs, then the service fee, then interest, then the principal — even if you ask otherwise. Paying in full on the due date is always cheapest.</p>'
-      +'<p><strong>3.4 If you pay late.</strong> We may charge default interest of up to 5% a month on the overdue amount for at most three months, or less if the law sets less. Nothing else is added: B and C are never charged again. Unpaid interest and charges can never grow beyond the capital you still owe (the <em>in duplum</em> rule). Call us before the due date if you will have a problem.</p>'
-      +'<p><strong>3.5 Before we collect.</strong> We tell you in writing before handing your account to a collector or attorney, and send a written demand before going to court. Legal costs are payable only as allowed by the court or taxing master. We report your payment record, good and bad, to credit bureaus.</p>'
-      +'<p><strong>3.6 Extensions.</strong> Only on a separate written form signed by you and us, after we show you the cost in writing. An extension can never take the total cost above the 30% maximum. A promise on the phone or WhatsApp is not an extension.</p>'
-      +'<p><strong>3.7 What we never do.</strong> Take your bank card, PIN or original ID; require insurance; ask you to sign anything blank; deduct from your salary without a separate signed authority; threaten or shame you.</p>'
-      +'<p><strong>3.8 Statements.</strong> Ask any time for a statement of charges, payments and balance. The first and the settlement statement are free; copies cost at most N$2 a page.</p>'
+      +'<p><strong>3.1 No other charges.</strong> No application, assessment, quotation, payout, monthly or insurance fee. '+esc(TERMS.early)+'</p>'
+      +'<p><strong>3.2 If you do not pay.</strong> '+esc(TERMS.late)+' Call us before the due date if you will have a problem.</p>'
       +'<h2>4. Repaying</h2>'
-      +'<p>Pay <strong>'+M(d.E)+'</strong> on or before <strong>'+esc(fmtLong(o.due))+'</strong> into '+bank+', with reference <strong>'+esc(a.id)+'</strong>, or in cash at our office. Keep your proof of payment. Cancelling a debit order does not cancel the debt.</p>'
+      +'<p>Pay <strong>'+M(d.C)+'</strong> on or before <strong>'+esc(fmtLong(o.due))+'</strong> in cash (get a receipt) or by EFT to '+repayAccountHtml(co)+'. Use your name and loan number as the reference, and WhatsApp the proof to '+esc(co.whatsapp||co.cell)+'.</p>'
       +'<h2>5. This quotation</h2>'
-      +'<p>If you accept by <strong>'+esc(fmtLong(validTo))+'</strong> and your circumstances have not changed, your loan agreement will be on exactly these terms and can cost no more. We may withdraw it earlier only if information you gave us was untrue or incomplete, or your ability to repay has materially changed, and we will tell you why. After that date we must reassess. Questions? Ask before you sign; we will explain in a language you understand. '+esc(name)+' · '+esc(phoneLine(co))+'.</p>'
-      +'<div class="sign"><div class="who">'+(sig?'<img class="sig-img" src="'+sig+'" alt="Signature">':'<div class="sig-line"></div>')
-        +'<div style="border-top:1px solid #555;padding-top:4px"><strong>'+esc(co.officer)+'</strong><br><span class="muted">For '+esc(co.legalName)+(co.cc?' · '+esc(co.cc):'')+'</span></div></div>'
-        +'<div class="who"><div class="sig-line"></div><div style="border-top:1px solid #555;padding-top:4px"><strong>'+esc(a.full_name)+'</strong><br><span class="muted">I received this statement before signing any agreement. Date: ____________</span></div></div>'
-        +'<div>'+stampSvg(co)+'</div></div>'
+      +'<p>If you accept by <strong>'+esc(fmtLong(validTo))+'</strong> and your circumstances have not changed, your loan agreement will be on exactly these terms and can cost no more. We may withdraw it earlier only if information you gave us was untrue or incomplete, or your ability to repay has materially changed, and we will tell you why. After that date we must reassess. Questions? Ask before you sign; we will explain in a language you understand.</p>'
+      +'<div class="sigrow two">'+sigCol(sig, co.officer, 'For '+esc(co.legalName)+(co.cc?' · '+esc(co.cc):''))
+        +sigCol('', a.full_name, 'I received this statement before signing any agreement. Date: ____________')
+        +'<div class="stampc">'+stampSvg(co)+'</div></div>'
       +'</div>';
-    return { title:"Pre-Agreement Statement — "+a.full_name, css:letterCss(), sheet:sheet };
+    return { title:"Pre-Agreement Statement — "+a.full_name, css:onePageCss(), sheet:sheet };
   }
+
+  // ---- loan agreement (one page, filled in from a loan in the book) ----
+  function agreementParts(l, sig){
+    var co=company(), cl=client(l.clientId)||{}, M=function(n){ return esc(money(n)); };
+    var A=num(l.principal), B=num(A*num(l.interestRate)/100+num(l.serviceFee)), C=num(A+B), rate=A?B/A*100:0;
+    var blank='', box='<span class="box"></span>';
+    var payday=l.dueDate?("Day "+Number(String(l.dueDate).slice(8,10))+" of the month"):"";
+    var sheet='<div class="sheet pas">'
+      +'<div class="head"><div>'+logoSvg()+'</div><div class="biz">'+letterBizLines(co).join("")+'</div></div>'
+      +'<h1>Payday loan agreement</h1><p class="sub">Repaid in one payment on your next payday · Microlending Act 7 of 2018</p>'
+      +'<table class="four">'+docRow2("Loan no.",'<strong>'+esc(loanRef(l))+'</strong>',"Client no.",esc(cl.ref||"—"))+'</table>'
+      +'<h2>1. You — the borrower</h2>'
+      +'<table class="four">'+docRow2("Full names (as on your ID)",esc(cl.name||""),"ID or passport number",esc(cl.nationalId||""))
+        +docRow2("Physical address (not a P.O. Box)",cl.address?esc(cl.address):blank,"Mobile / WhatsApp",esc(cl.phone||"")).replace('<td></td>','<td class="fill"></td>')
+        +docRow2("Employer",cl.employer?esc(cl.employer):blank,"Your payday",esc(payday)).replace('<td></td>','<td class="fill"></td>')
+        +docRow2("Your bank and account number",blank,"Next of kin — name and phone",cl.nextOfKin?esc(cl.nextOfKin):blank).replace(/<td><\/td>/g,'<td class="fill"></td>')+'</table>'
+      +'<h2>2. The loan and what it costs</h2>'
+      +'<table>'+docLine("A","Amount lent to you (the principal)",M(A))+docLine("B","Finance charge, fixed: "+pctTxt(rate)+" of A (never more than 30% of A)",M(B))
+        +docLine("C","Total to repay (A + B) in one payment on the due date",M(C),1)+'</table>'
+      +'<table class="four">'+docRow2("Total to repay in words",'<em>'+esc(amountInWords(C))+'</em>',"Due date (your next payday)",'<strong>'+esc(fmtLong(l.dueDate))+'</strong>')
+        +docRow2("Date paid out",esc(fmtLong(l.issueDate)),"Paid out by",box+"Cash &nbsp;"+box+"EFT &nbsp;"+box+"E-wallet")+'</table>'
+      +'<p><strong>How you pay us back (use only these):</strong> '+box+'cash (get a receipt) '+box+'EFT to '+repayAccountHtml(co)+'. Use your name and loan number <strong>'+esc(loanRef(l))+'</strong> as the reference, and WhatsApp the proof to '+esc(co.whatsapp||co.cell)+'.</p>'
+      +'<h2>3. The terms</h2><ol>'
+      +'<li><strong>Payday loan.</strong> Pay the total in C in one payment on your next payday (the due date above). There are no instalments.</li>'
+      +'<li><strong>Paying early.</strong> '+esc(TERMS.early)+'</li>'
+      +'<li><strong>How payments are applied.</strong> '+esc(TERMS.applied)+'</li>'
+      +'<li><strong>Extensions.</strong> '+esc(TERMS.extension)+'</li>'
+      +'<li><strong>If you do not pay.</strong> '+esc(TERMS.late)+'</li>'
+      +'<li><strong>What we never take.</strong> '+esc(TERMS.never)+' We keep copies of your ID and payslip only. Do not sign this form if any part of it is blank.</li>'
+      +'<li><strong>Your information.</strong> We may verify the details above and keep a confidential record of this loan, used only for your loans.</li>'
+      +'<li><strong>Complaints.</strong> Contact us first on '+esc(co.cell)+' or '+esc(co.email)+'.</li>'
+      +'<li><strong>Your declaration.</strong> By signing you confirm that the information above is true, that you received the Pre-Agreement Statement for this loan, and that you can afford to repay this loan on your next payday.</li></ol>'
+      +'<h2>4. Signatures</h2><p>Signed at ______________________ on ____ / ____ / 20____</p>'
+      +'<div class="sigrow">'+sigCol('', cl.name||"", 'Borrower')
+        +sigCol(sig, co.officer, 'For '+esc(co.tradingAs||co.legalName)+(co.officerCapacity?' · '+esc(co.officerCapacity):''))
+        +sigCol('', '', 'Witness — full names')
+        +'<div class="stampc">'+stampSvg(co)+'</div></div>'
+      +'<table style="margin-top:8px"><tr><td><strong>Receipt.</strong> I received '+M(A)+' by '+box+'cash '+box+'EFT '+box+'e-wallet on ___/___/20___, and my signed copy.<br>Borrower’s signature ________________________ &nbsp; Paid out by (QuickServe) ________________________</td></tr></table>'
+      +'</div>';
+    return { title:"Loan agreement — "+(cl.name||loanRef(l)), css:onePageCss(), sheet:sheet };
+  }
+  function openAgreement(id){
+    var l=state.loans.find(function(x){ return x.id===id; }); if(!l) return;
+    var A=num(l.principal), B=num(A*num(l.interestRate)/100+num(l.serviceFee));
+    if(A&&B/A*100>PAS_CAP+1e-9){ toast("This loan's finance charge is "+pctTxt(B/A*100)+" of the amount, above the 30% maximum. Correct the loan first.","err"); return; }
+    trimmedSignature().then(function(sig){ showDocument(agreementParts(l,sig)); });
+  }
+
 
   // ---- document viewer ----
   // Letters open inside the console (no new tab or pop-up, which phones and
