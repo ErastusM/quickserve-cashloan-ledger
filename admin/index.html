@@ -3931,9 +3931,9 @@ body.doc-open{overflow:hidden}
     function line(l,t,v,b){ return '<tr'+(b?' style="font-weight:700"':'')+'><td style="width:6%">'+l+'</td><td>'+t+'</td><td style="text-align:right;white-space:nowrap">'+v+'</td></tr>'; }
     var idLabel=a.id_type==="passport"?"Passport"+(a.nationality?" ("+a.nationality+")":""):"Namibian ID";
     var bank=co.repayBank&&co.repayAccountNo
-      ? esc(co.repayBank)+', account name '+esc(co.repayAccountName||co.legalName)+', account '+esc(co.repayAccountNo)+(co.repayBranch?', branch code '+esc(co.repayBranch):'')
+      ? esc(co.repayBank)+', account name <strong>'+esc(co.repayAccountName||co.legalName)+'</strong>, account <strong>'+esc(co.repayAccountNo)+'</strong>'+(co.repayBranch?', branch code <strong>'+esc(co.repayBranch)+'</strong>':'')
       : 'the bank account named in your loan agreement';
-    var sheet='<div class="sheet">'
+    var sheet='<div class="sheet pas">'
       +'<div class="head"><div>'+logoSvg()+'</div><div class="biz">'+letterBizLines(co).join("")+'</div></div>'
       +'<h1>Pre-Agreement Statement and Quotation</h1>'
       +'<table class="four">'+row2("Quotation",'<strong>'+esc(a.id)+'-Q</strong>',"Issued",esc(fmtLong(todayISO())))+row2("Application",esc(a.id),"Valid until",'<strong>'+esc(fmtLong(validTo))+'</strong>')+'</table>'
@@ -3948,27 +3948,29 @@ body.doc-open{overflow:hidden}
         +line("C","Service fee, once off",M(d.C))+line("D","Total cost of the loan (B + C)",M(d.D),1)
         +line("E","Total you repay, in one payment on "+esc(fmtLong(o.due))+" (A + D)",M(d.E),1)+'</table>'
       +'<p>In plain words: we pay you <strong>'+M(d.A)+'</strong> and you pay back <strong>'+M(d.E)+'</strong>. The loan costs you <strong>'+M(d.D)+'</strong> and nothing more.</p>'
-      +'<table class="four">'+row2("Cost as % of A",'<strong>'+pct(d.pct)+'</strong> (legal maximum 30%, once off)',"Cost per N$100",M(d.per100))
-        +row2("Same cost as a yearly rate",pct(d.yearly)+' <span class="muted">(comparison only)</span>',"Within the legal limit?",'<strong>Yes</strong>')+'</table>'
-      +'<h2>3. The rules that protect you</h2>'
-      +'<p><strong>3.1 No other charges.</strong> No application, assessment, quotation, payout, monthly or insurance fee. B and C are charged once, are flat, never compound and never repeat.</p>'
+            +'<h2>3. The rules that protect you</h2>'
+      +'<p><strong>3.1 No other charges.</strong> No application, assessment, quotation, payout, monthly or insurance fee. B and C are charged once and are flat.</p>'
       +'<p><strong>3.2 Pay early, pay less.</strong> Settle any time with no penalty. You pay the cost only for the days you had the money (for this loan '+M(d.days?d.D/d.days:0)+' a day). Ask us for a free settlement figure in writing.</p>'
       +'<p><strong>3.3 How payments are used.</strong> Each payment goes first to any court-allowed legal costs, then the service fee, then interest, then the principal — even if you ask otherwise. Paying in full on the due date is always cheapest.</p>'
       +'<p><strong>3.4 If you pay late.</strong> We may charge default interest of up to 5% a month on the overdue amount for at most three months, or less if the law sets less. Nothing else is added: B and C are never charged again. Unpaid interest and charges can never grow beyond the capital you still owe (the <em>in duplum</em> rule). Call us before the due date if you will have a problem.</p>'
       +'<p><strong>3.5 Before we collect.</strong> We tell you in writing before handing your account to a collector or attorney, and send a written demand before going to court. Legal costs are payable only as allowed by the court or taxing master. We report your payment record, good and bad, to credit bureaus.</p>'
-      +'<p><strong>3.6 Extensions.</strong> Only on a separate written form signed by you and us, after we show you the cost in writing. An extension can never take the total cost above the 30% maximum. A promise on the phone or WhatsApp is not an extension.</p>'
-      +'<p><strong>3.7 What we never do.</strong> Take your bank card, PIN or original ID; require insurance; ask you to sign anything blank; deduct from your salary without a separate signed authority; threaten or shame you.</p>'
-      +'<p><strong>3.8 Statements.</strong> Ask any time for a statement of charges, payments and balance. The first and the settlement statement are free; copies cost at most N$2 a page.</p>'
+      +'<p><strong>3.6 What we never do.</strong> Take your bank card, PIN or original ID; require insurance; ask you to sign anything blank; deduct from your salary without a separate signed authority; threaten or shame you.</p>'
+      +'<p><strong>3.7 Statements.</strong> Ask any time for a statement of charges, payments and balance. The first and the settlement statement are free; copies cost at most N$2 a page.</p>'
       +'<h2>4. Repaying</h2>'
       +'<p>Pay <strong>'+M(d.E)+'</strong> on or before <strong>'+esc(fmtLong(o.due))+'</strong> into '+bank+', with reference <strong>'+esc(a.id)+'</strong>, or in cash at our office. Keep your proof of payment. Cancelling a debit order does not cancel the debt.</p>'
       +'<h2>5. This quotation</h2>'
-      +'<p>If you accept by <strong>'+esc(fmtLong(validTo))+'</strong> and your circumstances have not changed, your loan agreement will be on exactly these terms and can cost no more. We may withdraw it earlier only if information you gave us was untrue or incomplete, or your ability to repay has materially changed, and we will tell you why. After that date we must reassess. Questions? Ask before you sign; we will explain in a language you understand. '+esc(name)+' · '+esc(phoneLine(co))+'.</p>'
+      +'<p>If you accept by <strong>'+esc(fmtLong(validTo))+'</strong> and your circumstances have not changed, your loan agreement will be on exactly these terms and can cost no more. We may withdraw it earlier only if information you gave us was untrue or incomplete, or your ability to repay has materially changed, and we will tell you why. After that date we must reassess. Questions? Ask before you sign; we will explain in a language you understand.</p>'
       +'<div class="sign"><div class="who">'+(sig?'<img class="sig-img" src="'+sig+'" alt="Signature">':'<div class="sig-line"></div>')
         +'<div style="border-top:1px solid #555;padding-top:4px"><strong>'+esc(co.officer)+'</strong><br><span class="muted">For '+esc(co.legalName)+(co.cc?' · '+esc(co.cc):'')+'</span></div></div>'
         +'<div class="who"><div class="sig-line"></div><div style="border-top:1px solid #555;padding-top:4px"><strong>'+esc(a.full_name)+'</strong><br><span class="muted">I received this statement before signing any agreement. Date: ____________</span></div></div>'
         +'<div>'+stampSvg(co)+'</div></div>'
       +'</div>';
-    return { title:"Pre-Agreement Statement — "+a.full_name, css:letterCss(), sheet:sheet };
+    // One A4 page: a little tighter than the letters, stamp beside the signatures.
+    var css=letterCss()+'.pas{font-size:9.1pt;line-height:1.3}.pas .qs-logo{height:38px}.pas h1{font-size:12.5pt;margin:8px 0 4px}'
+      +'.pas h2{font-size:9.8pt;margin:7px 0 3px}.pas p{margin:0 0 3.5px}.pas table{margin:3px 0 5px;font-size:9.2pt}.pas td{padding:2px 7px}'
+      +'.pas .sign{margin-top:10px;flex-wrap:nowrap;gap:18px}.pas .sign .who{min-width:0;flex:1}.pas .sig-line{width:auto;height:34px}.pas .sig-img{max-height:44px}'
+      +'@media print{.pas{padding:0}}';
+    return { title:"Pre-Agreement Statement — "+a.full_name, css:css, sheet:sheet };
   }
 
   // ---- document viewer ----
