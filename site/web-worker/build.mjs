@@ -15,11 +15,14 @@ const partial = (n) => readFileSync(join(web, "_partials", n + ".html"), "utf8")
 const parts = { head: partial("head"), header: partial("header"), footer: partial("footer") };
 const DESK_PAGES = new Set(["track.html", "404.html"]); // pages whose last band is the teal desk
 
-const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml",
+  ".png": "image/png", ".ico": "image/x-icon", ".jpg": "image/jpeg" };
+const BINARY = new Set([".png", ".ico", ".jpg"]);
 const files = {};
 for (const name of readdirSync(web)) {
   const ext = extname(name);
   if (!TYPES[ext]) continue;
+  if (BINARY.has(ext)) { files["/" + name] = { type: TYPES[ext], b64: readFileSync(join(web, name)).toString("base64") }; continue; }
   let body = readFileSync(join(web, name), "utf8");
   if (ext === ".html") {
     body = body
@@ -49,6 +52,7 @@ const CSP = [
   "base-uri 'self'",
   "frame-ancestors 'none'"
 ].join("; ");
+function bytes(b64) { const bin = atob(b64), out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; }
 function send(file, status, hidden) {
   const h = {
     "Content-Type": file.type,
@@ -60,7 +64,8 @@ function send(file, status, hidden) {
   };
   if (file.type.startsWith("text/html")) { h["Content-Security-Policy"] = CSP; h["X-Frame-Options"] = "DENY"; }
   if (hidden) h["X-Robots-Tag"] = "noindex, nofollow";
-  return new Response(file.body, { status, headers: h });
+  if (file.b64) h["Cache-Control"] = "public, max-age=86400";
+  return new Response(file.b64 ? bytes(file.b64) : file.body, { status, headers: h });
 }
 export default {
   async fetch(request, env) {
@@ -83,7 +88,7 @@ export default {
     const soon = env.SITE_MODE === "soon" && !url.hostname.startsWith("preview.");
     if (soon) {
       if (path === "/privacy" || path === "/privacy.html") return send(FILES["/privacy.html"], 200, hidden);
-      if (/\\.(css|js|svg)$/.test(path) && FILES[path]) return send(FILES[path], 200, hidden);
+      if (/\\.(css|js|svg|png|ico|jpg)$/.test(path) && FILES[path]) return send(FILES[path], 200, hidden);
       if (path !== "/") return Response.redirect(url.origin + "/", 302);
       return send(FILES["/soon.html"], 200, hidden);
     }
