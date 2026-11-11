@@ -1490,12 +1490,20 @@ body.doc-open{overflow:hidden}
   function firstName(n){ return String(n||"").trim().split(/\s+/)[0]||""; }
   // The WhatsApp message for a status change, ready to send.
   function waText(a, status, message){
-    var hi="Hello "+firstName(a.full_name)+", this is QuickServe about your application "+a.id+". ";
+    var hi="Hello "+firstName(a.full_name)+", this is QuickServe Cashloan about your application "+a.id+". ";
+    var amt=cents(a.amount_cents);
     if(status==="info_requested") return hi+(message||"")+" You can send it here: "+PUBLIC_SITE+"/track";
-    if(status==="approved") return "Hello "+firstName(a.full_name)+", good news from QuickServe: your application "+a.id+" is approved. We're sending your Pre-Agreement Statement with the full cost before you sign.";
-    if(status==="declined") return hi+(message||"");
+    if(status==="approved") return "Hello "+firstName(a.full_name)+", good news from QuickServe Cashloan: your application "+a.id+" for "+amt+" is APPROVED.\n\n"
+      +"What to do next, all on your phone at "+PUBLIC_SITE+"/track :\n"
+      +"1. Read and accept your Pre-Agreement Statement (the full cost of the loan). We'll WhatsApp you the link shortly.\n"
+      +"2. Add your bank account, or the cellphone number for an e-wallet.\n"
+      +"3. Sign your loan agreement with your finger.\n\n"
+      +"We pay you out as soon as it's signed. Questions? Reply to this message.";
+    if(status==="declined") return "Hello "+firstName(a.full_name)+", this is QuickServe Cashloan. We're sorry: your application "+a.id+" for "+amt+" has been DECLINED.\n\n"
+      +(message?"Reason: "+message+"\n\n":"")+"You can also see this on your tracking page: "+PUBLIC_SITE+"/track . Questions? Reply to this message.";
     return hi;
   }
+
 
   function renderApplications(c){
     if(ui.appId) return renderApplication(c, ui.appId);
@@ -2148,6 +2156,7 @@ body.doc-open{overflow:hidden}
       if(pendingWa) h+='<div class="card" style="margin-bottom:16px;border:2px solid var(--warn);background:var(--warn-soft)"><div style="padding:12px 18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">'
         +'<span><b>The applicant hasn’t been told yet.</b> '+esc({info_requested:"Send them the request on WhatsApp so they know to upload.",approved:"Let them know it’s approved.",declined:"Let them know, with the reason."}[a.contact_pending]||"")+'</span>'
         +'<span style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" id="waOpen" href="'+esc(pendingWa)+'" target="_blank" rel="noopener">Open WhatsApp</a><button class="btn ghost sm" id="waDone">I’ve sent it</button></span></div></div>';
+      if(a.status==="approved"||a.status==="converted") h+=clientStepsCard(a, events);
       h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:16px;align-items:start">';
       h+='<div class="card"><div class="ch"><h3>Requested</h3></div><div class="ledger">'
         +L("Amount", '<span class="mono">'+cents(a.amount_cents)+'</span>')+L("Interest at 30%", '<span class="mono">'+cents(a.interest_cents)+'</span>')
@@ -2170,7 +2179,7 @@ body.doc-open{overflow:hidden}
         +'<div style="padding:10px 18px;display:flex;flex-wrap:wrap;gap:6px" id="appDocTabs">'+files.map(function(f,i){ return '<button class="btn ghost sm" data-doc="'+i+'">'+esc({id:"ID / passport",payslip:"Payslip",bank:"Bank statement",other:"Other"}[f.kind]||f.kind)+(f.uploaded_by==="applicant"&&events.some(function(e){ return e.type==="document_added"&&e.detail&&e.detail.fileId===f.id; })?" (added later)":"")+'</button>'; }).join("")+'</div>'
         +'<div id="appDocView" style="padding:0 18px 18px"><div class="empty">Choose a document above.</div></div></div>';
       h+='<div class="card" style="margin-top:16px"><div class="ch"><h3>Activity</h3></div><div class="ledger">'
-        +events.map(function(e){ var d=e.detail||{}, what={whatsapp_sent:"Confirmed the applicant was told on WhatsApp",statement_issued:"Sent the Pre-Agreement Statement"+(d.total?" ("+d.total+")":""),statement_viewed:"Applicant opened the Pre-Agreement Statement",contacted:(d.channel==="call"?"Called the applicant":"Messaged the applicant on WhatsApp")+(d.message?": “"+d.message+"”":""),opened:"Opened the application",document_viewed:"Viewed a document ("+({id:"ID / passport",payslip:"payslip",bank:"bank statement",other:"other"}[d.kind]||d.kind||"")+")",draft_created:"Started the application",submitted:"Handed in",document_added:"Added a document",affordability_saved:"Saved the affordability worksheet",recommended:"Recommended "+(d.recommendation||"")+(d.note?": "+d.note:"")}[e.type] || (e.type==="status" ? (APP_STATUS[d.to]||d.to)+(d.applicantMessage?": “"+d.applicantMessage+"”":"")+(d.loanRef?" · "+d.loanRef:"") : e.type);
+        +events.map(function(e){ var d=e.detail||{}, what={whatsapp_sent:"Confirmed the applicant was told on WhatsApp",statement_issued:"Sent the Pre-Agreement Statement"+(d.total?" ("+d.total+")":""),statement_viewed:"Applicant opened the Pre-Agreement Statement",statement_accepted:"Applicant accepted the Pre-Agreement Statement",bank_details_saved:"Saved payment details ("+(d.bank||"")+" …"+(d.last4||"")+")",agreement_issued:"Sent the loan agreement"+(d.total?" ("+d.total+")":""),agreement_viewed:"Applicant opened the loan agreement",agreement_signed:"Applicant signed the loan agreement",contacted:(d.channel==="call"?"Called the applicant":"Messaged the applicant on WhatsApp")+(d.message?": “"+d.message+"”":""),opened:"Opened the application",document_viewed:"Viewed a document ("+({id:"ID / passport",payslip:"payslip",bank:"bank statement",other:"other"}[d.kind]||d.kind||"")+")",draft_created:"Started the application",submitted:"Handed in",document_added:"Added a document",affordability_saved:"Saved the affordability worksheet",recommended:"Recommended "+(d.recommendation||"")+(d.note?": "+d.note:"")}[e.type] || (e.type==="status" ? (APP_STATUS[d.to]||d.to)+(d.applicantMessage?": “"+d.applicantMessage+"”":"")+(d.loanRef?" · "+d.loanRef:"") : e.type);
           return '<div class="lrow"><span class="lk">'+esc(what)+'<small>'+esc(String(e.actor||"").replace(/^staff:/,""))+'</small></span><span class="lv" style="font-size:12px">'+esc(new Date(e.at).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))+'</span></div>'; }).join("")
         +'</div></div>';
       c.innerHTML=h;
@@ -2208,6 +2217,10 @@ body.doc-open{overflow:hidden}
       }
       if($("waDone")) $("waDone").onclick=function(){ this.disabled=true; appApi("POST","/v2/admin/applications/"+a.id+"/whatsapp-sent",{}).then(function(r){ toast(r._ok?"Noted: the applicant was told.":(r.error||"Couldn't save."), r._ok?"":"err"); render(); }); };
       if($("aPas")) $("aPas").onclick=function(){ openPas(a); };
+      if($("csStatement")) $("csStatement").onclick=function(){ openPas(a); };
+      if($("csBank")) $("csBank").onclick=function(){ openPayoutDetails(a); };
+      if($("csAgree")) $("csAgree").onclick=function(){ openOnlineAgreement(a); };
+      if($("csAgreeView")) $("csAgreeView").onclick=function(){ viewSentAgreement(a); };
       if($("aContact")) $("aContact").onclick=function(){
         var hello="Hello "+firstName(a.full_name)+", this is QuickServe about your application "+a.id+". ";
         openModal("Contact "+(a.full_name||"the applicant"),
@@ -2295,6 +2308,8 @@ body.doc-open{overflow:hidden}
     });
     var today=todayISO(), principal=(a.amount_cents||0)/100;
     var body=(already?'<p style="color:var(--warn);margin:0 0 10px">Loan '+esc(already.ref||"")+' was already created from this application. Saving links it without creating another.</p>':'')
+      +(!a.agreement_signed_at?'<p style="color:var(--bad);margin:0 0 10px;font-weight:600">The client hasn’t signed the loan agreement online yet. Only pay out if they signed a printed agreement.</p>'
+        :'<p style="margin:0 0 10px">Pay to: '+payoutText(a)+'</p>')
       +'<div class="field"><label>Client</label><select id="f_client">'
         +matches.map(function(c){ var lm=clientLate(c.id); return '<option value="'+esc(c.id)+'">'+esc((c.ref?c.ref+" · ":"")+c.name)+' (existing'+(lm?" · late payer ×"+lm.late.length:"")+')</option>'; }).join("")
         +'<option value="__new">New client: '+esc(a.full_name)+'</option></select></div>'
@@ -2316,8 +2331,9 @@ body.doc-open{overflow:hidden}
         var clientId=clientSel;
         if(clientSel==="__new"){
           newClient={ id:uid("client"), createdAt:new Date().toISOString(), name:a.full_name, phone:phoneLocal(a.phone), nationalId:a.national_id,
-            employer:a.employer||"", address:"", nextOfKin:[a.kin_name, phoneLocal(a.kin_phone)].filter(Boolean).join(" · "),
-            notes:"From online application "+a.id+(a.id_type==="passport"?" · passport"+(a.nationality?", "+a.nationality:""):"") };
+            employer:a.employer||"", address:a.physical_address||"", nextOfKin:[a.kin_name, phoneLocal(a.kin_phone)].filter(Boolean).join(" · "),
+            notes:"From online application "+a.id+(a.id_type==="passport"?" · passport"+(a.nationality?", "+a.nationality:""):"")
+              +(a.bank_saved_at?" · paid to "+(a.payout_method==="ewallet"?a.ewallet_provider+" "+fmtPhone(a.ewallet_number):a.bank_name+" "+a.bank_account_no+" (branch "+a.bank_branch_code+")"):"") };
           data.clients.push(newClient); clientId=newClient.id;
         }
         newLoan={ id:uid("loan"), createdAt:new Date().toISOString(), status:"active", clientId:clientId, principal:pr, interestRate:rate, serviceFee:fee,
@@ -2342,7 +2358,7 @@ body.doc-open{overflow:hidden}
   // ---- application audit trail (owners only) ----
   // Every action on every application, permanent and filterable, with a
   // spreadsheet download. Decisions carry what they were based on.
-  var AUDIT_TYPES=[["","All actions"],["decision","Decisions (approve, decline, paid out)"],["status","Status changes"],["recommended","Recommendations"],["opened","Opened an application"],["document_viewed","Viewed a document"],["affordability_saved","Saved affordability"],["document_added","Applicant sent a document"],["contacted","Contacted the applicant"],["statement_issued","Sent the Pre-Agreement Statement"],["statement_viewed","Applicant opened the statement"],["whatsapp_sent","Confirmed applicant was told"],["submitted","Handed in"]];
+  var AUDIT_TYPES=[["","All actions"],["decision","Decisions (approve, decline, paid out)"],["status","Status changes"],["recommended","Recommendations"],["opened","Opened an application"],["document_viewed","Viewed a document"],["affordability_saved","Saved affordability"],["document_added","Applicant sent a document"],["contacted","Contacted the applicant"],["statement_issued","Sent the Pre-Agreement Statement"],["statement_viewed","Applicant opened the statement"],["statement_accepted","Applicant accepted the statement"],["bank_details_saved","Payment details saved"],["agreement_issued","Sent the loan agreement"],["agreement_signed","Applicant signed the agreement"],["whatsapp_sent","Confirmed applicant was told"],["submitted","Handed in"]];
   function auditWhat(e){
     var d=e.detail||{};
     if(e.type==="status"){
@@ -2350,7 +2366,7 @@ body.doc-open{overflow:hidden}
       if(d.loanRef) s+=" · loan "+d.loanRef+(d.clientRef?" for "+d.clientRef:"");
       return s;
     }
-    return { whatsapp_sent:"Confirmed the applicant was told on WhatsApp", statement_issued:"Sent the Pre-Agreement Statement", statement_viewed:"Opened the Pre-Agreement Statement", contacted:(d.channel==="call"?"Called the applicant":"Messaged the applicant on WhatsApp"), submitted:"Handed in", draft_created:"Started an application", document_added:"Sent a requested document ("+(d.kind||"")+")",
+    return { whatsapp_sent:"Confirmed the applicant was told on WhatsApp", statement_issued:"Sent the Pre-Agreement Statement", statement_viewed:"Opened the Pre-Agreement Statement", statement_accepted:"Accepted the Pre-Agreement Statement", bank_details_saved:"Saved payment details", agreement_issued:"Sent the loan agreement", agreement_viewed:"Opened the loan agreement", agreement_signed:"Signed the loan agreement", contacted:(d.channel==="call"?"Called the applicant":"Messaged the applicant on WhatsApp"), submitted:"Handed in", draft_created:"Started an application", document_added:"Sent a requested document ("+(d.kind||"")+")",
       opened:"Opened the application", document_viewed:"Viewed a document ("+({id:"ID / passport",payslip:"payslip",bank:"bank statement",other:"other"}[d.kind]||d.kind||"")+")",
       affordability_saved:"Saved the affordability worksheet", recommended:"Recommended "+(d.recommendation||"") }[e.type] || e.type;
   }
@@ -3987,7 +4003,10 @@ body.doc-open{overflow:hidden}
     appApi("POST","/v2/admin/applications/"+a.id+"/statement",{ html:page, total:money(d.C), due:o.due, validUntil:addDays(o.issue,o.valid) }).then(function(r){
       btn.disabled=false; btn.textContent="Send again";
       if(!r._ok){ if(w) w.close(); toast(r.error||"Couldn't save the statement.","err"); return; }
-      var text="Hello "+firstName(a.full_name)+", this is QuickServe Cashloan. Your Pre-Agreement Statement for "+a.id+" is ready: we lend you "+money(d.A)+" and you repay "+money(d.C)+" on "+fmtLong(o.due)+". Please read it before you sign anything: "+r.link+" (the link works for "+r.days+" days).";
+      var text="Hello "+firstName(a.full_name)+", this is QuickServe Cashloan. Your Pre-Agreement Statement for "+a.id+" is ready: we lend you "+money(d.A)+" and you repay "+money(d.C)+" on "+fmtLong(o.due)+".\n\n"
+        +"Open this link: "+r.link+"\n\n"
+        +"1. Read the statement and tap I accept.\n2. Add your bank account, or the cellphone number for an e-wallet.\n"
+        +"We then send your loan agreement to sign. The link works for "+r.days+" days.";
       var link=waLink(a.phone,text);
       if(w) w.location.href=link; else window.open(link,"_blank");
       toast("Statement saved. WhatsApp is open with the link.");
@@ -4022,7 +4041,7 @@ body.doc-open{overflow:hidden}
       +'<p><strong>3.1 No other charges.</strong> No application, assessment, quotation, payout, monthly or insurance fee. '+esc(TERMS.early)+'</p>'
       +'<p><strong>3.2 If you do not pay.</strong> '+esc(TERMS.late)+' Call us before the due date if you will have a problem.</p>'
       +'<h2>4. Repaying</h2>'
-      +'<p>Pay <strong>'+M(d.C)+'</strong> on or before <strong>'+esc(fmtLong(o.due))+'</strong> in cash (get a receipt) or by EFT to '+repayAccountHtml(co)+'. Use your name and loan number as the reference, and WhatsApp the proof to '+esc(co.whatsapp||co.cell)+'.</p>'
+      +'<p>Pay <strong>'+M(d.C)+'</strong> on or before <strong>'+esc(fmtLong(o.due))+'</strong> in cash (get a receipt) or by EFT to '+repayAccountHtml(co)+'. Use your name and reference <strong>'+esc(a.id)+'</strong> as the payment reference, and WhatsApp the proof to '+esc(co.whatsapp||co.cell)+'.</p>'
       +'<h2>5. This quotation</h2>'
       +'<p>If you accept by <strong>'+esc(fmtLong(validTo))+'</strong> and your circumstances have not changed, your loan agreement will be on exactly these terms and can cost no more. We may withdraw it earlier only if information you gave us was untrue or incomplete, or your ability to repay has materially changed, and we will tell you why. After that date we must reassess. Questions? Ask before you sign; we will explain in a language you understand.</p>'
       +'<div class="sigrow two">'+sigCol(sig, co.officer, 'For '+esc(co.legalName)+(co.cc?' · '+esc(co.cc):''))
@@ -4032,27 +4051,140 @@ body.doc-open{overflow:hidden}
     return { title:"Pre-Agreement Statement — "+a.full_name, css:onePageCss(), sheet:sheet };
   }
 
+  // ---- after approval: what the client has done, payment details, agreement ----
+  function payoutText(a){
+    if(!a.bank_saved_at) return "";
+    if(a.payout_method==="ewallet") return esc(a.ewallet_provider)+" to "+esc(fmtPhone(a.ewallet_number));
+    return esc(a.bank_name)+" · "+esc(a.bank_account_holder)+" · account <span class=\"mono\">"+esc(a.bank_account_no)+"</span> · branch <span class=\"mono\">"+esc(a.bank_branch_code)+"</span> · "+esc(a.bank_account_type);
+  }
+  function clientStepsCard(a, events){
+    function when(t){ return t?fmtDate(String(t).slice(0,10))+" "+String(new Date(t).toTimeString()).slice(0,5):""; }
+    var opened=events.some(function(e){ return e.type==="statement_viewed"; }), agrOpened=events.some(function(e){ return e.type==="agreement_viewed"; });
+    var accepted=a.accepted_at && a.accepted_statement_key===a.statement_key;
+    var ready=accepted && a.bank_saved_at;
+    function step(done, title, text, btns){
+      return '<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)">'
+        +'<span style="flex:none;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;'+(done?'background:var(--good);color:#fff':'border:2px solid var(--muted);color:var(--muted)')+'">'+(done?'✓':'')+'</span>'
+        +'<div style="flex:1;min-width:0"><b>'+title+'</b><div style="color:var(--muted);font-size:13px;margin-top:2px">'+text+'</div>'+(btns?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'+btns+'</div>':'')+'</div></div>';
+    }
+    var h='<div class="card" style="margin-bottom:16px"><div class="ch"><h3>Client steps</h3></div><div class="ledger" style="padding:4px 18px 10px">';
+    h+=step(Boolean(a.statement_issued_at), "Pre-Agreement Statement sent", a.statement_issued_at?"Sent "+when(a.statement_issued_at)+(opened?" · opened by the client":" · not opened yet"):"Not sent yet.", a.status==="approved"?'<button class="btn ghost sm" id="csStatement">'+(a.statement_issued_at?"Send again":"Make and send statement")+'</button>':'');
+    h+=step(accepted, "Statement accepted", accepted?"Accepted by "+esc(a.accepted_name)+" on "+when(a.accepted_at):(a.accepted_at?"Accepted an older statement. They need to accept the latest one.":"Waiting for the client."), "");
+    h+=step(Boolean(a.bank_saved_at), a.payout_method==="ewallet"?"E-wallet details":"Bank details", a.bank_saved_at?payoutText(a)+'<br>Address: '+esc(a.physical_address||"—")+'<br><span style="font-size:12px">Saved '+when(a.bank_saved_at)+(a.bank_saved_by==="applicant"?" by the client":" by "+esc(a.bank_saved_by))+'</span>':"Waiting for the client. You can enter them if the client sends them on WhatsApp.",
+      a.status==="approved"&&!a.agreement_signed_at?'<button class="btn ghost sm" id="csBank">'+(a.bank_saved_at?"Edit":"Enter")+' payment details</button>':'');
+    var agrText=a.agreement_signed_at?"Signed by "+esc(a.agreement_signed_name)+" on "+when(a.agreement_signed_at)
+      :a.agreement_sent_at?"Sent "+when(a.agreement_sent_at)+(agrOpened?" · opened, not signed yet":" · not opened yet")
+      :ready?"Ready to send.":"Sent once the statement is accepted and payment details are in.";
+    var agrBtns=(a.agreement_sent_at?'<button class="btn ghost sm" id="csAgreeView">'+(a.agreement_signed_at?"View signed agreement":"View agreement")+'</button>':'')
+      +(a.status==="approved"&&!a.agreement_signed_at&&ready?'<button class="btn sm" id="csAgree">'+(a.agreement_sent_at?"Send again":"Send loan agreement")+'</button>':'');
+    h+=step(Boolean(a.agreement_signed_at), "Loan agreement signed", agrText, agrBtns);
+    if(a.status==="approved") h+=step(false, "Pay out", a.agreement_signed_at?"Ready: pay "+esc(cents(a.amount_cents))+" to "+payoutText(a)+", then choose <b>Mark as paid out</b>.":"After the agreement is signed.", "");
+    return h+'</div></div>';
+  }
+  function openPayoutDetails(a){
+    var ew=a.payout_method==="ewallet";
+    function opt(list, v){ return list.map(function(x){ return '<option'+(x===v?' selected':'')+'>'+esc(x)+'</option>'; }).join(""); }
+    var body='<div class="field"><label>Paid by</label><select id="pd_method"><option value="bank"'+(ew?'':' selected')+'>Bank account</option><option value="ewallet"'+(ew?' selected':'')+'>E-wallet</option></select></div>'
+      +'<div id="pd_bank"'+(ew?' hidden':'')+'><div class="field row"><div><label>Bank</label><input id="pd_bankName" value="'+esc(a.bank_name||"")+'" list="pd_banks"><datalist id="pd_banks">'+opt(["Bank Windhoek","FNB Namibia","Nedbank Namibia","Standard Bank Namibia","Letshego Bank Namibia","Trustco Bank"])+'</datalist></div>'
+      +'<div><label>Account type</label><select id="pd_type">'+opt(["Savings","Cheque / current","Transmission"], a.bank_account_type)+'</select></div></div>'
+      +'<div class="field"><label>Account holder</label><input id="pd_holder" value="'+esc(a.bank_account_holder||a.full_name||"")+'"></div>'
+      +'<div class="field row"><div><label>Account number</label><input id="pd_acc" class="num" inputmode="numeric" value="'+esc(a.bank_account_no||"")+'"></div><div><label>Branch code</label><input id="pd_branch" class="num" inputmode="numeric" value="'+esc(a.bank_branch_code||"")+'"></div></div></div>'
+      +'<div id="pd_wallet"'+(ew?'':' hidden')+'><div class="field row"><div><label>E-wallet</label><select id="pd_wp">'+opt(["FNB eWallet","Bank Windhoek EasyWallet","Standard Bank Blue Wallet","Nedbank Send-iMali","Other e-wallet"], a.ewallet_provider)+'</select></div>'
+      +'<div><label>Send to cellphone</label><input id="pd_wn" inputmode="tel" value="'+esc(a.ewallet_number?fmtPhone(a.ewallet_number):fmtPhone(a.phone))+'"></div></div></div>'
+      +'<div class="field"><label>Physical address</label><input id="pd_addr" value="'+esc(a.physical_address||"")+'" placeholder="Street and town, not a P.O. Box"></div>'
+      +'<div class="formerr" id="f_err"></div>';
+    openModal("Payment details · "+a.id, body, "Save", function(){
+      var m=fval("pd_method");
+      appApi("PUT","/v2/admin/applications/"+a.id+"/bank",{ method:m, bankName:fval("pd_bankName"), accountType:fval("pd_type"), accountHolder:fval("pd_holder"), accountNumber:fval("pd_acc"), branchCode:fval("pd_branch"),
+        walletProvider:fval("pd_wp"), walletNumber:fval("pd_wn"), address:fval("pd_addr") }).then(function(r){
+        if(!r._ok){ var e=r.errors?Object.keys(r.errors).map(function(k){ return r.errors[k]; }).join(" "):(r.error||"Couldn't save."); return showErr(e); }
+        closeModal(); toast("Payment details saved."); render();
+      });
+    });
+    $("pd_method").onchange=function(){ var w=this.value==="ewallet"; $("pd_bank").hidden=w; $("pd_wallet").hidden=!w; };
+  }
+  function openOnlineAgreement(a){
+    var today=todayISO(), due=nextPayday(a.payday,today);
+    var body='<div class="field row"><div><label>Paying out on (about)</label><input id="g_issue" type="date" value="'+today+'"></div><div><label>Due date (payday)</label><input id="g_due" type="date" value="'+due+'"></div></div>'
+      +'<p style="color:var(--muted);font-size:12.5px;margin:4px 0 0">Filled in from the application and the payment details the client gave. The client signs it on their phone; you get a notification when they do.</p><div class="formerr" id="f_err"></div>';
+    openModal("Loan agreement · "+a.id, body, "Show agreement", function(){
+      var issue=fval("g_issue"), dueD=fval("g_due");
+      if(!issue||!dueD||dueD<=issue) return showErr("The due date must be after the payout date.");
+      var rate=(a.interest_rate_bp||3000)/100;
+      if(rate>PAS_CAP) return showErr("The finance charge is above 30%.");
+      var l={ principal:(a.amount_cents||0)/100, interestRate:rate, serviceFee:0, issueDate:issue, dueDate:dueD };
+      closeModal(); trimmedSignature().then(function(sig){
+        var doc=agreementParts(l, sig, { app:a });
+        doc.sendLabel="Send to client to sign";
+        doc.send=function(btn){ sendAgreement(a, l, doc, btn); };
+        showDocument(doc);
+      });
+    });
+  }
+  function standalonePage(doc){
+    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'+esc(doc.title)+'</title>'
+      +'<style>@page{size:A4;margin:13mm 15mm 11mm}html,body{margin:0;background:#fff}'+doc.css+'.doc{background:#fff}.sheet{box-shadow:none;margin:0 auto}</style></head>'
+      +'<body><div class="doc">'+doc.sheet+'</div></body></html>';
+  }
+  function sendAgreement(a, l, doc, btn){
+    var w=null; try{ w=window.open("about:blank","_blank"); }catch(e){}
+    btn.disabled=true; btn.textContent="Saving…";
+    var total=money(num(l.principal)*(1+num(l.interestRate)/100));
+    appApi("POST","/v2/admin/applications/"+a.id+"/agreement",{ html:standalonePage(doc), total:total, due:l.dueDate }).then(function(r){
+      btn.disabled=false; btn.textContent="Send again";
+      if(!r._ok){ if(w) w.close(); toast(r.error||"Couldn't save the agreement.","err"); return; }
+      var to=a.payout_method==="ewallet"?"your "+a.ewallet_provider+" ("+fmtPhone(a.ewallet_number)+")":"your "+a.bank_name+" account ending "+String(a.bank_account_no||"").slice(-4);
+      var text="Hello "+firstName(a.full_name)+", this is QuickServe Cashloan. Your loan agreement for "+a.id+" is ready to sign.\n\n"
+        +"Open this link, read it and sign with your finger: "+r.link+"\n\n"
+        +"As soon as it's signed we pay "+money(l.principal)+" to "+to+". You repay "+total+" on "+fmtLong(l.dueDate)+". The link works for "+r.days+" days.";
+      var link=waLink(a.phone,text);
+      if(w) w.location.href=link; else window.open(link,"_blank");
+      toast("Agreement saved. WhatsApp is open with the link."); closeDocument(); render();
+    });
+  }
+  function viewSentAgreement(a){
+    appApi("GET","/v2/admin/applications/"+a.id+"/agreement").then(function(r){
+      if(!r._ok){ toast(r.error||"Couldn't open the agreement.","err"); return; }
+      var m=/<style>([\s\S]*?)<\/style>[\s\S]*?<body>([\s\S]*)<\/body>/.exec(r.html||"");
+      if(!m){ toast("Couldn't open the agreement.","err"); return; }
+      var css=m[1].replace(/@page\{[^}]*\}/,"");
+      showDocument({ title:"Loan agreement — "+a.full_name, css:css, sheet:m[2].replace(/^<div class="doc">|<\/div>$/g,""), note:r.signed?"Signed "+fmtDate(String(r.signedAt).slice(0,10)):"Not signed yet" });
+    });
+  }
+
   // ---- loan agreement (one page, filled in from a loan in the book) ----
-  function agreementParts(l, sig){
-    var co=company(), cl=client(l.clientId)||{}, M=function(n){ return esc(money(n)); };
+  // The loan agreement. From a loan in the book (printed, signed with a pen and
+  // witnessed), or, with opt.app, from an approved online application: then it
+  // is signed on the client's phone, so the borrower's signature is left as a
+  // marker the service fills in when they sign.
+  function agreementParts(l, sig, opt){
+    opt=opt||{};
+    var co=company(), app=opt.app, M=function(n){ return esc(money(n)); };
+    var cl=app ? { name:app.full_name, nationalId:app.national_id, phone:fmtPhone(app.phone), employer:app.employer, address:app.physical_address,
+                   nextOfKin:[app.kin_name, app.kin_phone?fmtPhone(app.kin_phone):""].filter(Boolean).join(" · "), ref:"" } : (client(l.clientId)||{});
     var A=num(l.principal), B=num(A*num(l.interestRate)/100+num(l.serviceFee)), C=num(A+B), rate=A?B/A*100:0;
-    var blank='', box='<span class="box"></span>';
+    var blank='', box='<span class="box"></span>', tick='<span class="box" style="text-align:center;line-height:8px;font-size:9px">✓</span>';
     var payday=l.dueDate?("Day "+Number(String(l.dueDate).slice(8,10))+" of the month"):"";
+    var number=app?app.id:loanRef(l);
+    var payTo=blank;
+    if(app&&app.payout_method==="ewallet") payTo=esc(app.ewallet_provider)+' to '+esc(fmtPhone(app.ewallet_number));
+    else if(app&&app.bank_name) payTo=esc(app.bank_name)+', '+esc(app.bank_account_holder)+', account <strong>'+esc(app.bank_account_no)+'</strong>, branch '+esc(app.bank_branch_code)+' ('+esc(app.bank_account_type)+')';
+    var paidBy=app ? (app.payout_method==="ewallet" ? box+"Cash &nbsp;"+box+"EFT &nbsp;"+tick+"E-wallet" : box+"Cash &nbsp;"+tick+"EFT &nbsp;"+box+"E-wallet") : box+"Cash &nbsp;"+box+"EFT &nbsp;"+box+"E-wallet";
     var sheet='<div class="sheet pas">'
       +'<div class="head"><div>'+logoSvg()+'</div><div class="biz">'+letterBizLines(co).join("")+'</div></div>'
       +'<h1>Payday loan agreement</h1><p class="sub">Repaid in one payment on your next payday · Microlending Act 7 of 2018</p>'
-      +'<table class="four">'+docRow2("Loan no.",'<strong>'+esc(loanRef(l))+'</strong>',"Client no.",esc(cl.ref||"—"))+'</table>'
+      +'<table class="four">'+(app?docRow2("Agreement no.",'<strong>'+esc(number)+'</strong>',"Date",esc(fmtLong(todayISO()))):docRow2("Loan no.",'<strong>'+esc(number)+'</strong>',"Client no.",esc(cl.ref||"—")))+'</table>'
       +'<h2>1. You — the borrower</h2>'
       +'<table class="four">'+docRow2("Full names (as on your ID)",esc(cl.name||""),"ID or passport number",esc(cl.nationalId||""))
         +docRow2("Physical address (not a P.O. Box)",cl.address?esc(cl.address):blank,"Mobile / WhatsApp",esc(cl.phone||"")).replace('<td></td>','<td class="fill"></td>')
         +docRow2("Employer",cl.employer?esc(cl.employer):blank,"Your payday",esc(payday)).replace('<td></td>','<td class="fill"></td>')
-        +docRow2("Your bank and account number",blank,"Next of kin — name and phone",cl.nextOfKin?esc(cl.nextOfKin):blank).replace(/<td><\/td>/g,'<td class="fill"></td>')+'</table>'
+        +docRow2(app&&app.payout_method==="ewallet"?"E-wallet we send your loan to":"Your bank and account number",payTo,"Next of kin — name and phone",cl.nextOfKin?esc(cl.nextOfKin):blank).replace(/<td><\/td>/g,'<td class="fill"></td>')+'</table>'
       +'<h2>2. The loan and what it costs</h2>'
       +'<table>'+docLine("A","Amount lent to you (the principal)",M(A))+docLine("B","Finance charge, fixed: "+pctTxt(rate)+" of A (never more than 30% of A)",M(B))
         +docLine("C","Total to repay (A + B) in one payment on the due date",M(C),1)+'</table>'
       +'<table class="four">'+docRow2("Total to repay in words",'<em>'+esc(amountInWords(C))+'</em>',"Due date (your next payday)",'<strong>'+esc(fmtLong(l.dueDate))+'</strong>')
-        +docRow2("Date paid out",esc(fmtLong(l.issueDate)),"Paid out by",box+"Cash &nbsp;"+box+"EFT &nbsp;"+box+"E-wallet")+'</table>'
-      +'<p><strong>How you pay us back (use only these):</strong> '+box+'cash (get a receipt) '+box+'EFT to '+repayAccountHtml(co)+'. Use your name and loan number <strong>'+esc(loanRef(l))+'</strong> as the reference, and WhatsApp the proof to '+esc(co.whatsapp||co.cell)+'.</p>'
+        +docRow2(app?"Paid out on (about)":"Date paid out",esc(fmtLong(l.issueDate)),"Paid out by",paidBy)+'</table>'
+      +'<p><strong>How you pay us back (use only these):</strong> '+box+'cash (get a receipt) '+box+'EFT to '+repayAccountHtml(co)+'. Use your name and '+(app?'reference':'loan number')+' <strong>'+esc(number)+'</strong> as the reference, and WhatsApp the proof to '+esc(co.whatsapp||co.cell)+'.</p>'
       +'<h2>3. The terms</h2><ol>'
       +'<li><strong>Payday loan.</strong> Pay the total in C in one payment on your next payday (the due date above). There are no instalments.</li>'
       +'<li><strong>Paying early.</strong> '+esc(TERMS.early)+'</li>'
@@ -4062,16 +4194,23 @@ body.doc-open{overflow:hidden}
       +'<li><strong>What we never take.</strong> '+esc(TERMS.never)+' We keep copies of your ID and payslip only. Do not sign this form if any part of it is blank.</li>'
       +'<li><strong>Your information.</strong> We may verify the details above and keep a confidential record of this loan, used only for your loans.</li>'
       +'<li><strong>Complaints.</strong> Contact us first on '+esc(co.cell)+' or '+esc(co.email)+'.</li>'
-      +'<li><strong>Your declaration.</strong> By signing you confirm that the information above is true, that you received the Pre-Agreement Statement for this loan, and that you can afford to repay this loan on your next payday.</li></ol>'
-      +'<h2>4. Signatures</h2><p>Signed at ______________________ on ____ / ____ / 20____</p>'
-      +'<div class="sigrow">'+sigCol('', cl.name||"", 'Borrower')
+      +'<li><strong>Your declaration.</strong> By signing you confirm that the information above is true, that you received the Pre-Agreement Statement for this loan, and that you can afford to repay this loan on your next payday.</li>'
+      +(app?'<li><strong>Signing electronically.</strong> You sign this agreement on your phone. Your typed name and signature, with the date and time we record, count as your signature on paper. Our payment confirmation is your receipt for the money paid out.</li>':'')+'</ol>'
+      +'<h2>4. Signatures</h2>'
+      +(app?''
+        +'<div class="sigrow two"><div class="sigc"><div class="sigspace" style="height:auto;min-height:46px;display:block"><!--BORROWER-SIGNATURE--></div><div class="sigrule"></div><div class="signame">'+esc(cl.name||"")+'</div><div class="muted">Borrower</div></div>'
+        +sigCol(sig, co.officer, 'For '+esc(co.tradingAs||co.legalName)+(co.officerCapacity?' · '+esc(co.officerCapacity):''))
+        +'<div class="stampc">'+stampSvg(co)+'</div></div>'
+      :'<p>Signed at ______________________ on ____ / ____ / 20____</p>'
+        +'<div class="sigrow">'+sigCol('', cl.name||"", 'Borrower')
         +sigCol(sig, co.officer, 'For '+esc(co.tradingAs||co.legalName)+(co.officerCapacity?' · '+esc(co.officerCapacity):''))
         +sigCol('', '', 'Witness — full names')
         +'<div class="stampc">'+stampSvg(co)+'</div></div>'
-      +'<table style="margin-top:8px"><tr><td><strong>Receipt.</strong> I received '+M(A)+' by '+box+'cash '+box+'EFT '+box+'e-wallet on ___/___/20___, and my signed copy.<br>Borrower’s signature ________________________ &nbsp; Paid out by (QuickServe) ________________________</td></tr></table>'
+        +'<table style="margin-top:8px"><tr><td><strong>Receipt.</strong> I received '+M(A)+' by '+box+'cash '+box+'EFT '+box+'e-wallet on ___/___/20___, and my signed copy.<br>Borrower’s signature ________________________ &nbsp; Paid out by (QuickServe) ________________________</td></tr></table>')
       +'</div>';
-    return { title:"Loan agreement — "+(cl.name||loanRef(l)), css:onePageCss(), sheet:sheet };
+    return { title:"Loan agreement — "+(cl.name||number), css:onePageCss(), sheet:sheet };
   }
+
   function openAgreement(id){
     var l=state.loans.find(function(x){ return x.id===id; }); if(!l) return;
     var A=num(l.principal), B=num(A*num(l.interestRate)/100+num(l.serviceFee));

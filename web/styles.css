@@ -231,3 +231,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .prose table { border-collapse: collapse; width: 100%; font-size: 15px; }
 .prose td, .prose th { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-bottom: 1px solid #d6dbd2; }
 .prose .table { overflow-x: auto; }
+
+/* tracking page: next steps after approval */
+.steps-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.steps-list li { border-top: 2px dashed #9aa6a3; padding: 14px 0 14px 34px; position: relative; }
+.steps-list li:first-child { border-top: 0; }
+.steps-list li::before { content: ""; position: absolute; left: 0; top: 16px; width: 20px; height: 20px; border: 2px solid var(--ink); border-radius: 50%; }
+.steps-list li.done::before { content: "✓"; background: var(--stamp); border-color: var(--stamp); color: #fff; font-size: 13px; line-height: 20px; text-align: center; font-weight: 700; }
+.steps-list b { display: block; font-size: 17px; }
+.steps-list span { display: block; color: var(--ink-2); margin-top: 4px; }
+.steps-list .btn { margin-top: 12px; }
+.btn-ghost { background: transparent; color: var(--ink); border: 2px solid var(--ink); box-shadow: none; }
+.sel { width: 100%; min-height: 48px; border: 2px solid var(--ink); background: #fff; padding: 0 10px; font-size: 17px; margin-top: 6px; border-radius: 0; }
+.choice .opt { display: flex; align-items: center; gap: 10px; border: 2px solid var(--ink); padding: 12px; font-weight: 600; cursor: pointer; background: #fff; }
+.choice .opt:has(input:checked) { background: var(--ink); color: var(--bond); }
+.choice .opt input { width: 20px; height: 20px; margin: 0; accent-color: var(--stamp); }

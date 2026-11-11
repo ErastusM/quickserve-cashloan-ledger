@@ -11,7 +11,7 @@ import { normalisePhone, sniffMime, validateApplication, loanCost, yymm, formatR
 // ---- fakes ---------------------------------------------------------------------
 function fakeD1() {
   const db = new DatabaseSync(":memory:");
-  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql", "0003_recommendations.sql", "0004_push.sql", "0005_audit.sql", "0006_contact.sql", "0007_statement.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
+  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql", "0003_recommendations.sql", "0004_push.sql", "0005_audit.sql", "0006_contact.sql", "0007_statement.sql", "0008_client_steps.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
   const stmt = (sql, args = []) => ({
     bind: (...a) => stmt(sql, a),
     first: async () => db.prepare(sql).get(...args) ?? null,
@@ -425,6 +425,79 @@ test("staff send the Pre-Agreement Statement; the applicant opens it from a priv
   const types = log.events.map((e) => e.type);
   assert.ok(types.includes("statement_issued") && types.includes("statement_viewed"));
   assert.equal(log.events.find((e) => e.type === "statement_issued").detail.total, "N$ 2,600.00");
+});
+
+test("after approval: accept the statement, give bank details, sign the agreement, then pay out", async () => {
+  const env = makeEnv();
+  const d = await draftWithDocs(env);
+  await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: { "X-Upload-Token": d.uploadToken } });
+  const id = d.reference;
+  await call(env, "POST", `/v2/admin/applications/${id}/status`, { headers: staff, body: { status: "approved" } });
+  const page = (body) => "<!doctype html><html><body>" + body + "</body></html>";
+  const r = await (await call(env, "POST", `/v2/admin/applications/${id}/statement`, { headers: staff, body: { html: page("statement") } })).json();
+  const pass = r.link.split("#t=")[1], me = { "X-Track-Token": pass };
+  const steps = async () => (await (await call(env, "POST", "/v2/track", { body: { trackToken: pass } })).json()).steps;
+  assert.deepEqual(await steps(), { statementAccepted: false, acceptedAt: null, bank: null, agreementAvailable: false, agreementSigned: false, agreementSignedAt: null });
+
+  // the agreement can't go out before acceptance and bank details
+  const agreement = page("<p>Agreement</p><!--BORROWER-SIGNATURE-->");
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${id}/agreement`, { headers: staff, body: { html: agreement } })).status, 409);
+
+  // 1. accept the statement
+  assert.equal((await call(env, "POST", `/v2/track/${id}/accept`, { headers: me, body: { name: "Someone Else", understood: true } })).status, 400);
+  assert.equal((await call(env, "POST", `/v2/track/${id}/accept`, { headers: me, body: { name: "ndapewa shikongo", understood: false } })).status, 400);
+  assert.equal((await call(env, "POST", `/v2/track/${id}/accept`, { headers: me, body: { name: " Ndapewa  Shikongo ", understood: true } })).status, 200);
+  assert.equal((await steps()).statementAccepted, true);
+
+  // 2. bank details: checked, then saved; staff can correct them
+  const bank = { method: "bank", bankName: "FNB Namibia", accountHolder: "Ndapewa Shikongo", accountNumber: "6228 1234 567", branchCode: "280172", accountType: "Savings", address: "12 Nathaniel Maxuilili St, Swakopmund" };
+  const bad = await call(env, "PUT", `/v2/track/${id}/bank`, { headers: me, body: { ...bank, accountNumber: "12", address: "P.O. Box 9, Swakopmund" } });
+  assert.equal(bad.status, 400);
+  const errs = (await bad.json()).errors;
+  assert.ok(errs.accountNumber && errs.address);
+  assert.equal((await call(env, "PUT", `/v2/track/${id}/bank`, { headers: me, body: bank })).status, 200);
+  assert.deepEqual((await steps()).bank, { method: "bank", bank: "FNB Namibia", last4: "4567", holder: "Ndapewa Shikongo" });
+  // or an e-wallet sent to a cellphone number
+  const wallet = { method: "ewallet", walletProvider: "FNB eWallet", walletNumber: "081 999 1234", address: bank.address };
+  assert.equal((await call(env, "PUT", `/v2/track/${id}/bank`, { headers: me, body: { ...wallet, walletNumber: "123" } })).status, 400);
+  assert.equal((await call(env, "PUT", `/v2/track/${id}/bank`, { headers: me, body: wallet })).status, 200);
+  assert.deepEqual((await steps()).bank, { method: "ewallet", bank: "FNB eWallet", last4: "1234" });
+  assert.equal((await call(env, "PUT", `/v2/admin/applications/${id}/bank`, { headers: staff, body: { ...bank, branchCode: "282672" } })).status, 200);
+  const detail = (await (await call(env, "GET", `/v2/admin/applications/${id}`, { headers: staff })).json()).application;
+  assert.equal(detail.bank_account_no, "62281234567");
+  assert.equal(detail.bank_branch_code, "282672");
+
+  // 3. staff send the agreement (it must carry the signature marker); applicant signs
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${id}/agreement`, { headers: staff, body: { html: page("no marker") } })).status, 400);
+  const sent = await (await call(env, "POST", `/v2/admin/applications/${id}/agreement`, { headers: staff, body: { html: agreement, total: "N$ 2,600.00" } })).json();
+  assert.match(sent.link, /track#t=s\./);
+  assert.equal((await steps()).agreementAvailable, true);
+  const unsigned = await (await call(env, "GET", `/v2/track/${id}/agreement`, { headers: me })).json();
+  assert.equal(unsigned.signed, false);
+  const sigPng = "data:image/png;base64," + "iVBORw0KGgo".padEnd(600, "A");
+  const sign = (b) => call(env, "POST", `/v2/track/${id}/agreement/sign`, { headers: me, body: b });
+  assert.equal((await sign({ name: "Ndapewa Shikongo", agree: true, signature: "data:image/png;base64,xx" })).status, 400, "a real drawing is needed");
+  assert.equal((await sign({ name: "Ndapewa Shikongo", agree: false, signature: sigPng })).status, 400);
+  assert.equal((await sign({ name: "Ndapewa Shikongo", agree: true, signature: '"><img src=x onerror=alert(1)>' })).status, 400);
+  assert.equal((await sign({ name: "Ndapewa Shikongo", agree: true, signature: sigPng })).status, 200);
+  const s = await steps();
+  assert.equal(s.agreementSigned, true);
+  const signedCopy = await (await call(env, "GET", `/v2/track/${id}/agreement`, { headers: me })).json();
+  assert.equal(signedCopy.signed, true);
+  assert.ok(signedCopy.html.includes(sigPng) && signedCopy.html.includes("Signed electronically by Ndapewa Shikongo"));
+  assert.ok(!signedCopy.html.includes("<!--BORROWER-SIGNATURE-->"));
+  const staffCopy = await (await call(env, "GET", `/v2/admin/applications/${id}/agreement`, { headers: staff })).json();
+  assert.equal(staffCopy.html, signedCopy.html);
+  // signed: bank details are locked for the applicant, and a new agreement can't replace it
+  assert.equal((await call(env, "PUT", `/v2/track/${id}/bank`, { headers: me, body: bank })).status, 409);
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${id}/agreement`, { headers: staff, body: { html: agreement } })).status, 409);
+  // strangers can't sign or read
+  assert.equal((await call(env, "GET", `/v2/track/${id}/agreement`, { headers: { "X-Track-Token": "nope-nope-nope-nope-nope" } })).status, 403);
+
+  const log = await (await call(env, "GET", "/v2/admin/audit", { headers: staff })).json();
+  const types = log.events.map((e) => e.type);
+  for (const t of ["statement_accepted", "bank_details_saved", "agreement_issued", "agreement_viewed", "agreement_signed"]) assert.ok(types.includes(t), t);
+  assert.equal(log.events.find((e) => e.type === "bank_details_saved").detail.last4, "4567");
 });
 
 test("CORS only answers the website and the admin console", async () => {

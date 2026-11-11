@@ -9,6 +9,10 @@
 //   POST   /v2/track                             { reference, phone } or { trackToken } → status
 //   PUT    /v2/track/:id/files/:kind             upload a requested document      X-Track-Token
 //   GET    /v2/track/:id/statement               the Pre-Agreement Statement      X-Track-Token
+//   POST   /v2/track/:id/accept                  { name } accept the statement    X-Track-Token
+//   PUT    /v2/track/:id/bank                    bank details and address         X-Track-Token
+//   GET    /v2/track/:id/agreement               the loan agreement (signed copy once signed)
+//   POST   /v2/track/:id/agreement/sign          { name, signature, agree }       X-Track-Token
 //
 // Staff (Authorization: Bearer <Supabase access token from the admin console>,
 //        or the OWNER_TOKEN secret as a fallback)
@@ -24,6 +28,9 @@
 //   POST   /v2/admin/push/test                      sends a test to your devices
 //   POST   /v2/admin/applications/:id/whatsapp-sent  staff confirm the applicant was told
 //   POST   /v2/admin/applications/:id/statement     { html, total, due, validUntil } → { link }  issue the Pre-Agreement Statement
+//   PUT    /v2/admin/applications/:id/bank          staff enter or correct the bank details
+//   POST   /v2/admin/applications/:id/agreement     { html, total, due } → { link }  send the agreement for signing
+//   GET    /v2/admin/applications/:id/agreement     the agreement as sent, or signed
 //   POST   /v2/admin/applications/:id/recommend     { recommendation: approve|decline, note }
 //   POST   /v2/admin/applications/:id/converted     { clientId, loanId, clientRef, loanRef }   owners only
 //
@@ -83,6 +90,10 @@ async function route(request, env, ctx) {
   if (path === "/v2/track" && m === "POST") return track(request, env);
   if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/files\/([a-z]+)$/)) && m === "PUT") return uploadRequestedFile(request, env, p[1], p[2], ctx);
   if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/statement$/)) && m === "GET") return readStatement(request, env, p[1]);
+  if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/accept$/)) && m === "POST") return acceptStatement(request, env, p[1], ctx);
+  if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/bank$/)) && m === "PUT") return saveBankApplicant(request, env, p[1], ctx);
+  if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/agreement$/)) && m === "GET") return readAgreementApplicant(request, env, p[1]);
+  if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/agreement\/sign$/)) && m === "POST") return signAgreement(request, env, p[1], ctx);
 
   // ---- staff
   if (path.startsWith("/v2/admin/") || path === "/applications") {
@@ -99,6 +110,9 @@ async function route(request, env, ctx) {
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/affordability$/)) && m === "PUT") return saveAffordability(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/whatsapp-sent$/)) && m === "POST") return whatsappSent(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/statement$/)) && m === "POST") return issueStatement(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/bank$/)) && m === "PUT") return saveBankStaff(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/agreement$/)) && m === "POST") return issueAgreement(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/agreement$/)) && m === "GET") return readAgreementStaff(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/recommend$/)) && m === "POST") return recommend(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/converted$/)) && m === "POST") return markConverted(request, env, staff, p[1]);
   }
@@ -409,6 +423,17 @@ async function track(request, env) {
     canUpload: app.status === "info_requested" && Boolean(body.trackToken || session),
     statementAvailable: Boolean(app.statement_key && (body.trackToken || session)),
     statementIssuedAt: app.statement_key ? app.statement_issued_at : null,
+    // What's left for the applicant to do after approval (only with a pass).
+    steps: (body.trackToken || session) && ["approved", "converted"].includes(app.status) ? {
+      statementAccepted: Boolean(app.accepted_at && app.accepted_statement_key === app.statement_key),
+      acceptedAt: app.accepted_at,
+      bank: app.bank_saved_at ? (app.payout_method === "ewallet"
+        ? { method: "ewallet", bank: app.ewallet_provider, last4: String(app.ewallet_number || "").slice(-4) }
+        : { method: "bank", bank: app.bank_name, last4: String(app.bank_account_no || "").slice(-4), holder: app.bank_account_holder }) : null,
+      agreementAvailable: Boolean(app.agreement_key),
+      agreementSigned: Boolean(app.agreement_signed_at),
+      agreementSignedAt: app.agreement_signed_at
+    } : null,
     sessionToken: session
   });
 }
@@ -441,6 +466,170 @@ async function readStatement(request, env, id) {
   if (!object) throw new HttpError(404, "There is no Pre-Agreement Statement for this application yet.");
   await eventOnce(env, id, "applicant", "statement_viewed", null);
   return json(request, env, { html: await object.text(), issuedAt: app.statement_issued_at });
+}
+
+// ---- after approval: accept, bank details, sign -------------------------------------
+
+async function applicantApp(request, env, id) {
+  const sessionId = await readTrackSession(env.TRACK_SESSION_SECRET, request.headers.get("X-Track-Token"));
+  return sessionId === id ? await loadApp(env, id) : await requireToken(request, env, id, "X-Track-Token", "track_token_hash");
+}
+function sameName(typed, full) {
+  const norm = (v) => String(v || "").trim().replace(/\s+/g, " ").toLowerCase();
+  return norm(typed).length > 2 && norm(typed) === norm(full);
+}
+function laterStep(ctx, promise) { if (ctx && ctx.waitUntil) ctx.waitUntil(promise); else return promise; }
+
+async function acceptStatement(request, env, id, ctx) {
+  const app = await applicantApp(request, env, id);
+  if (app.status !== "approved") throw new HttpError(409, "This application isn't waiting for you to accept a statement.");
+  if (!app.statement_key) throw new HttpError(409, "There is no Pre-Agreement Statement to accept yet.");
+  const body = await readJson(request);
+  if (!body.understood) throw new HttpError(400, "Tick the box to confirm you have read the statement.");
+  if (!sameName(body.name, app.full_name)) throw new HttpError(400, "Type your full name exactly as on your application.");
+  if (app.accepted_at && app.accepted_statement_key === app.statement_key) return json(request, env, { ok: true, acceptedAt: app.accepted_at });
+  const t = now();
+  await env.DB.prepare(`UPDATE applications SET accepted_at = ?, accepted_name = ?, accepted_statement_key = ? WHERE id = ?`)
+    .bind(t, String(body.name).trim().replace(/\s+/g, " "), app.statement_key, id).run();
+  await event(env, id, "applicant", "statement_accepted", { ip: clientIp(request) });
+  await laterStep(ctx, notifyStaff(env, { title: "Statement accepted " + id, body: (app.full_name || "The applicant") + " accepted the Pre-Agreement Statement.", url: "/?app=" + id, tag: id + "-accept" }));
+  return json(request, env, { ok: true, acceptedAt: t });
+}
+
+const BANK_TYPES = ["Savings", "Cheque / current", "Transmission"];
+const EWALLETS = ["FNB eWallet", "Bank Windhoek EasyWallet", "Standard Bank Blue Wallet", "Nedbank Send-iMali", "Other e-wallet"];
+// Where the loan is paid: a bank account, or an e-wallet sent to a cellphone.
+function readBank(body) {
+  const clean = (v, max) => String(v == null ? "" : v).trim().replace(/\s+/g, " ").slice(0, max);
+  const method = body.method === "ewallet" ? "ewallet" : "bank";
+  const b = {
+    payout_method: method, physical_address: clean(body.address, 200),
+    bank_name: null, bank_account_holder: null, bank_account_no: null, bank_branch_code: null, bank_account_type: null,
+    ewallet_provider: null, ewallet_number: null
+  };
+  const errors = {};
+  if (method === "bank") {
+    Object.assign(b, {
+      bank_name: clean(body.bankName, 60), bank_account_holder: clean(body.accountHolder, 120),
+      bank_account_no: String(body.accountNumber || "").replace(/[\s-]/g, ""), bank_branch_code: String(body.branchCode || "").replace(/\s/g, ""),
+      bank_account_type: clean(body.accountType, 30)
+    });
+    if (b.bank_name.length < 2) errors.bankName = "Choose your bank.";
+    if (b.bank_account_holder.length < 3) errors.accountHolder = "Enter the name the account is in.";
+    if (!/^\d{6,16}$/.test(b.bank_account_no)) errors.accountNumber = "Enter the account number: 6 to 16 digits.";
+    if (!/^\d{4,8}$/.test(b.bank_branch_code)) errors.branchCode = "Enter the branch code: 4 to 8 digits.";
+    if (!BANK_TYPES.includes(b.bank_account_type)) errors.accountType = "Choose the account type.";
+  } else {
+    b.ewallet_provider = clean(body.walletProvider, 40);
+    b.ewallet_number = normalisePhone(body.walletNumber);
+    if (!EWALLETS.includes(b.ewallet_provider)) errors.walletProvider = "Choose the e-wallet.";
+    if (!b.ewallet_number) errors.walletNumber = "Enter the cellphone number to send the e-wallet to, e.g. 081 234 5678.";
+  }
+  if (b.physical_address.length < 8 || /p\.?\s*o\.?\s*box/i.test(b.physical_address)) errors.address = "Enter your street address and town (not a P.O. Box).";
+  if (Object.keys(errors).length) throw new HttpError(400, "Check your payment details.", { errors });
+  return b;
+}
+function payoutLabel(b) {
+  return b.payout_method === "ewallet" ? b.ewallet_provider + " to …" + String(b.ewallet_number).slice(-4) : b.bank_name + " …" + String(b.bank_account_no).slice(-4);
+}
+async function storeBank(env, id, b, by) {
+  await env.DB.prepare(
+    `UPDATE applications SET payout_method = ?, ewallet_provider = ?, ewallet_number = ?, bank_name = ?, bank_account_holder = ?, bank_account_no = ?,
+       bank_branch_code = ?, bank_account_type = ?, physical_address = ?, bank_saved_at = ?, bank_saved_by = ? WHERE id = ?`
+  ).bind(b.payout_method, b.ewallet_provider, b.ewallet_number, b.bank_name, b.bank_account_holder, b.bank_account_no,
+    b.bank_branch_code, b.bank_account_type, b.physical_address, now(), by, id).run();
+  await event(env, id, by === "applicant" ? "applicant" : "staff:" + by, "bank_details_saved", {
+    method: b.payout_method, bank: b.payout_method === "ewallet" ? b.ewallet_provider : b.bank_name,
+    last4: String(b.payout_method === "ewallet" ? b.ewallet_number : b.bank_account_no).slice(-4)
+  });
+}
+async function saveBankApplicant(request, env, id, ctx) {
+  const app = await applicantApp(request, env, id);
+  if (app.status !== "approved") throw new HttpError(409, "We're not waiting for bank details on this application.");
+  if (app.agreement_signed_at) throw new HttpError(409, "Your agreement is signed. To change your bank details, WhatsApp us.");
+  const b = readBank(await readJson(request));
+  await storeBank(env, id, b, "applicant");
+  await laterStep(ctx, notifyStaff(env, { title: "Bank details in " + id, body: (app.full_name || "The applicant") + " gave their payment details (" + payoutLabel(b) + ").", url: "/?app=" + id, tag: id + "-bank" }));
+  return json(request, env, { ok: true });
+}
+async function saveBankStaff(request, env, staff, id) {
+  const app = await loadApp(env, id);
+  if (!["approved", "converted"].includes(app.status)) throw new HttpError(409, "Bank details are taken once an application is approved.");
+  if (app.agreement_signed_at && app.status === "approved") throw new HttpError(409, "The agreement is signed with these bank details. Send a new agreement to change them.");
+  await storeBank(env, id, readBank(await request.json().catch(() => ({}))), staff.email);
+  return json(request, env, { ok: true });
+}
+
+// The agreement page carries this marker where the applicant's signature goes.
+const SIGN_MARK = "<!--BORROWER-SIGNATURE-->";
+function badHtml(html) { return !/^<!doctype html>/i.test(html) || html.length > 1_500_000 || /<script|<iframe|<object|<embed|\son[a-z]+\s*=|javascript:/i.test(html); }
+
+async function issueAgreement(request, env, staff, id) {
+  const app = await loadApp(env, id);
+  if (app.status !== "approved") throw new HttpError(409, "The agreement is sent while the application is approved and not yet paid out.");
+  if (!(app.accepted_at && app.accepted_statement_key === app.statement_key)) throw new HttpError(409, "The applicant hasn't accepted the Pre-Agreement Statement yet.");
+  if (!app.bank_saved_at) throw new HttpError(409, "Add the applicant's bank or e-wallet details first.");
+  if (app.agreement_signed_at) throw new HttpError(409, "The applicant has already signed the agreement.");
+  const body = await request.json().catch(() => ({}));
+  const html = String(body.html || "");
+  if (badHtml(html) || html.split(SIGN_MARK).length !== 2) throw new HttpError(400, "That agreement couldn't be saved.");
+  if (!env.TRACK_SESSION_SECRET) throw new HttpError(503, "Agreement links aren't set up yet.");
+  const t = now();
+  const key = `agreements/${id}/${t.replace(/[:.]/g, "-")}.html`;
+  await env.DOCS.put(key, html, { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+  await env.DB.prepare(`UPDATE applications SET agreement_key = ?, agreement_sent_at = ? WHERE id = ?`).bind(key, t, id).run();
+  await event(env, id, "staff:" + staff.email, "agreement_issued", {
+    total: body.total == null ? null : String(body.total).slice(0, 40), due: body.due == null ? null : String(body.due).slice(0, 20)
+  });
+  const pass = await makeTrackSession(env.TRACK_SESSION_SECRET, id, STATEMENT_DAYS * 86_400_000);
+  return json(request, env, { link: (env.PUBLIC_SITE || "https://quickserve.group") + "/track#t=" + pass, days: STATEMENT_DAYS, issuedAt: t });
+}
+async function agreementHtml(env, app) {
+  const key = app.agreement_signed_key || app.agreement_key;
+  if (!key) return null;
+  const object = await env.DOCS.get(key);
+  return object ? await object.text() : null;
+}
+async function readAgreementApplicant(request, env, id) {
+  const app = await applicantApp(request, env, id);
+  const html = await agreementHtml(env, app);
+  if (!html) throw new HttpError(404, "There is no loan agreement for this application yet.");
+  if (!app.agreement_signed_at) await eventOnce(env, id, "applicant", "agreement_viewed", null);
+  return json(request, env, { html, signed: Boolean(app.agreement_signed_at), signedAt: app.agreement_signed_at });
+}
+async function readAgreementStaff(request, env, staff, id) {
+  const app = await loadApp(env, id);
+  const html = await agreementHtml(env, app);
+  if (!html) throw new HttpError(404, "No agreement has been sent for this application.");
+  return json(request, env, { html, signed: Boolean(app.agreement_signed_at), signedAt: app.agreement_signed_at });
+}
+
+const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+async function signAgreement(request, env, id, ctx) {
+  const app = await applicantApp(request, env, id);
+  if (app.status !== "approved" || !app.agreement_key) throw new HttpError(409, "There is no agreement waiting for your signature.");
+  if (app.agreement_signed_at) return json(request, env, { ok: true, signedAt: app.agreement_signed_at });
+  const body = await readJson(request);
+  if (!body.agree) throw new HttpError(400, "Tick the box to agree to sign electronically.");
+  if (!sameName(body.name, app.full_name)) throw new HttpError(400, "Type your full name exactly as on your application.");
+  const sig = String(body.signature || "");
+  if (!/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(sig) || sig.length < 400 || sig.length > 300_000) throw new HttpError(400, "Draw your signature in the box.");
+  const issued = await env.DOCS.get(app.agreement_key);
+  if (!issued) throw new HttpError(409, "There is no agreement waiting for your signature.");
+  const html = await issued.text();
+  const t = now(), ip = clientIp(request);
+  const when = new Date(Date.parse(t) + 2 * 3600_000).toISOString().replace("T", " ").slice(0, 16) + " (Namibian time)";
+  const name = String(body.name).trim().replace(/\s+/g, " ");
+  const signedBlock = `<img src="${sig}" alt="Signature" style="max-height:44px;max-width:100%;display:block">`
+    + `<div style="font-size:7.5pt;color:#555;line-height:1.25;margin-top:2px">Signed electronically by ${esc(name)} on ${esc(when)} · IP ${esc(ip)}</div>`;
+  const signed = html.replace(SIGN_MARK, signedBlock);
+  const key = app.agreement_key.replace(/\.html$/, "-signed.html");
+  await env.DOCS.put(key, signed, { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+  await env.DB.prepare(`UPDATE applications SET agreement_signed_key = ?, agreement_signed_at = ?, agreement_signed_name = ? WHERE id = ? AND agreement_signed_at IS NULL`)
+    .bind(key, t, name, id).run();
+  await event(env, id, "applicant", "agreement_signed", { ip, ua: (request.headers.get("User-Agent") || "").slice(0, 200) });
+  await laterStep(ctx, notifyStaff(env, { title: "Agreement signed " + id, body: (app.full_name || "The applicant") + " signed the loan agreement. Ready to pay out.", url: "/?app=" + id, tag: id + "-signed" }));
+  return json(request, env, { ok: true, signedAt: t });
 }
 
 // ---- staff ---------------------------------------------------------------------
@@ -700,7 +889,9 @@ const AUDIT_LABELS = {
   draft_created: "Started an application", submitted: "Handed in", document_added: "Sent a requested document",
   opened: "Opened the application", document_viewed: "Viewed a document", whatsapp_sent: "Confirmed the applicant was told on WhatsApp", contacted: "Contacted the applicant", affordability_saved: "Saved the affordability worksheet",
   recommended: "Recommended", status: "Changed status",
-  statement_issued: "Sent the Pre-Agreement Statement", statement_viewed: "Opened the Pre-Agreement Statement"
+  statement_issued: "Sent the Pre-Agreement Statement", statement_viewed: "Opened the Pre-Agreement Statement",
+  statement_accepted: "Accepted the Pre-Agreement Statement", bank_details_saved: "Saved bank details",
+  agreement_issued: "Sent the loan agreement", agreement_viewed: "Opened the loan agreement", agreement_signed: "Signed the loan agreement"
 };
 
 async function auditLog(request, env, staff) {
