@@ -2309,7 +2309,7 @@ body.doc-open{overflow:hidden}
     var today=todayISO(), principal=(a.amount_cents||0)/100;
     var body=(already?'<p style="color:var(--warn);margin:0 0 10px">Loan '+esc(already.ref||"")+' was already created from this application. Saving links it without creating another.</p>':'')
       +(!a.agreement_signed_at?'<p style="color:var(--bad);margin:0 0 10px;font-weight:600">The client hasn’t signed the loan agreement online yet. Only pay out if they signed a printed agreement.</p>'
-        :'<p style="margin:0 0 10px">Pay to: '+payoutText(a)+'</p>')
+        :'<p style="margin:0 0 10px">Pay to: '+payoutText(a)+holderWarning(a)+'</p>')
       +'<div class="field"><label>Client</label><select id="f_client">'
         +matches.map(function(c){ var lm=clientLate(c.id); return '<option value="'+esc(c.id)+'">'+esc((c.ref?c.ref+" · ":"")+c.name)+' (existing'+(lm?" · late payer ×"+lm.late.length:"")+')</option>'; }).join("")
         +'<option value="__new">New client: '+esc(a.full_name)+'</option></select></div>'
@@ -2358,8 +2358,8 @@ body.doc-open{overflow:hidden}
   // ---- application audit trail (owners only) ----
   // Every action on every application, permanent and filterable, with a
   // spreadsheet download. Decisions carry what they were based on.
-  var AUDIT_TYPES=[["","All actions"],["decision","Decisions (approve, decline, paid out)"],["status","Status changes"],["recommended","Recommendations"],["opened","Opened an application"],["document_viewed","Viewed a document"],["affordability_saved","Saved affordability"],["document_added","Applicant sent a document"],["contacted","Contacted the applicant"],["statement_issued","Sent the Pre-Agreement Statement"],["statement_viewed","Applicant opened the statement"],["statement_accepted","Applicant accepted the statement"],["bank_details_saved","Payment details saved"],["agreement_issued","Sent the loan agreement"],["agreement_signed","Applicant signed the agreement"],["whatsapp_sent","Confirmed applicant was told"],["submitted","Handed in"]];
-  function auditWhat(e){
+  var APP_AUDIT_TYPES=[["","All actions"],["decision","Decisions (approve, decline, paid out)"],["status","Status changes"],["recommended","Recommendations"],["opened","Opened an application"],["document_viewed","Viewed a document"],["affordability_saved","Saved affordability"],["document_added","Applicant sent a document"],["contacted","Contacted the applicant"],["statement_issued","Sent the Pre-Agreement Statement"],["statement_viewed","Applicant opened the statement"],["statement_accepted","Applicant accepted the statement"],["bank_details_saved","Payment details saved"],["agreement_issued","Sent the loan agreement"],["agreement_signed","Applicant signed the agreement"],["whatsapp_sent","Confirmed applicant was told"],["submitted","Handed in"]];
+  function appAuditWhat(e){
     var d=e.detail||{};
     if(e.type==="status"){
       var s=(APP_STATUS[d.from]||d.from||"")+" → "+(APP_STATUS[d.to]||d.to||"");
@@ -2395,14 +2395,14 @@ body.doc-open{overflow:hidden}
       return '<tr><td class="num" style="white-space:nowrap">'+esc(when.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}))+'<br><span style="color:var(--muted);font-size:11.5px">'+esc(when.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}))+'</span></td>'
         +'<td>'+esc(String(e.actor||"").replace(/^staff:/,""))+'</td>'
         +'<td class="who-cell"><a href="#" data-auditapp="'+esc(e.application_id)+'"><b class="mono">'+esc(e.application_id)+'</b></a><span>'+esc(e.full_name||"")+(e.amount_cents!=null?" · "+esc(money0(e.amount_cents/100)):"")+'</span></td>'
-        +'<td>'+esc(auditWhat(e))+'</td>'
+        +'<td>'+esc(appAuditWhat(e))+'</td>'
         +'<td style="font-size:12.5px;color:var(--ink-2);max-width:420px">'+esc(auditDetail(e))+'</td></tr>';
     }
     function draw(more){
       c.innerHTML='<div class="toolbar">'
           +'<label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="auQ" placeholder="Application reference or applicant name" value="'+esc(f.q)+'"></label>'
           +'<select id="auActor" class="fld" style="width:auto;margin:0"><option value="">Everyone</option>'+actors.map(function(a){ return '<option value="'+esc(a)+'"'+(f.actor===a?" selected":"")+'>'+esc(a.replace(/^staff:/,""))+'</option>'; }).join("")+'</select>'
-          +'<select id="auType" class="fld" style="width:auto;margin:0">'+AUDIT_TYPES.map(function(t){ return '<option value="'+t[0]+'"'+(f.type===t[0]?" selected":"")+'>'+esc(t[1])+'</option>'; }).join("")+'</select>'
+          +'<select id="auType" class="fld" style="width:auto;margin:0">'+APP_AUDIT_TYPES.map(function(t){ return '<option value="'+t[0]+'"'+(f.type===t[0]?" selected":"")+'>'+esc(t[1])+'</option>'; }).join("")+'</select>'
         +'</div><div class="toolbar">'
           +'<label style="font-size:12.5px;color:var(--muted)">From <input id="auFrom" type="date" class="fld" style="width:auto;margin:0 0 0 6px" value="'+esc(f.from)+'"></label>'
           +'<label style="font-size:12.5px;color:var(--muted)">To <input id="auTo" type="date" class="fld" style="width:auto;margin:0 0 0 6px" value="'+esc(f.to)+'"></label>'
@@ -4057,6 +4057,22 @@ body.doc-open{overflow:hidden}
     if(a.payout_method==="ewallet") return esc(a.ewallet_provider)+" to "+esc(fmtPhone(a.ewallet_number));
     return esc(a.bank_name)+" · "+esc(a.bank_account_holder)+" · account <span class=\"mono\">"+esc(a.bank_account_no)+"</span> · branch <span class=\"mono\">"+esc(a.bank_branch_code)+"</span> · "+esc(a.bank_account_type);
   }
+  // Does the bank account holder look like the applicant? Word order and
+  // case don't matter. "none" = no name in common: likely someone else's account.
+  function holderMatch(a){
+    if(!a.bank_saved_at||a.payout_method==="ewallet"||!a.bank_account_holder) return "n/a";
+    function words(v){ return String(v||"").toLowerCase().replace(/[^a-z\s'-]/g," ").split(/\s+/).filter(function(w){ return w.length>1&&["mr","mrs","ms","miss","dr"].indexOf(w)<0; }); }
+    var h=words(a.bank_account_holder), n=words(a.full_name);
+    var common=h.filter(function(w){ return n.indexOf(w)>=0; });
+    if(!common.length) return "none";
+    return (h.length===n.length&&common.length===n.length)?"same":"partial";
+  }
+  function holderWarning(a){
+    var m=holderMatch(a);
+    if(m==="none") return '<div style="color:var(--bad);font-weight:600;margin-top:4px">The account holder ('+esc(a.bank_account_holder)+') doesn’t match the applicant ('+esc(a.full_name)+'). Only pay into the applicant’s own account.</div>';
+    if(m==="partial") return '<div style="color:var(--warn);margin-top:4px">Check the account holder name: '+esc(a.bank_account_holder)+' (applicant: '+esc(a.full_name)+').</div>';
+    return "";
+  }
   function clientStepsCard(a, events){
     function when(t){ return t?fmtDate(String(t).slice(0,10))+" "+String(new Date(t).toTimeString()).slice(0,5):""; }
     var opened=events.some(function(e){ return e.type==="statement_viewed"; }), agrOpened=events.some(function(e){ return e.type==="agreement_viewed"; });
@@ -4070,7 +4086,7 @@ body.doc-open{overflow:hidden}
     var h='<div class="card" style="margin-bottom:16px"><div class="ch"><h3>Client steps</h3></div><div class="ledger" style="padding:4px 18px 10px">';
     h+=step(Boolean(a.statement_issued_at), "Pre-Agreement Statement sent", a.statement_issued_at?"Sent "+when(a.statement_issued_at)+(opened?" · opened by the client":" · not opened yet"):"Not sent yet.", a.status==="approved"?'<button class="btn ghost sm" id="csStatement">'+(a.statement_issued_at?"Send again":"Make and send statement")+'</button>':'');
     h+=step(accepted, "Statement accepted", accepted?"Accepted by "+esc(a.accepted_name)+" on "+when(a.accepted_at):(a.accepted_at?"Accepted an older statement. They need to accept the latest one.":"Waiting for the client."), "");
-    h+=step(Boolean(a.bank_saved_at), a.payout_method==="ewallet"?"E-wallet details":"Bank details", a.bank_saved_at?payoutText(a)+'<br>Address: '+esc(a.physical_address||"—")+'<br><span style="font-size:12px">Saved '+when(a.bank_saved_at)+(a.bank_saved_by==="applicant"?" by the client":" by "+esc(a.bank_saved_by))+'</span>':"Waiting for the client. You can enter them if the client sends them on WhatsApp.",
+    h+=step(Boolean(a.bank_saved_at), a.payout_method==="ewallet"?"E-wallet details":"Bank details", a.bank_saved_at?payoutText(a)+(holderWarning(a)||'<br>')+'Address: '+esc(a.physical_address||"—")+'<br><span style="font-size:12px">Saved '+when(a.bank_saved_at)+(a.bank_saved_by==="applicant"?" by the client":" by "+esc(a.bank_saved_by))+'</span>':"Waiting for the client. You can enter them if the client sends them on WhatsApp.",
       a.status==="approved"&&!a.agreement_signed_at?'<button class="btn ghost sm" id="csBank">'+(a.bank_saved_at?"Edit":"Enter")+' payment details</button>':'');
     var agrText=a.agreement_signed_at?"Signed by "+esc(a.agreement_signed_name)+" on "+when(a.agreement_signed_at)
       :a.agreement_sent_at?"Sent "+when(a.agreement_sent_at)+(agrOpened?" · opened, not signed yet":" · not opened yet")

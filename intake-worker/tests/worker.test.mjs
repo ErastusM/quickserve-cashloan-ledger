@@ -508,11 +508,27 @@ test("CORS only answers the website and the admin console", async () => {
   assert.equal(bad.headers.get("Access-Control-Allow-Origin"), null);
 });
 
-test("per-IP limit on new drafts", async () => {
+test("per-IP limit on new drafts is generous (phones share IPs on mobile networks)", async () => {
   const env = makeEnv();
   const same = { "CF-Connecting-IP": "10.9.9.9" };
-  for (let i = 0; i < 5; i += 1) assert.equal((await call(env, "POST", "/v2/applications", { body: details, headers: same })).status, 201);
+  for (let i = 0; i < 40; i += 1) assert.equal((await call(env, "POST", "/v2/applications", { body: details, headers: same })).status, 201);
   assert.equal((await call(env, "POST", "/v2/applications", { body: details, headers: same })).status, 429);
+});
+
+test("the tracking page can refresh all day; only reference + cellphone lookups are limited per IP", async () => {
+  const env = makeEnv();
+  const d = await draftWithDocs(env);
+  const sub = await (await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: { "X-Upload-Token": d.uploadToken } })).json();
+  const same = { "CF-Connecting-IP": "10.8.8.8" };
+  // 2 refreshes a minute for an hour, from one IP, with the receipt token
+  for (let i = 0; i < 120; i += 1) assert.equal((await call(env, "POST", "/v2/track", { body: { trackToken: sub.trackToken }, headers: same })).status, 200, "refresh " + i);
+  // lookups by reference + cellphone: 20 an hour from one IP
+  for (let i = 0; i < 20; i += 1) assert.equal((await call(env, "POST", "/v2/track", { body: { reference: d.reference, phone: "081 234 5678" }, headers: same })).status, 200);
+  assert.equal((await call(env, "POST", "/v2/track", { body: { reference: d.reference, phone: "081 234 5678" }, headers: same })).status, 429);
+  // guessing passes is limited too
+  const guess = { "CF-Connecting-IP": "10.7.7.7" };
+  for (let i = 0; i < 60; i += 1) assert.equal((await call(env, "POST", "/v2/track", { body: { trackToken: "guess-guess-guess-" + i }, headers: guess })).status, 404);
+  assert.equal((await call(env, "POST", "/v2/track", { body: { trackToken: "guess-guess-guess-x" }, headers: guess })).status, 429);
 });
 
 test("clean-up removes old drafts and old declined documents", async () => {
