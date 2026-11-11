@@ -245,7 +245,9 @@ async function createDraft(request, env) {
   const body = await readJson(request);
   const { row, errors } = validateApplication(body, env);
   if (Object.keys(errors).length) throw new HttpError(400, "Some details need fixing.", { fields: errors });
-  await rateLimit(env, "draft:" + clientIp(request), Number(env.DRAFTS_PER_HOUR || 5), 3600);
+  // Generous: Namibian mobile networks put many phones behind one IP address,
+  // and the bot check already stops automated drafts.
+  await rateLimit(env, "draft:" + clientIp(request), Number(env.DRAFTS_PER_HOUR || 40), 3600);
   await checkTurnstile(request, env, body.turnstileToken);
 
   const uploadToken = makeToken();
@@ -370,8 +372,10 @@ async function submit(request, env, id, ctx) {
 // ---- public: tracking ----------------------------------------------------------
 
 async function track(request, env) {
-  await rateLimit(env, "track:" + clientIp(request), Number(env.TRACKS_PER_HOUR || 20), 3600);
   const body = await readJson(request);
+  // The tracking page refreshes itself every 30 seconds with the client's pass,
+  // so only reference + cellphone lookups (and bad passes) count against the
+  // per-IP limit; a valid pass is limited per application instead.
   let app = null;
 
   let session = null;
@@ -381,6 +385,7 @@ async function track(request, env) {
   } else if (body.trackToken) {
     app = await env.DB.prepare(`SELECT * FROM applications WHERE track_token_hash = ?`).bind(await sha256Hex(String(body.trackToken))).first();
   } else {
+    await rateLimit(env, "track:" + clientIp(request), Number(env.TRACKS_PER_HOUR || 20), 3600);
     await checkTurnstile(request, env, body.turnstileToken);
     const ref = String(body.reference || "").trim().toUpperCase();
     const phone = normalisePhone(body.phone);
@@ -389,7 +394,9 @@ async function track(request, env) {
       if (app && env.TRACK_SESSION_SECRET) session = await makeTrackSession(env.TRACK_SESSION_SECRET, app.id);
     }
   }
+  if (body.trackToken && !app) await rateLimit(env, "trackbad:" + clientIp(request), 60, 3600);
   if (!app || app.status === "draft") throw new HttpError(404, "We couldn't find an application with those details.");
+  if (body.trackToken) await rateLimit(env, "trackapp:" + app.id, 400, 3600);
 
   const { results: files } = await env.DB.prepare(
     `SELECT kind, deleted_at FROM application_files WHERE application_id = ?`
