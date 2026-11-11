@@ -46,12 +46,27 @@
           <p class="alert" id="tAlert" role="alert" hidden></p>
         </div>
       </div>
+      <div class="note-card" id="tPas" hidden style="background:var(--bond)">
+        <p class="eyebrow" style="font-size:11px">Your Pre-Agreement Statement</p>
+        <p style="margin:8px 0 0;font-size:17px">The full cost of your loan, in writing, before you sign anything. Read it, and save or print a copy.</p>
+        <button type="button" class="btn btn-ink btn-block" id="tPasOpen" style="margin-top:14px">Read your statement</button>
+        <p class="alert" id="tPasAlert" role="alert" hidden></p>
+      </div>
       <p style="text-align:center;margin-top:20px"><button type="button" class="link-btn" id="other" style="color:var(--desk-ink)">Look up a different application</button></p>
     </div>
 
     <p style="text-align:center;color:var(--desk-muted);margin-top:28px">Questions about an application?<br><a href="https://wa.me/264812819840" style="color:var(--desk-ink);font-weight:600">WhatsApp +264 81 281 9840</a></p>
   </div>
 </main>
+<div id="pasView" hidden style="position:fixed;inset:0;z-index:50;background:#e9ece9;display:flex;flex-direction:column">
+  <div style="display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;padding:10px 12px;background:var(--desk);color:var(--desk-ink)">
+    <button type="button" class="btn btn-leaf" id="pasPrint" style="min-height:40px">Print / save as PDF</button>
+    <button type="button" class="btn" id="pasClose" style="min-height:40px;background:transparent;color:var(--desk-ink);border:2px solid var(--desk-ink);box-shadow:none">Close</button>
+  </div>
+  <div id="pasScroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:12px 0">
+    <div id="pasBox" style="margin:0 auto;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.15);overflow:hidden"></div>
+  </div>
+</div>
 <!--#footer-->
 <script src="/common.js?v=__BUILD__"></script>
 <script>
@@ -69,7 +84,7 @@
   };
 
   // A tracking link (#t=…) or the copy saved on this device.
-  var m = location.hash.match(/t=([A-Za-z0-9_-]{20,})/);
+  var m = location.hash.match(/t=([A-Za-z0-9_.-]{20,})/);
   if (m) { token = m[1]; history.replaceState(null, "", location.pathname); }
   else {
     var rc = QS.store.get("qs_receipt"), ss = QS.store.get("qs_track_session");
@@ -101,6 +116,7 @@
     $("tNoteTitle").textContent = r.stage === "declined" ? "Why we couldn’t approve this application" : "Note from QuickServe";
     $("tMsg").textContent = r.message || "";
     $("tUpload").hidden = !r.canUpload;
+    $("tPas").hidden = !r.statementAvailable;
   }
 
   // Keeps the page current while it's open: every 30 s while on screen, and
@@ -150,6 +166,40 @@
     x.onerror = function () { $("tProg").hidden = true; $("tAlert").textContent = "The upload stopped. Check your connection and try again."; $("tAlert").hidden = false; };
     x.send(file);
   });
+
+  // The statement opens in a frame that can't run scripts, scaled to fit the phone.
+  var PAGE_W = 794;
+  function fitPas() {
+    var f = $("pasBox").firstChild; if (!f) return;
+    var w = Math.min(PAGE_W, $("pasScroll").clientWidth - 16), k = w / PAGE_W;
+    var h = f.contentDocument && f.contentDocument.documentElement ? f.contentDocument.documentElement.scrollHeight : 1123;
+    f.style.height = h + "px"; f.style.transform = "scale(" + k + ")";
+    $("pasBox").style.width = w + "px"; $("pasBox").style.height = Math.ceil(h * k) + "px";
+  }
+  $("tPasOpen").onclick = function () {
+    var b = this; b.disabled = true; $("tPasAlert").hidden = true;
+    var x = new XMLHttpRequest();
+    x.open("GET", QS.API + "/v2/track/" + current.reference + "/statement");
+    x.setRequestHeader("X-Track-Token", token);
+    x.onload = function () {
+      b.disabled = false;
+      var j = {}; try { j = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status !== 200 || !j.html) { $("tPasAlert").textContent = j.error || "The statement didn't open. Try again."; $("tPasAlert").hidden = false; return; }
+      var f = document.createElement("iframe");
+      f.setAttribute("sandbox", "allow-same-origin allow-modals");
+      f.setAttribute("title", "Pre-Agreement Statement");
+      f.style.cssText = "border:0;display:block;width:" + PAGE_W + "px;transform-origin:0 0";
+      f.onload = fitPas;
+      $("pasBox").innerHTML = ""; $("pasBox").appendChild(f);
+      f.srcdoc = j.html;
+      $("pasView").hidden = false; document.body.style.overflow = "hidden";
+    };
+    x.onerror = function () { b.disabled = false; $("tPasAlert").textContent = "Check your connection and try again."; $("tPasAlert").hidden = false; };
+    x.send();
+  };
+  $("pasPrint").onclick = function () { var f = $("pasBox").firstChild; if (f) { try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) { window.print(); } } };
+  $("pasClose").onclick = function () { $("pasView").hidden = true; $("pasBox").innerHTML = ""; document.body.style.overflow = ""; };
+  window.addEventListener("resize", fitPas);
 
   if (token) lookUp({ trackToken: token }); else showFind();
 })();

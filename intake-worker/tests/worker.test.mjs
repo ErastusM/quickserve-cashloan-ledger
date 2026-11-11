@@ -11,7 +11,7 @@ import { normalisePhone, sniffMime, validateApplication, loanCost, yymm, formatR
 // ---- fakes ---------------------------------------------------------------------
 function fakeD1() {
   const db = new DatabaseSync(":memory:");
-  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql", "0003_recommendations.sql", "0004_push.sql", "0005_audit.sql", "0006_contact.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
+  db.exec(["0001_init.sql", "0002_refs_ids_amounts.sql", "0003_recommendations.sql", "0004_push.sql", "0005_audit.sql", "0006_contact.sql", "0007_statement.sql"].map((f) => readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")).join("\n"));
   const stmt = (sql, args = []) => ({
     bind: (...a) => stmt(sql, a),
     first: async () => db.prepare(sql).get(...args) ?? null,
@@ -26,7 +26,7 @@ function fakeR2() {
   return {
     store,
     put: async (k, v, o) => { store.set(k, { body: v, o }); },
-    get: async (k) => (store.has(k) ? { body: store.get(k).body } : null),
+    get: async (k) => (store.has(k) ? { body: store.get(k).body, text: async () => String(store.get(k).body) } : null),
     delete: async (k) => { store.delete(k); }
   };
 }
@@ -398,6 +398,33 @@ test("tracking by reference + cellphone gives a 24-hour pass to refresh and uplo
   assert.equal((await call(env, "POST", "/v2/track", { body: { trackToken: forged } })).status, 404);
   const other = first.sessionToken.replace(d.reference, "QSA-2611-9999");
   assert.equal((await call(env, "PUT", `/v2/track/QSA-2611-9999/files/bank`, { raw: PDF, headers: { "X-Track-Token": other } })).status, 404);
+});
+
+test("staff send the Pre-Agreement Statement; the applicant opens it from a private link", async () => {
+  const env = makeEnv();
+  const d = await draftWithDocs(env);
+  const sub = await (await call(env, "POST", `/v2/applications/${d.reference}/submit`, { body: consent, headers: { "X-Upload-Token": d.uploadToken } })).json();
+  const html = "<!doctype html><html><body><h1>Pre-Agreement Statement</h1></body></html>";
+  const send = (b, h = staff) => call(env, "POST", `/v2/admin/applications/${d.reference}/statement`, { headers: h, body: b });
+  assert.equal((await send({ html })).status, 409, "only once approved");
+  await call(env, "POST", `/v2/admin/applications/${d.reference}/status`, { headers: staff, body: { status: "approved" } });
+  assert.equal((await send({ html: "<!doctype html><img src=x onerror=alert(1)>" })).status, 400, "no script-like content");
+  assert.equal((await send({ html: "<!doctype html><script>x</script>" })).status, 400);
+  assert.equal((await send({ html }, { Authorization: "Bearer stranger-session" })).status, 403);
+  const r = await (await send({ html, total: "N$ 2,600.00", due: "2026-11-25", validUntil: "2026-11-16" })).json();
+  assert.match(r.link, /^https:\/\/quickserve\.group\/track#t=s\.QSA-\d{4}-\d{4}\.\d{13}\.[0-9a-f]{64}$/);
+  const pass = r.link.split("#t=")[1];
+  const t = await (await call(env, "POST", "/v2/track", { body: { trackToken: pass } })).json();
+  assert.equal(t.statementAvailable, true);
+  const got = await (await call(env, "GET", `/v2/track/${d.reference}/statement`, { headers: { "X-Track-Token": pass } })).json();
+  assert.equal(got.html, html);
+  // the applicant's own tracking token works too; strangers don't
+  assert.equal((await call(env, "GET", `/v2/track/${d.reference}/statement`, { headers: { "X-Track-Token": sub.trackToken } })).status, 200);
+  assert.equal((await call(env, "GET", `/v2/track/${d.reference}/statement`, { headers: { "X-Track-Token": "nope-nope-nope-nope-nope" } })).status, 403);
+  const log = await (await call(env, "GET", "/v2/admin/audit", { headers: staff })).json();
+  const types = log.events.map((e) => e.type);
+  assert.ok(types.includes("statement_issued") && types.includes("statement_viewed"));
+  assert.equal(log.events.find((e) => e.type === "statement_issued").detail.total, "N$ 2,600.00");
 });
 
 test("CORS only answers the website and the admin console", async () => {

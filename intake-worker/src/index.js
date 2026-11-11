@@ -8,6 +8,7 @@
 //   POST   /v2/applications/:id/submit           hand in → { trackToken }         X-Upload-Token
 //   POST   /v2/track                             { reference, phone } or { trackToken } → status
 //   PUT    /v2/track/:id/files/:kind             upload a requested document      X-Track-Token
+//   GET    /v2/track/:id/statement               the Pre-Agreement Statement      X-Track-Token
 //
 // Staff (Authorization: Bearer <Supabase access token from the admin console>,
 //        or the OWNER_TOKEN secret as a fallback)
@@ -22,6 +23,7 @@
 //   POST   /v2/admin/push/unsubscribe               { endpoint }
 //   POST   /v2/admin/push/test                      sends a test to your devices
 //   POST   /v2/admin/applications/:id/whatsapp-sent  staff confirm the applicant was told
+//   POST   /v2/admin/applications/:id/statement     { html, total, due, validUntil } → { link }  issue the Pre-Agreement Statement
 //   POST   /v2/admin/applications/:id/recommend     { recommendation: approve|decline, note }
 //   POST   /v2/admin/applications/:id/converted     { clientId, loanId, clientRef, loanRef }   owners only
 //
@@ -80,6 +82,7 @@ async function route(request, env, ctx) {
   if ((p = path.match(/^\/v2\/applications\/(QSA-\d{4}-\d{4,5})\/submit$/)) && m === "POST") return submit(request, env, p[1], ctx);
   if (path === "/v2/track" && m === "POST") return track(request, env);
   if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/files\/([a-z]+)$/)) && m === "PUT") return uploadRequestedFile(request, env, p[1], p[2], ctx);
+  if ((p = path.match(/^\/v2\/track\/(QSA-\d{4}-\d{4,5})\/statement$/)) && m === "GET") return readStatement(request, env, p[1]);
 
   // ---- staff
   if (path.startsWith("/v2/admin/") || path === "/applications") {
@@ -95,6 +98,7 @@ async function route(request, env, ctx) {
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/status$/)) && m === "POST") return setStatus(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/affordability$/)) && m === "PUT") return saveAffordability(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/whatsapp-sent$/)) && m === "POST") return whatsappSent(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/statement$/)) && m === "POST") return issueStatement(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/recommend$/)) && m === "POST") return recommend(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/converted$/)) && m === "POST") return markConverted(request, env, staff, p[1]);
   }
@@ -403,6 +407,8 @@ async function track(request, env) {
     submittedAt: app.submitted_at,
     missing: missingKinds(files),
     canUpload: app.status === "info_requested" && Boolean(body.trackToken || session),
+    statementAvailable: Boolean(app.statement_key && (body.trackToken || session)),
+    statementIssuedAt: app.statement_key ? app.statement_issued_at : null,
     sessionToken: session
   });
 }
@@ -426,7 +432,44 @@ async function uploadRequestedFile(request, env, id, kind, ctx) {
   return json(request, env, file, 201);
 }
 
+// The applicant opens the statement we issued (any tracking pass or link).
+async function readStatement(request, env, id) {
+  const sessionId = await readTrackSession(env.TRACK_SESSION_SECRET, request.headers.get("X-Track-Token"));
+  const app = sessionId === id ? await loadApp(env, id) : await requireToken(request, env, id, "X-Track-Token", "track_token_hash");
+  if (!app.statement_key) throw new HttpError(404, "There is no Pre-Agreement Statement for this application yet.");
+  const object = await env.DOCS.get(app.statement_key);
+  if (!object) throw new HttpError(404, "There is no Pre-Agreement Statement for this application yet.");
+  await eventOnce(env, id, "applicant", "statement_viewed", null);
+  return json(request, env, { html: await object.text(), issuedAt: app.statement_issued_at });
+}
+
 // ---- staff ---------------------------------------------------------------------
+
+// Staff issue the Pre-Agreement Statement: we keep the exact page the
+// applicant will see, and hand back a private link for WhatsApp.
+const STATEMENT_DAYS = 14;
+async function issueStatement(request, env, staff, id) {
+  const app = await loadApp(env, id);
+  if (!["approved", "converted"].includes(app.status)) throw new HttpError(409, "Approve the application before sending the statement.");
+  const body = await request.json().catch(() => ({}));
+  const html = String(body.html || "");
+  if (!/^<!doctype html>/i.test(html) || html.length > 1_500_000) throw new HttpError(400, "That statement couldn't be saved.");
+  // The page is shown to the applicant: no scripts or script-like attributes.
+  if (/<script|<iframe|<object|<embed|\son[a-z]+\s*=|javascript:/i.test(html)) throw new HttpError(400, "That statement couldn't be saved.");
+  if (!env.TRACK_SESSION_SECRET) throw new HttpError(503, "Statement links aren't set up yet.");
+  const t = now();
+  const key = `statements/${id}/${t.replace(/[:.]/g, "-")}.html`;
+  await env.DOCS.put(key, html, { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+  await env.DB.prepare(`UPDATE applications SET statement_key = ?, statement_issued_at = ? WHERE id = ?`).bind(key, t, id).run();
+  await event(env, id, "staff:" + staff.email, "statement_issued", {
+    total: body.total == null ? null : String(body.total).slice(0, 40),
+    due: body.due == null ? null : String(body.due).slice(0, 20),
+    validUntil: body.validUntil == null ? null : String(body.validUntil).slice(0, 20)
+  });
+  const pass = await makeTrackSession(env.TRACK_SESSION_SECRET, id, STATEMENT_DAYS * 86_400_000);
+  const site = env.PUBLIC_SITE || "https://quickserve.group";
+  return json(request, env, { link: site + "/track#t=" + pass, days: STATEMENT_DAYS, issuedAt: t });
+}
 
 async function listApplications(request, env, legacyShape) {
   const url = new URL(request.url);
@@ -656,7 +699,8 @@ async function eventOnce(env, id, actor, type, detail) {
 const AUDIT_LABELS = {
   draft_created: "Started an application", submitted: "Handed in", document_added: "Sent a requested document",
   opened: "Opened the application", document_viewed: "Viewed a document", whatsapp_sent: "Confirmed the applicant was told on WhatsApp", contacted: "Contacted the applicant", affordability_saved: "Saved the affordability worksheet",
-  recommended: "Recommended", status: "Changed status"
+  recommended: "Recommended", status: "Changed status",
+  statement_issued: "Sent the Pre-Agreement Statement", statement_viewed: "Opened the Pre-Agreement Statement"
 };
 
 async function auditLog(request, env, staff) {
