@@ -68,7 +68,7 @@ genuinely competitive claim once a borrower understands it.
 
 ## `how-to-apply-video.mp4`
 
-A 90-second vertical video (780 × 1688, 60 fps, MP4/H.264 with AAC music) that walks a
+A 92-second vertical video (780 × 1688, 60 fps, MP4/H.264 with AAC music) that walks a
 client through applying on quickserve.group on a phone. It covers the quote
 slip, the four application sheets, documents, the customer copy and the
 tracking page, with large on-screen captions and a tap marker. It plays
@@ -105,7 +105,7 @@ can be posted anywhere without licensing worries. It's an upbeat
 drums, fading in and out. To rebuild the video with music:
 
 ```bash
-python3 marketing/how-to-apply/music.py /tmp/music.wav 90.6
+python3 marketing/how-to-apply/music.py /tmp/music.wav 91.6
 ffmpeg -i marketing/how-to-apply-video.mp4 -i /tmp/music.wav -map 0:v -map 1:a -c:v copy \
   -af "loudnorm=I=-18:TP=-1.5:LRA=9" -c:a aac -b:a 160k -shortest -movflags +faststart out.mp4
 ```
