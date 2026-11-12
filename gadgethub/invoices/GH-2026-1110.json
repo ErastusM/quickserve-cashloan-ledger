@@ -1,0 +1,21 @@
+{
+  "number": "GH-2026-1110",
+  "issueDate": "10 November 2026",
+  "dueDate": "10 November 2026",
+  "status": "final",
+  "client": {
+    "name": null,
+    "town": null,
+    "phone": null,
+    "email": null
+  },
+  "items": [
+    {
+      "description": "Samsung Galaxy S25 Ultra — Titanium Black, 256\u00a0GB",
+      "serial": "R5CY10CHX1H",
+      "condition": "New",
+      "qty": 1,
+      "unitPrice": 23000
+    }
+  ]
+}
