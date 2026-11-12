@@ -2139,6 +2139,7 @@ body.doc-open{overflow:hidden}
       }
       if(a.status==="declined"||a.status==="withdrawn") acts.push('<button class="btn ghost sm" id="aReopen">Reopen</button>');
       if(a.status==="approved"||a.status==="converted") acts.unshift('<button class="btn ghost sm" id="aPas">Pre-Agreement Statement</button>');
+      if(a.status==="converted") acts.unshift('<button class="btn sm" id="aPaidMsg">Tell client it’s paid</button>');
       acts.unshift('<button class="btn ghost sm" id="aContact">Contact applicant</button>');
       var pendingWa = a.contact_pending ? waLink(a.phone, waText(a, a.contact_pending, a.applicant_message)) : null;
 
@@ -2217,6 +2218,15 @@ body.doc-open{overflow:hidden}
       }
       if($("waDone")) $("waDone").onclick=function(){ this.disabled=true; appApi("POST","/v2/admin/applications/"+a.id+"/whatsapp-sent",{}).then(function(r){ toast(r._ok?"Noted: the applicant was told.":(r.error||"Couldn't save."), r._ok?"":"err"); render(); }); };
       if($("aPas")) $("aPas").onclick=function(){ openPas(a); };
+      if($("aPaidMsg")) $("aPaidMsg").onclick=function(){
+        var l=state.loans.find(function(x){ return x.applicationRef===a.id; });
+        var paid=l?num(l.principal):(a.amount_cents||0)/100;
+        var total=l?num(paid+paid*num(l.interestRate)/100+num(l.serviceFee)):(a.total_cents||0)/100;
+        var due=l?l.dueDate:nextPayday(a.payday, todayISO());
+        var msg=payoutMessage(a, paid, total, due);
+        window.open(waLink(a.phone, msg),"_blank");
+        appApi("POST","/v2/admin/applications/"+a.id+"/whatsapp-sent",{ channel:"whatsapp", message:msg }).then(function(){ toast("WhatsApp is open with the payout message. Noted in the activity."); });
+      };
       if($("csStatement")) $("csStatement").onclick=function(){ openPas(a); };
       if($("csBank")) $("csBank").onclick=function(){ openPayoutDetails(a); };
       if($("csAgree")) $("csAgree").onclick=function(){ openOnlineAgreement(a); };
@@ -2700,9 +2710,11 @@ body.doc-open{overflow:hidden}
     var termNote = r.status==="paid" ? "settled" : (days<0 ? (-days)+" days overdue" : days+" days remaining");
     var isOpen=(r.status==="active"||r.status==="overdue");
     var remind=isOpen && cl ? waReminderLink(cl, r) : "";
+    var paidMsg=isOpen && cl ? waPaidLink(cl, r) : "";
     var h='<div class="drawer-actions">'
       + (isOpen?'<button class="btn sm" id="dlPay">Record payment</button>':'')
       + (isOpen||r.status==="written-off"?'<button class="btn ghost sm" id="dlRoll">Roll over</button>':'')
+      + (paidMsg?'<a class="btn ghost sm" id="dlPaidMsg" href="'+esc(paidMsg)+'" target="_blank" rel="noopener">Tell client it’s paid</a>':'')
       + (remind?'<a class="btn ghost sm" id="dlRemind" href="'+esc(remind)+'" target="_blank" rel="noopener">WhatsApp reminder</a>':'')
       + (isOpen?'<button class="btn ghost sm" id="dlContact">Log contact</button>':'')
       + '<button class="btn ghost sm" id="dlAgree">Loan agreement</button>'
@@ -2815,6 +2827,15 @@ body.doc-open{overflow:hidden}
     var plus=t.charAt(0)==="+", d=t.replace(/\D/g,""); if(!d) return "";
     if(plus) return d; if(d.indexOf("00")===0) return d.slice(2); if(d.indexOf("264")===0) return d;
     if(d.charAt(0)==="0") return "264"+d.slice(1); return "264"+d;
+  }
+  // "We've paid you" for any loan in the book (also hand-entered ones).
+  function waPaidLink(cl, r){
+    var phone=waPhone(cl.phone); if(!phone) return "";
+    var co=company(), l=r.loan, first=String(cl.name||"").split(" ")[0]||cl.name||"";
+    var text="Hello "+first+", this is QuickServe Cashloan. We've paid you "+money(l.principal)+(l.issueDate?" on "+fmtLong(l.issueDate):"")+".\n\n"
+      +"Please repay "+money(r.totalDue)+" on "+fmtLong(l.dueDate)+" into "+(co.repayBank||"FNB Namibia")+", account "+(co.repayAccountNo||"")+(co.repayBranch?", branch "+co.repayBranch:"")
+      +", with reference "+(l.applicationRef||loanRef(l))+". WhatsApp us the proof of payment.\n\nQuestions? Reply to this message.";
+    return "https://wa.me/"+phone+"?text="+encodeURIComponent(text);
   }
   function waReminderLink(cl, r){
     var phone=waPhone(cl.phone); if(!phone) return "";
