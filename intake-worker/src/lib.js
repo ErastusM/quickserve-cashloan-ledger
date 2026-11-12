@@ -171,7 +171,7 @@ export function validateApplication(input, env) {
   if (!row.phone) errors.phone = "Enter a Namibian cellphone number, for example 081 234 5678.";
   if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) errors.email = "Check the email address.";
   if (!row.employer) errors.employer = "Tell us who you work for.";
-  if (!row.net_income_cents) errors.netIncome = "Enter your take-home pay a month.";
+  if (!row.net_income_cents) errors.netIncome = "Enter your take-home pay per month.";
   if (!row.payday) errors.payday = "Tell us which day you get paid.";
   if (!row.kin_name) errors.kinName = "Enter a next of kin.";
   if (input.kinPhone && !row.kin_phone) errors.kinPhone = "Check your next of kin's number.";

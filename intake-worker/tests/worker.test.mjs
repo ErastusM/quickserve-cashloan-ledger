@@ -321,6 +321,15 @@ test("staff devices get an encrypted push for every handed-in application", asyn
   assert.equal(docMsg.body, "Ndapewa Shikongo sent the requested bank statement. Back in review.");
   assert.equal(docMsg.url, "/?app=" + reqd.reference);
 
+  // the owner marks an application as paid out → every staff device is told
+  await call(env, "POST", `/v2/admin/applications/${reqd.reference}/status`, { headers: staff, body: { status: "approved" } });
+  PUSHES.length = 0;
+  assert.equal((await call(env, "POST", `/v2/admin/applications/${reqd.reference}/converted`, { headers: staff, body: { clientId: "c9", loanId: "l9", clientRef: "QS-0100", loanRef: "QSL-2611-0140" } })).status, 200);
+  const paidMsg = await browserDecrypt(PUSHES.find((p) => p.url.endsWith("owner-phone")).body, ua, auth);
+  assert.equal(paidMsg.title, "Paid out " + reqd.reference);
+  assert.equal(paidMsg.body, "N$ 2 000 to Ndapewa Shikongo · loan QSL-2611-0140 · by staff@quickserve.group");
+  assert.equal(paidMsg.url, "/?app=" + reqd.reference);
+
   const t = await (await call(env, "POST", "/v2/admin/push/test", { headers: staff })).json();
   assert.deepEqual([t.sent, t.devices], [1, 1]);
 });

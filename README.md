@@ -1,151 +1,81 @@
-# QuickServe Cashloan Ledger
+# QuickServe Cashloan
 
-A local-first mobile web app for QuickServe Cashloan. It tracks clients, loans, repayments, rollovers, outstanding balances, overdue accounts, expenses, cash float, and monthly/yearly business figures.
+The systems behind **QuickServe Cashloan** (Quickserve Financial Services CC, reg. CC/2026/01904): payday loans at 30% interest, paid once on payday, applied for and managed online only.
 
-The app runs entirely in a phone browser and stores all data **on that device only** (browser local storage). Nothing is sent to a server — there is no backend.
+| Address | What it is | Code |
+|---|---|---|
+| **https://quickserve.group** | Public website: quote slip, online application, tracking page | `web/` |
+| **https://admin.quickserve.group** | Admin portal for staff: applications, loan book, reports | `admin/` |
+| **https://api.quickserve.group** | Application service that stores applications, documents and signatures | `intake-worker/` |
 
-**Live app:** https://erastusm.github.io/quickserve-cashloan-ledger/
+All three run on Cloudflare Workers. The loan book (clients, loans, payments, expenses) lives in Supabase.
 
-## Key Features
+## How a loan works, end to end
 
-- Dashboard: outstanding, overdue, due this month, money collected, revenue, net profit, and active clients at a glance. Every figure is tappable and opens the matching filtered view.
-- Cash float: cash on hand, out on loan, and total funds, backed by a running bank-style ledger of every movement.
-- Client management: a stable reference number (QS-0001, QS-0002, …) plus names, phone numbers, ID numbers, employer, address, next of kin, and notes. References are searchable and never renumber when a client is deleted.
-- Loan tracking: amount, interest rate, service fee, issue date, due date, payment status, and write-off status.
-- **Rollover:** extend an unpaid loan — push the due date out and charge another interest cycle — without creating a second loan or faking a cash movement.
-- **Reminders:** one tap on an open loan builds a message with the balance and due date, ready to send over WhatsApp or SMS, or to copy.
-- **Search:** find loans by client, purpose, status or amount; find payments by client, method, reference, note or amount.
-- Payment tracking: repayments are linked to loans, so collected money, revenue, principal recovery, and outstanding amounts are calculated automatically.
-- Expense tracking: record business costs so reports show true profit.
-- Per-client statement: open a client to see every loan and payment with a running balance, then copy, share, or export it.
-- PIN lock: protect the loan book on a phone with a passcode asked each time the app opens.
-- Reports: monthly, yearly and all-time figures, a monthly breakdown table, and a collections trend chart.
-- **Book health:** the dashboard sorts what is still owed by how late it is — current, rolled over, 1–30, 31–60, 61–90 and over 90 days late — and shows how much is at risk. The **At risk** filter on Loans lists those loans.
-- **Losses & costs, and first-time vs repeat clients:** Reports shows the loss rate, loss cover, rollover share and cost-to-income for the selected period, and compares clients' first loans with repeat loans.
-- **Investor report:** a one-page summary of the whole book — lifetime performance, portfolio quality, capital and cash position, a year-by-year table and a modelled forward view — for handing to a lender or investor. It is **aggregate only**: no client names, phone numbers or ID numbers appear in it. Copy it, share it, download it as a self-contained HTML file, or print / save it as a PDF.
-- CSV export for the loan book, payments, and expenses.
-- **Backup, with warnings:** save and restore the full loan book as a JSON file, optionally encrypted. The dashboard warns when the last backup is getting old.
-- Offline / installable: a service worker and web app manifest let the app be installed to a phone home screen and used offline.
+1. **Apply.** On quickserve.group the client picks an amount on the quote slip and sees the full cost before applying. They fill in four sheets (the loan, about them, documents, check & sign) and upload photos or PDFs of their ID or passport, latest payslip and 3 months' bank statements. They get a customer copy with a **QSA-YYMM-NNNN** reference.
+2. **Track.** The client follows their application on the tracking page (by reference + cellphone, or from a WhatsApp link). It shows one stamp per step: Received → In review → Approved → Paid. If something is missing, staff ask for it and the client uploads it there.
+3. **Review.** In the admin portal, staff open the application, view the documents and complete the affordability worksheet.
+   - **Analysts** approve up to their limit and recommend above it.
+   - **Owners** approve, decline and pay out.
+   - Every action is recorded in the **Application audit**.
+4. **After approval**, all on the client's phone:
+   1. Read and accept the **Pre-Agreement Statement**.
+   2. Give their bank account or e-wallet details, and a street address.
+   3. Sign the one-page **Payday Loan Agreement** with their finger.
 
-## Figure Definitions
+   Staff send each link on WhatsApp, follow progress in **Client steps**, and get a push notification at every step.
+5. **Pay out.** The owner pays the client, then taps **Mark as paid out**. That:
+   - creates the loan in the ledger, with a **QSL-YYMM-NNNN** number
+   - notifies every staff device
+   - opens WhatsApp with the payout and repayment message for the client
+6. **Repay and collect.** The loan book tracks repayments, overdue loans, rollovers, write-offs, expenses, the cash float and reports. Repayment details: FNB Namibia, Quickserve Financial Services CC, account 64284783965, branch 282672, reference = the client's name and QSA-/QSL- number.
 
-These match the labels shown in the app.
+## What's in this repository
 
-**Period figures** (Reports, for the selected month / year / all-time)
+| Folder | Contents |
+|---|---|
+| `web/` | Website pages, styles and scripts. Shared header, footer and head are in `web/_partials/`. |
+| `admin/` | The admin portal: a single page, `admin/index.html`. See `admin/README.md` for its features. |
+| `intake-worker/` | The application service (Cloudflare Worker, D1 database, R2 file storage). Database changes are in `intake-worker/migrations/`, tests in `intake-worker/tests/`. |
+| `site/` | Build scripts that pack the website and the portal into Workers (`site/web-worker/`, `site/admin-worker/`, `site/assemble.sh`). |
+| `supabase/` | Database migrations for the loan book and staff roles. |
+| `documents/` | The client document pack (application form, statement, agreement, fee schedule, letters, privacy notice) as Word and PDF, generated from `documents/pack.json`. **Read `00-read-me-first` before using it.** |
+| `tools/` | Generators for the document pack, posters and flyer. |
+| `marketing/` | How-to video, launch posters, flyer and their sources. |
+| `docs/website/` | Cloudflare setup and the website implementation plan. |
+| `tests/` | Loan-book money tests. |
+| `app.js`, `index.html`, … (root) | The original phone app. It's retired and not online, but `app.js` still holds the money logic the tests check. |
 
-- **Cash out** — money handed to clients as new loans.
-- **Collections** (shown as *Collected* on the dashboard) — all repayment money received from clients.
-- **Revenue** — the interest and service-fee portion of what was collected.
-- **Expenses** — business costs you record.
-- **Profit** (shown as *Net profit* on the dashboard) — revenue minus expenses.
-- **Principal recovered** — the original loan money that has been paid back.
-- **Collection rate** — amount paid divided by total due, on loans issued in that period.
+## Deploying
 
-**Position figures** (where the book stands right now)
+Every push to `main` runs `.github/workflows/deploy.yml`:
 
-- **Outstanding** — total still collectable: principal plus unpaid interest and fees.
-- **Capital out** — original loan money still not recovered.
-- **Overdue** — unpaid collectable balance where the due date has passed.
-- **Written off** — balances marked unrecoverable; excluded from outstanding and from the float.
+1. **Tests:** loan-book money tests, application-service tests, and a build of the website and portal.
+2. **If they pass, deploy:**
+   1. apply the database migrations
+   2. deploy the application service
+   3. deploy the admin portal
+   4. deploy the website
 
-**Credit quality** (Dashboard › Book health, Reports › Losses & costs)
+Pull requests run the tests only. The workflow needs one repository secret, `CLOUDFLARE_API_TOKEN`. Setup steps are in `docs/website/CLOUDFLARE-SETUP.md`.
 
-- **At risk** — collectable balance on open loans that are past due **or have been rolled over**. A rolled-over loan was not repaid on time, so it counts as at risk even while its new due date is still ahead.
-- **Days-late buckets** — open loans grouped by days past the current due date: 1–30, 31–60, 61–90, over 90. Paid and written-off loans are not included.
-- **Loss rate** — principal written off ÷ principal lent, on the loans issued in the period.
-- **Loss cover** — revenue earned ÷ principal written off, on those same loans. Below 1× means losses ate more than the interest and fees earned.
-- **Rolled over** — share of the period's loans that were rolled over at least once.
-- **Cost-to-income** — expenses ÷ revenue for the period.
-- **First loan / repeat** — a loan is a client's first when they had no earlier loan (by issue date); every later loan is a repeat.
+Secrets live in Cloudflare, never in this repository. The application service needs `TURNSTILE_SECRET`, `VAPID_PRIVATE_JWK` and `TRACK_SESSION_SECRET`.
 
-**Cash float**
-
-- **Capital added / withdrawn** — money you put into, or took out of, the business float. Your opening float is simply the first injection; there is no separate "starting capital" setting.
-- **Net capital** — capital added minus capital withdrawn: how much of your own money is still in the business.
-- **Cash on hand** — live cash balance: capital in − capital out + repayments − loans paid out − expenses.
-- **Out on loan** — principal still in clients' hands.
-- **Total funds** — cash on hand + out on loan, i.e. working capital.
-
-If cash on hand looks lower than the capital you put in, the difference is usually **out on loan** — the money is with clients, not missing. Total funds is the figure that reconciles.
-
-## Cash Trail Check
-
-Reports replays every cash movement in date order and reports the lowest point your float ever reached.
-
-You cannot lend money you do not have, so if the running balance ever goes **negative**, cash went into the business around that date which was never recorded. The check names the date and the shortfall. If the closing balance still matches the cash you actually hold, then an equal amount also left unrecorded — typically owner withdrawals. Totals can look right while the history is wrong, and this is what surfaces that.
-
-## Reconcile Cash
-
-**Reports > Cash flow > Reconcile cash**: count everything the float lives in — cash box, bank, e-wallet — enter the total, and the app compares it against cash on hand. A gap is by definition a recording error, and the report hunts the usual suspects for you:
-
-- **Movements of exactly the gap** — a duplicate of one of these, or one entered in error, explains the whole difference in one shot.
-- **Possible double entries** — same kind, same amount, same name, within days of each other.
-- **Loans paid beyond what was due** — a real overpayment, or a payment logged against the wrong loan.
-- **Payments with no loan** — counted in cash but invisible on loan screens; usually left behind by an old backup.
-
-The date and result of the last reconciliation are remembered, so the next gap can be bounded: if it matched on the 12th and is off on the 27th, the error happened in between. Reconcile regularly and the window stays small.
-
-## Staying Up To Date
-
-The app shows its build number in **Reports > Data status** (`App version`), read from the `?v=` query on its own script tag so it cannot drift from what was deployed.
-
-When a new build is published, the app detects it and shows a **"New version ready"** bar with Reload and dismiss buttons. It never reloads on its own — that would risk discarding a half-filled form. The bar only appears when the running page is genuinely older than the installed worker, so a normal launch after a release does not nag you about a version you already have.
-
-Note that GitHub Pages serves assets with `Cache-Control: max-age=600`, so a new release can take up to ten minutes to reach a device. If the figures look wrong right after a deploy, check `App version` before assuming a bug.
-
-## How Repayments Are Applied
-
-A repayment clears **interest and fees first**, then principal. Profit is therefore recognised early in a loan's life, and principal recovery comes later. A rollover adds another interest charge to the same loan; it moves no cash, so it never shows up as a new disbursement or collection.
-
-## Install on a Phone
-
-1. Open the live app link above in the phone browser (Chrome on Android, Safari on iPhone).
-2. Use the browser menu and choose **Add to Home screen** / **Install app**.
-3. Open it from the home screen icon. It now works offline.
-
-## Privacy and Your Data
-
-This repository is public so it can be hosted for free on GitHub Pages, so it ships **with no client data in it**. The first time you open the app it is an empty ledger.
-
-To load your real loan book onto a device:
-
-1. Open the app on the phone.
-2. Go to **Reports > Restore** and pick your backup `.json` file.
-
-Your data stays in that phone's browser only. It is never uploaded anywhere.
-
-**Backup habit:** use **Reports > Backup** regularly and keep the file somewhere safe (Google Drive, iCloud, OneDrive, WhatsApp to yourself). If the phone is lost or its browser data is cleared, the backup file is what restores the loan book. The dashboard shows a warning when the last backup is getting stale.
-
-**Encrypted backup:** **Reports > Encrypted backup** asks for a passphrase and writes an AES-GCM encrypted file, with the key derived via PBKDF2-SHA256. Restore detects the format and asks for the passphrase. Use this if the backup will sit in cloud storage or a chat thread, since a plain backup contains names and ID numbers in readable text. **A forgotten passphrase cannot be recovered** — which is exactly why the plain backup stays available too.
-
-**Storage durability:** on load the app asks the browser to keep its storage (`navigator.storage.persist()`), which reduces the chance of the loan book being evicted when a device is low on space or the app goes unused. **Reports > Data status** shows whether the browser agreed. This is best effort, not a guarantee, and it is not a substitute for backups.
-
-**About the PIN:** the PIN lock keeps the book from being opened casually on a lost or borrowed phone. It is a client-side lock stored hashed in the browser; it is not full device encryption, so for highly sensitive use also rely on the phone's own lock screen.
-
-## Running Locally
-
-Open `index.html` directly, or serve the folder for full PWA behaviour:
-
-```powershell
-python -m http.server 8080
-```
-
-Then open `http://localhost:8080`, or from a phone on the same Wi-Fi use the computer's local IP, for example `http://192.168.8.121:8080`.
+**Coming-soon mode:** `SITE_MODE = "soon"` in `site/web-worker/wrangler.toml` makes quickserve.group show a holding page; `"live"` shows the full site. preview.quickserve.group always has the full site and is hidden from search engines.
 
 ## Tests
 
-The money maths — payment allocation, rollovers, write-offs, period figures and the cash float — are covered by regression tests that load the real `app.js` and exercise its actual functions rather than a copy of the logic:
-
-```powershell
-node tests/money.test.js
+```bash
+node tests/money.test.js                          # loan-book maths: payments, rollovers, write-offs, float
+node --test intake-worker/tests/worker.test.mjs   # application service: apply, review, statement, signing, payout, limits
 ```
 
-No dependencies and no framework; it needs only Node. These tests also run in CI and **must pass before the site deploys**, because a wrong balance is worse than a late release.
+Both need only Node 22 and run in the deploy workflow; a failing test stops the deploy.
 
-## Hosting (GitHub Pages)
+## Privacy and data
 
-The site is plain static files (HTML, CSS, JS) with no build step. On every push to `main`, the workflow in `.github/workflows/pages.yml` runs the tests and then publishes the repository root to GitHub Pages.
+This repository is public and contains **no client data and no secrets**. Applications, documents and signed agreements are stored in Cloudflare (private storage, no public links). The loan book is in Supabase, reachable only by signed-in staff. Declined and withdrawn applications lose their documents after 180 days, and unfinished applications are deleted after 7 days. The privacy notice is at https://quickserve.group/privacy.
 
-When releasing, bump the cache version in **both** `sw.js` (`CACHE_NAME`) and the `?v=` query strings in `sw.js` and `index.html`, so installed phones pick up the update instead of serving the cached copy.
+## Before lending to real clients
 
-To re-render the PNG app icons from the SVG source, use any SVG-to-PNG tool to produce `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, and `favicon-32.png`.
+QuickServe's NAMFISA registration is in progress. The website and documents deliberately make no registration claim until the certificate is issued. See `documents/pdf/00-read-me-first.pdf` for the remaining legal checks.
