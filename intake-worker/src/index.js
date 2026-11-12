@@ -114,7 +114,7 @@ async function route(request, env, ctx) {
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/agreement$/)) && m === "POST") return issueAgreement(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/agreement$/)) && m === "GET") return readAgreementStaff(request, env, staff, p[1]);
     if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/recommend$/)) && m === "POST") return recommend(request, env, staff, p[1]);
-    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/converted$/)) && m === "POST") return markConverted(request, env, staff, p[1]);
+    if ((p = path.match(/^\/v2\/admin\/applications\/(QSA-\d{4}-\d{4,5})\/converted$/)) && m === "POST") return markConverted(request, env, staff, p[1], ctx);
   }
 
   throw new HttpError(404, "Not found.");
@@ -234,7 +234,7 @@ async function event(env, id, actor, type, detail) {
 }
 
 async function readJson(request) {
-  try { return await request.json(); } catch { throw new HttpError(400, "Expected a JSON body."); }
+  try { return await request.json(); } catch { throw new HttpError(400, "Something went wrong. Try again."); }
 }
 
 // ---- public: draft → files → submit -----------------------------------------
@@ -552,8 +552,8 @@ async function storeBank(env, id, b, by) {
 }
 async function saveBankApplicant(request, env, id, ctx) {
   const app = await applicantApp(request, env, id);
-  if (app.status !== "approved") throw new HttpError(409, "We're not waiting for bank details on this application.");
-  if (app.agreement_signed_at) throw new HttpError(409, "Your agreement is signed. To change your bank details, WhatsApp us.");
+  if (app.status !== "approved") throw new HttpError(409, "We're not waiting for payment details on this application.");
+  if (app.agreement_signed_at) throw new HttpError(409, "Your agreement is signed. To change your payment details, WhatsApp us.");
   const b = readBank(await readJson(request));
   await storeBank(env, id, b, "applicant");
   await laterStep(ctx, notifyStaff(env, { title: "Bank details in " + id, body: (app.full_name || "The applicant") + " gave their payment details (" + payoutLabel(b) + ").", url: "/?app=" + id, tag: id + "-bank" }));
@@ -862,7 +862,7 @@ async function recommend(request, env, staff, id) {
   return json(request, env, { ok: true });
 }
 
-async function markConverted(request, env, staff, id) {
+async function markConverted(request, env, staff, id, ctx) {
   requireOwner(staff);
   const app = await loadApp(env, id);
   if (app.status !== "approved") throw new HttpError(409, "Approve the application before creating the loan.");
@@ -876,6 +876,14 @@ async function markConverted(request, env, staff, id) {
        converted_at = ?, updated_at = ? WHERE id = ?`
   ).bind(clientId, loanId, clientRef, loanRef, t, t, id).run();
   await event(env, id, "staff:" + staff.email, "status", { from: "approved", to: "converted", clientId, loanId, clientRef, loanRef });
+  // Every staff device hears about a payout, like a new application.
+  const amount = "N$ " + Math.round((app.amount_cents || 0) / 100).toLocaleString("en-US").replace(/,/g, " ");
+  await laterStep(ctx, notifyStaff(env, {
+    title: "Paid out " + id,
+    body: [amount + " to " + (app.full_name || "the applicant"), loanRef ? "loan " + loanRef : null, "by " + staff.email].filter(Boolean).join(" · "),
+    url: "/?app=" + id,
+    tag: id + "-paid"
+  }));
   return json(request, env, { ok: true });
 }
 

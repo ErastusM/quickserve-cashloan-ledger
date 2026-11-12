@@ -2299,6 +2299,15 @@ body.doc-open{overflow:hidden}
     if(d<=from) d=at(from.getFullYear(),from.getMonth()+1);
     return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
   }
+  // WhatsApp to the client once the money is sent: where it went, and how to repay.
+  function payoutMessage(a, paid, total, due){
+    var co=company();
+    var to=a.payout_method==="ewallet" ? "your "+a.ewallet_provider+" on "+fmtPhone(a.ewallet_number)
+      : a.bank_saved_at ? "your "+a.bank_name+" account ending "+String(a.bank_account_no||"").slice(-4) : "you";
+    return "Hello "+firstName(a.full_name)+", this is QuickServe Cashloan. We've paid "+money(paid)+" to "+to+".\n\n"
+      +"Please repay "+money(total)+" on "+fmtLong(due)+" into "+(co.repayBank||"FNB Namibia")+", account "+(co.repayAccountNo||"")+(co.repayBranch?", branch "+co.repayBranch:"")
+      +", with reference "+a.id+". WhatsApp us the proof of payment.\n\nQuestions? Reply to this message.";
+  }
   function openPaidOut(a){
     var already=state.loans.find(function(l){ return l.applicationRef===a.id; });
     var nid=String(a.national_id||"").toUpperCase().replace(/[^A-Z0-9]/g,""), tel=String(a.phone||"").replace(/\D/g,"").slice(-9);
@@ -2326,6 +2335,10 @@ body.doc-open{overflow:hidden}
       if(issue>todayISO()){ ferr("The payout date can't be in the future."); return; }
       if(pr*(rate/100)+fee > pr*0.3+0.001){ ferr("Interest + fees are above the 30% cost-of-credit cap."); return; }
       var btn=$("modalSave"); btn.disabled=true; btn.textContent="Saving…"; ferr("");
+      // Opened now, while the click still counts, so phones don't block it;
+      // it becomes the WhatsApp message to the client once the payout is saved.
+      var waWin=null; try{ waWin=window.open("about:blank","_blank"); }catch(e){}
+      function dropWa(){ if(waWin){ try{ waWin.close(); }catch(e){} waWin=null; } }
       var newClient=null, newLoan=null;
       var step = already ? Promise.resolve({ok:true}) : saveLedger(function(data){
         var clientId=clientSel;
@@ -2342,14 +2355,18 @@ body.doc-open{overflow:hidden}
         assignMissingRefs(data);
       });
       step.then(function(res){
-        if(res.auth===false){ closeModal(); signOut(); return; }
-        if(res.error){ btn.disabled=false; btn.textContent="Create loan"; ferr(res.error==="busy"?"Someone changed the book just now — try again.":"Couldn't save ("+res.error+")."); return; }
+        if(res.auth===false){ dropWa(); closeModal(); signOut(); return; }
+        if(res.error){ dropWa(); btn.disabled=false; btn.textContent="Create loan"; ferr(res.error==="busy"?"Someone changed the book just now — try again.":"Couldn't save ("+res.error+")."); return; }
         var loan=state.loans.find(function(l){ return l.applicationRef===a.id; }), cl=loan?client(loan.clientId):null;
-        if(!loan){ btn.disabled=false; btn.textContent="Create loan"; ferr("The loan wasn't found after saving. Refresh and check the Loans page."); return; }
+        if(!loan){ dropWa(); btn.disabled=false; btn.textContent="Create loan"; ferr("The loan wasn't found after saving. Refresh and check the Loans page."); return; }
         appApi("POST","/v2/admin/applications/"+a.id+"/converted",{ clientId:loan.clientId, loanId:loan.id, clientRef:cl&&cl.ref, loanRef:loan.ref }).then(function(r){
           btn.disabled=false; btn.textContent="Create loan";
-          if(!r._ok){ ferr("Loan "+loan.ref+" is in the ledger, but the application couldn't be updated ("+(r.error||r._status)+"). Click Create loan again to link it."); return; }
-          closeModal(); toast("Paid out: loan "+loan.ref+(cl&&cl.ref?" for "+cl.ref:"")+"."); render();
+          if(!r._ok){ dropWa(); ferr("Loan "+loan.ref+" is in the ledger, but the application couldn't be updated ("+(r.error||r._status)+"). Click Create loan again to link it."); return; }
+          var msg=payoutMessage(a, pr, pr*(1+rate/100)+fee, due);
+          var link=waLink(a.phone, msg);
+          if(waWin) waWin.location.href=link; else window.open(link,"_blank");
+          appApi("POST","/v2/admin/applications/"+a.id+"/whatsapp-sent",{ channel:"whatsapp", message:msg });
+          closeModal(); toast("Paid out: loan "+loan.ref+(cl&&cl.ref?" for "+cl.ref:"")+". WhatsApp is open with the message for the client."); render();
         });
       });
     });
