@@ -56,6 +56,10 @@ const now = () => new Date().toISOString();
 
 export default {
   async fetch(request, env, ctx) {
+    // The site and portal only call us over https; refuse plain http so no
+    // application data ever travels unencrypted (no redirect: a redirected
+    // POST could re-send the data in the clear).
+    if (new URL(request.url).protocol === "http:") return new Response("Use https.", { status: 400, headers: { "Content-Type": "text/plain" } });
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     try {
       return await route(request, env, ctx);

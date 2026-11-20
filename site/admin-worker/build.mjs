@@ -43,6 +43,9 @@ function page(body, type, status, cache) {
 }
 export default {
   async fetch(request) {
+    // Never serve the portal over plain http: browsers mark that "Not secure".
+    const reqUrl = new URL(request.url);
+    if (reqUrl.protocol === "http:") return Response.redirect("https://" + reqUrl.host + reqUrl.pathname + reqUrl.search, 301);
     const url = new URL(request.url);
     if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
     if (url.pathname === "/admin") return Response.redirect(url.origin + "/admin/", 301);
