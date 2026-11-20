@@ -70,6 +70,8 @@ function send(file, status, hidden) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Never serve the site over plain http: browsers mark that "Not secure".
+    if (url.protocol === "http:") return Response.redirect("https://" + url.host + url.pathname + url.search, 301);
     if (url.hostname.startsWith("www.")) return Response.redirect("https://" + url.hostname.slice(4) + url.pathname + url.search, 301);
     if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
     // The preview address (and preview mode) is never indexed by search engines.
